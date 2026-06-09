@@ -3,7 +3,9 @@
 var COORDINATE_FORMAT_GO_NO_I = 0
 var COORDINATE_FORMAT_GOMOKU_WITH_I = 1
 var COORDINATE_FORMAT_NUMERIC = 2
-var COORDINATE_FORMAT_NONE = 3
+var COORDINATE_FORMAT_NUMERIC_ONE_BASED = 3
+var COORDINATE_FORMAT_HEX = 4
+var COORDINATE_FORMAT_NONE = 5
 var GO_ALPHABET = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
 var GOMOKU_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 var SGF_COORDINATE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -27,6 +29,10 @@ function boardPointCount(xSize, ySize) {
 function effectiveCoordinateFormat(width, height, preferredFormat) {
     if (preferredFormat === COORDINATE_FORMAT_NONE)
         return COORDINATE_FORMAT_NONE
+    if (preferredFormat === COORDINATE_FORMAT_HEX)
+        return COORDINATE_FORMAT_HEX
+    if (preferredFormat === COORDINATE_FORMAT_NUMERIC_ONE_BASED)
+        return COORDINATE_FORMAT_NUMERIC_ONE_BASED
     if (width >= 25 || height >= 25)
         return COORDINATE_FORMAT_NUMERIC
     if (preferredFormat === COORDINATE_FORMAT_GOMOKU_WITH_I)
@@ -47,17 +53,29 @@ function gtpAlphabetIndex(text) {
         var digit = alphabet.indexOf(text.charAt(i).toUpperCase())
         if (digit < 0)
             return -1
-        value = value * alphabet.length + digit
+        value = value * alphabet.length + digit + 1
     }
-    return value
+    return value - 1
+}
+
+function gtpColumnName(x) {
+    var alphabet = GO_ALPHABET
+    var value = Math.floor(Number(x))
+    if (isNaN(value) || value < 0)
+        return ""
+    var text = ""
+    do {
+        var digit = value % alphabet.length
+        text = alphabet.charAt(digit) + text
+        value = Math.floor(value / alphabet.length) - 1
+    } while (value >= 0)
+    return text
 }
 
 function gtpCoordinateName(x, y, width, height) {
     if (x < 0 || y < 0)
         return "pass"
-    if (width > 25 || height > 25)
-        return "(" + x + "," + y + ")"
-    return GO_ALPHABET.charAt(x) + String(height - y)
+    return gtpColumnName(x) + String(height - y)
 }
 
 function parseGtpCoordinateName(text, width, height) {
@@ -117,6 +135,13 @@ function xCoordinateText(x, width, height, preferredFormat) {
     var format = effectiveCoordinateFormat(width, height, preferredFormat)
     if (format === COORDINATE_FORMAT_NONE)
         return ""
+    if (format === COORDINATE_FORMAT_HEX) {
+        if (width > GOMOKU_ALPHABET.length)
+            return String(x + 1)
+        return x >= 0 && x < GOMOKU_ALPHABET.length ? GOMOKU_ALPHABET.charAt(x) : String(x + 1)
+    }
+    if (format === COORDINATE_FORMAT_NUMERIC_ONE_BASED)
+        return String(x + 1)
     if (format === COORDINATE_FORMAT_NUMERIC)
         return String(x)
     var alphabet = coordinateAlphabet(format)
@@ -127,6 +152,10 @@ function yCoordinateText(y, width, height, preferredFormat) {
     var format = effectiveCoordinateFormat(width, height, preferredFormat)
     if (format === COORDINATE_FORMAT_NONE)
         return ""
+    if (format === COORDINATE_FORMAT_HEX)
+        return String(y + 1)
+    if (format === COORDINATE_FORMAT_NUMERIC_ONE_BASED)
+        return String(y + 1)
     if (format === COORDINATE_FORMAT_NUMERIC)
         return String(y)
     return String(height - y)
@@ -138,6 +167,10 @@ function coordinateText(x, y, width, height, preferredFormat) {
         return ""
     if (format === COORDINATE_FORMAT_NUMERIC)
         return x + "," + y
+    if (format === COORDINATE_FORMAT_NUMERIC_ONE_BASED)
+        return (x + 1) + "," + (y + 1)
+    if (format === COORDINATE_FORMAT_HEX && width > GOMOKU_ALPHABET.length)
+        return (x + 1) + "," + (y + 1)
     return xCoordinateText(x, width, height, preferredFormat)
            + yCoordinateText(y, width, height, preferredFormat)
 }
@@ -150,6 +183,11 @@ function parseCoordinateText(text, width, height, preferredFormat) {
     if (numeric) {
         var nx = parseInt(numeric[1], 10)
         var ny = parseInt(numeric[2], 10)
+        if (format === COORDINATE_FORMAT_NUMERIC_ONE_BASED
+                || (format === COORDINATE_FORMAT_HEX && width > GOMOKU_ALPHABET.length)) {
+            nx -= 1
+            ny -= 1
+        }
         if (nx >= 0 && nx < width && ny >= 0 && ny < height)
             return { "x": nx, "y": ny }
         return null
@@ -157,15 +195,19 @@ function parseCoordinateText(text, width, height, preferredFormat) {
 
     if (format === COORDINATE_FORMAT_NUMERIC || format === COORDINATE_FORMAT_NONE)
         return null
+    if (format === COORDINATE_FORMAT_HEX && width > GOMOKU_ALPHABET.length)
+        return null
 
     var named = value.match(/^([A-Z])(\d+)$/i)
     if (!named)
         return null
 
     var alphabet = coordinateAlphabet(format)
+    if (format === COORDINATE_FORMAT_HEX)
+        alphabet = GOMOKU_ALPHABET
     var x = alphabet.indexOf(named[1].toUpperCase())
     var displayedY = parseInt(named[2], 10)
-    var y = height - displayedY
+    var y = format === COORDINATE_FORMAT_HEX ? displayedY - 1 : height - displayedY
     if (x < 0 || y < 0 || x >= width || y >= height)
         return null
     return { "x": x, "y": y }

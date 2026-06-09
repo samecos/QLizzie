@@ -28,19 +28,12 @@ Rectangle {
             verticalAlignment: Text.AlignVCenter
         }
 
-        RowLayout {
-            visible: app.ruleModeButtonsVisible()
-            spacing: app.compactLayout ? 3 : 4
-
-            RuleButton {
-                mode: app.gameRuleGomoku
-                text: app.trText("gameRuleGomoku")
-            }
-
-            RuleButton {
-                mode: app.gameRuleGo
-                text: app.trText("gameRuleGo")
-            }
+        GameRuleComboBox {
+            id: toolbarGameRuleCombo
+            app: toolbar.app
+            visible: app.packageMode !== app.packageModeGo
+            Layout.preferredWidth: app.compactLayout ? 106 : 132
+            implicitHeight: app.compactLayout ? 28 : 32
         }
 
         RuleVariantComboBox {
@@ -53,6 +46,7 @@ Rectangle {
 
         Rectangle {
             visible: app.packageMode !== app.packageModeGo
+                     && (app.ruleVariantComboVisible() || app.komiControlsVisible())
             Layout.preferredWidth: 1
             Layout.fillHeight: true
             Layout.topMargin: 7

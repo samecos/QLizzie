@@ -128,6 +128,7 @@ ApplicationWindow {
 
     readonly property int gameRuleGo: 0
     readonly property int gameRuleGomoku: 1
+    readonly property int gameRuleHex: 2
     property int gameRuleMode: gameRuleGo
     readonly property int gomokuRuleCon5: 0
     readonly property int gomokuRuleStdCon5: 1
@@ -159,7 +160,9 @@ ApplicationWindow {
     readonly property int coordinateDisplayGoNoI: 0
     readonly property int coordinateDisplayGomokuWithI: 1
     readonly property int coordinateDisplayNumeric: 2
-    readonly property int coordinateDisplayNone: 3
+    readonly property int coordinateDisplayNumericOneBased: 3
+    readonly property int coordinateDisplayHex: 4
+    readonly property int coordinateDisplayNone: 5
     property int coordinateDisplayMode: coordinateDisplayGoNoI
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
@@ -171,6 +174,7 @@ ApplicationWindow {
     property string six11EngineCommand: defaultGo7EngineCommand
     property string six13EngineCommand: defaultGo7EngineCommand
     property string persistedEngineCommand: ""
+    property bool legacyHexEngineCoordinates: false
 
     property bool engineAutoAnalyze: true
     property bool enginePaused: false
@@ -297,6 +301,11 @@ ApplicationWindow {
     onCandidateLabelTextColorChanged: rebuildEngineCandidateItems()
     onPackageModeChanged: rebuildEngineCandidateItems()
     onGameRuleModeChanged: rebuildEngineCandidateItems()
+    onLegacyHexEngineCoordinatesChanged: {
+        resetEngineSyncState()
+        clearEngineCandidates()
+        scheduleAutoAnalysis()
+    }
 
     menuBar: MenuBar {
         font.pixelSize: root.compactLayout ? 15 : 17
@@ -1284,6 +1293,18 @@ ApplicationWindow {
         return RuleSupport.gameRuleText(root)
     }
 
+    function gameRuleOptions() {
+        return RuleSupport.gameRuleOptions(root)
+    }
+
+    function gameRuleCurrentIndex() {
+        return RuleSupport.gameRuleCurrentIndex(root)
+    }
+
+    function setGameRuleFromIndex(index) {
+        RuleSupport.setGameRuleFromIndex(root, index)
+    }
+
     function goRuleOptions() {
         return RuleSupport.goRuleOptions(root)
     }
@@ -1403,16 +1424,59 @@ ApplicationWindow {
         return [ "rectangular_boardsize " + boardSizeX + " " + boardSizeY ]
     }
 
+    function legacyHexEngineCoordinateMode() {
+        return gameRuleMode === gameRuleHex && legacyHexEngineCoordinates
+    }
+
+    function engineCommunicationBoardWidth() {
+        if (!legacyHexEngineCoordinateMode())
+            return boardSizeX
+        return Math.max(1, 2 * Math.max(1, boardSizeX) + Math.max(1, boardSizeY) - 1)
+    }
+
+    function engineCommunicationBoardHeight() {
+        if (!legacyHexEngineCoordinateMode())
+            return boardSizeY
+        return Math.max(1, 2 * Math.max(1, boardSizeY))
+    }
+
+    function engineCommunicationPoint(x, y) {
+        if (!legacyHexEngineCoordinateMode())
+            return { "x": x, "y": y }
+        return { "x": 2 * x + y + 1, "y": 2 * y }
+    }
+
+    function boardPointFromEngineCommunication(x, y) {
+        if (!legacyHexEngineCoordinateMode())
+            return { "x": x, "y": y }
+        if (y % 2 !== 0)
+            return null
+        var boardY = y / 2
+        var rawX = x - 1 - boardY
+        if (rawX % 2 !== 0)
+            return null
+        return { "x": rawX / 2, "y": boardY }
+    }
+
     function engineCoordinateForNode(node) {
         if (!node)
             return ""
         if (node.isPass)
             return "pass"
-        return gtpCoordinateName(node.x, node.y, boardSizeX, boardSizeY)
+        var point = engineCommunicationPoint(node.x, node.y)
+        return gtpCoordinateName(point.x, point.y, engineCommunicationBoardWidth(), engineCommunicationBoardHeight())
     }
 
     function parseEngineCoordinate(text) {
-        return parseGtpCoordinateName(text, boardSizeX, boardSizeY)
+        var point = parseGtpCoordinateName(text,
+                                           engineCommunicationBoardWidth(),
+                                           engineCommunicationBoardHeight())
+        if (!point)
+            return null
+        var boardPoint = boardPointFromEngineCommunication(point.x, point.y)
+        if (!boardPoint || !pointInBoard(boardPoint.x, boardPoint.y))
+            return null
+        return boardPoint
     }
 
     function enginePlayCommandForNode(node) {
@@ -1421,7 +1485,10 @@ ApplicationWindow {
     }
 
     function engineBoardSignature() {
-        return [boardSizeX, boardSizeY, gameRuleMode, gameRuleMode === gameRuleGomoku ? gomokuRuleMode : "go"].join(":")
+        var ruleDetail = gameRuleMode === gameRuleGomoku ? gomokuRuleMode
+                       : gameRuleMode === gameRuleHex ? "hex" : "go"
+        return [boardSizeX, boardSizeY, gameRuleMode, ruleDetail,
+                legacyHexEngineCoordinateMode() ? "legacyHex" : "normal"].join(":")
     }
 
     function engineKomiCommand() {
@@ -1687,11 +1754,11 @@ ApplicationWindow {
     }
 
     function candidateScoreValue(candidate) {
-        return CandidateAnalysis.scoreValue(candidate)
+        return CandidateAnalysis.scoreValue(root, candidate)
     }
 
-    function formatCandidateNumber(value, decimals, showPercent, normalizePercent) {
-        return CandidateAnalysis.formatCandidateNumber(root, value, decimals, showPercent, normalizePercent)
+    function formatCandidateNumber(value, decimals, showPercent) {
+        return CandidateAnalysis.formatCandidateNumber(root, value, decimals, showPercent)
     }
 
     function candidateWinrateText(candidate) {

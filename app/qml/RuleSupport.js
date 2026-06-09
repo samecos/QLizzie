@@ -43,8 +43,35 @@ function gomokuRuleEngineValue(app, rule) {
 }
 
 function gameRuleText(app) {
-    return app.gameRuleMode === app.gameRuleGo ? app.trText("gameRuleGo")
-                                               : gomokuRuleLabel(app, app.gomokuRuleMode)
+    if (app.gameRuleMode === app.gameRuleGo)
+        return app.trText("gameRuleGo")
+    if (app.gameRuleMode === app.gameRuleHex)
+        return app.trText("gameRuleHex")
+    return gomokuRuleLabel(app, app.gomokuRuleMode)
+}
+
+function gameRuleOptions(app) {
+    return [
+        { "label": app.trText("gameRuleGo"), "value": app.gameRuleGo, "tip": app.trText("gameRuleGoTip") },
+        { "label": app.trText("gameRuleGomoku"), "value": app.gameRuleGomoku, "tip": app.trText("gameRuleGomokuTip") },
+        { "label": app.trText("gameRuleHex"), "value": app.gameRuleHex, "tip": app.trText("gameRuleHexTip") }
+    ]
+}
+
+function gameRuleCurrentIndex(app) {
+    var options = gameRuleOptions(app)
+    for (var i = 0; i < options.length; ++i) {
+        if (options[i].value === app.gameRuleMode)
+            return i
+    }
+    return 0
+}
+
+function setGameRuleFromIndex(app, index) {
+    var options = gameRuleOptions(app)
+    if (index < 0 || index >= options.length)
+        return
+    app.requestRuleModeChange(options[index].value)
 }
 
 function goRuleOptions(app) {
@@ -67,6 +94,8 @@ function gomokuRuleOptions(app) {
 }
 
 function ruleVariantOptions(app) {
+    if (app.gameRuleMode === app.gameRuleHex)
+        return [{ "label": app.trText("gameRuleHex"), "value": -1, "tip": app.trText("gameRuleHexTip") }]
     return app.gameRuleMode === app.gameRuleGo ? goRuleOptions(app) : gomokuRuleOptions(app)
 }
 
@@ -100,15 +129,15 @@ function setRuleVariantFromIndex(app, index) {
 }
 
 function ruleModeButtonsVisible(app) {
-    return app.packageMode === app.packageModeUniversal
+    return false
 }
 
 function ruleVariantComboVisible(app) {
-    return app.packageMode !== app.packageModeGo
+    return app.gameRuleMode === app.gameRuleGomoku
 }
 
 function komiControlsVisible(app) {
-    return app.packageMode !== app.packageModeSix
+    return app.gameRuleMode === app.gameRuleGo && app.packageMode !== app.packageModeSix
 }
 
 function engineCommandEditable(app) {
@@ -140,7 +169,7 @@ function ruleModeAllowedForPackage(app, mode) {
         return mode === app.gameRuleGo
     if (app.packageMode === app.packageModeSix)
         return mode === app.gameRuleGomoku
-    return true
+    return mode === app.gameRuleGo || mode === app.gameRuleGomoku || mode === app.gameRuleHex
 }
 
 function packageDefaultBoardSize(app) {
@@ -193,11 +222,13 @@ function requestRuleModeChange(app, mode, dialog) {
 }
 
 function applyRuleModeChange(app, mode) {
-    if (mode !== app.gameRuleGo && mode !== app.gameRuleGomoku)
+    if (mode !== app.gameRuleGo && mode !== app.gameRuleGomoku && mode !== app.gameRuleHex)
         return
     if (!ruleModeAllowedForPackage(app, mode))
         return
     app.gameRuleMode = mode
+    if (mode === app.gameRuleHex)
+        app.coordinateDisplayMode = app.coordinateDisplayHex
     normalizeGomokuRuleForCurrentMode(app)
     app.clearHover(true)
     app.resetGameTree()

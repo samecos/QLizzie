@@ -235,22 +235,15 @@ Basic.Dialog {
                                 Layout.preferredWidth: 88
                             }
 
-                            SmallModeButton {
-                                text: app.trText("gameRuleGo")
-                                selected: app.gameRuleMode === app.gameRuleGo
-                                enabled: app.ruleModeAllowedForPackage(app.gameRuleGo)
-                                onClicked: app.requestRuleModeChange(app.gameRuleGo)
-                            }
-
-                            SmallModeButton {
-                                text: app.trText("gameRuleGomoku")
-                                selected: app.gameRuleMode === app.gameRuleGomoku
-                                enabled: app.ruleModeAllowedForPackage(app.gameRuleGomoku)
-                                onClicked: app.requestRuleModeChange(app.gameRuleGomoku)
+                            GameRuleComboBox {
+                                app: settingsDialog.app
+                                Layout.preferredWidth: 150
+                                implicitHeight: 32
                             }
 
                             RuleVariantComboBox {
                                 app: settingsDialog.app
+                                visible: app.ruleVariantComboVisible()
                                 Layout.preferredWidth: 220
                                 implicitHeight: 32
                             }
@@ -548,6 +541,8 @@ Basic.Dialog {
                                     app.trText("coordinateDisplayGoNoI"),
                                     app.trText("coordinateDisplayGomokuWithI"),
                                     app.trText("coordinateDisplayNumeric"),
+                                    app.trText("coordinateDisplayNumericOneBased"),
+                                    app.trText("coordinateDisplayHex"),
                                     app.trText("coordinateDisplayNone")
                                 ]
                                 currentIndex: app.effectiveCoordinateDisplayMode()
@@ -958,6 +953,23 @@ Basic.Dialog {
                                 radius: 5
                                 color: engineCommandEdit.enabled ? "#ffffff" : "#edf2f4"
                                 border.color: engineCommandEdit.activeFocus ? "#2388b8" : "#b7c5cc"
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            CheckBox {
+                                checked: app.legacyHexEngineCoordinates
+                                onToggled: app.legacyHexEngineCoordinates = checked
+                            }
+
+                            Label {
+                                text: app.trText("legacyHexEngineCoordinates")
+                                color: "#24313a"
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
                             }
                         }
 

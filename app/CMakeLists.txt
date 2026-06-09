@@ -49,6 +49,7 @@ qt_add_qml_module(qlizzie
         qml/EngineParametersDialog.qml
         qml/BeginnerTutorialDialog.qml
         qml/GameOverDialog.qml
+        qml/GameRuleComboBox.qml
         qml/GameRules.js
         qml/HelpKeysDialog.qml
         qml/HiddenSettingsDialog.qml

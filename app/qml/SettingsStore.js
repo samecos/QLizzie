@@ -10,7 +10,9 @@ function normalizeColorHex(value, fallback) {
 function normalizePersistentSettings(app) {
     app.boardSizeX = Math.round(app.clamp(app.boardSizeX, app.minBoardSize, app.maxBoardSize))
     app.boardSizeY = Math.round(app.clamp(app.boardSizeY, app.minBoardSize, app.maxBoardSize))
-    if (app.gameRuleMode !== app.gameRuleGo && app.gameRuleMode !== app.gameRuleGomoku)
+    if (app.gameRuleMode !== app.gameRuleGo
+            && app.gameRuleMode !== app.gameRuleGomoku
+            && app.gameRuleMode !== app.gameRuleHex)
         app.gameRuleMode = app.gameRuleGo
     app.gomokuRuleMode = Math.round(app.clamp(app.gomokuRuleMode, app.gomokuRuleCon5, app.gomokuRuleDirectCon5))
     if (app.stoneColorMode !== app.stoneColorModeAuto
@@ -113,6 +115,7 @@ function loadPersistentSettings(app, settings) {
     app.go7EngineCommand = String(settingValue(settings, "go7EngineCommand", app.go7EngineCommand))
     app.six11EngineCommand = String(settingValue(settings, "six11EngineCommand", app.six11EngineCommand))
     app.six13EngineCommand = String(settingValue(settings, "six13EngineCommand", app.six13EngineCommand))
+    app.legacyHexEngineCoordinates = settingBool(settings, "legacyHexEngineCoordinates", app.legacyHexEngineCoordinates)
     app.analysisIntervalCentiseconds = Number(settingValue(settings, "analysisIntervalCentiseconds", app.analysisIntervalCentiseconds))
     app.maxAnalysisSeconds = Number(settingValue(settings, "maxAnalysisSeconds", app.maxAnalysisSeconds))
     app.candidateDisplayCount = Number(settingValue(settings, "candidateDisplayCount", app.candidateDisplayCount))
@@ -177,6 +180,7 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("go7EngineCommand", app.go7EngineCommand)
     settings.setValue("six11EngineCommand", app.six11EngineCommand)
     settings.setValue("six13EngineCommand", app.six13EngineCommand)
+    settings.setValue("legacyHexEngineCoordinates", app.legacyHexEngineCoordinates)
     settings.setValue("analysisIntervalCentiseconds", app.analysisIntervalCentiseconds)
     settings.setValue("maxAnalysisSeconds", app.maxAnalysisSeconds)
     settings.setValue("candidateDisplayCount", app.candidateDisplayCount)

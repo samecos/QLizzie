@@ -16,6 +16,8 @@ Item {
     readonly property real coordinateGapRatio: 0.10
     readonly property real coordinateOuterGapRatio: 0.10
     readonly property real stoneRadiusRatio: app.stoneScale * 0.5
+    readonly property bool hexBoard: app.gameRuleMode === app.gameRuleHex
+    readonly property real hexRowHeightRatio: 0.8660254037844386
     readonly property int maxXCoordinateChars: coordinatesVisible
                                                 ? Math.max(String(app.xCoordinateText(0)).length,
                                                            String(app.xCoordinateText(Math.max(0, app.boardSizeX - 1))).length)
@@ -34,16 +36,23 @@ Item {
                                                   : stoneRadiusRatio + coordinateOuterGapRatio
     readonly property real availableWidth: Math.max(1, width - boardOuterMargin * 2)
     readonly property real availableHeight: Math.max(1, height - boardOuterMargin * 2)
+    readonly property real gridUnitWidth: hexBoard
+                                           ? Math.max(1, Math.max(0, app.boardSizeX - 1)
+                                                         + Math.max(0, app.boardSizeY - 1) * 0.5)
+                                           : Math.max(1, app.boardSizeX - 1)
+    readonly property real gridUnitHeight: hexBoard
+                                            ? Math.max(1, Math.max(0, app.boardSizeY - 1) * hexRowHeightRatio)
+                                            : Math.max(1, app.boardSizeY - 1)
     readonly property real cellSize: Math.max(0.1, Math.min(
-        availableWidth / (Math.max(1, app.boardSizeX - 1) + horizontalPaddingRatio * 2),
-        availableHeight / (Math.max(1, app.boardSizeY - 1) + verticalPaddingRatio * 2)))
+        availableWidth / (gridUnitWidth + horizontalPaddingRatio * 2),
+        availableHeight / (gridUnitHeight + verticalPaddingRatio * 2)))
     readonly property real boardPaddingX: horizontalPaddingRatio * cellSize
     readonly property real boardPaddingY: verticalPaddingRatio * cellSize
     readonly property real coordinateFontSize: coordinateFontRatio * cellSize
     readonly property real xCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize
     readonly property real yCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize
-    readonly property real gridWidth: cellSize * Math.max(1, app.boardSizeX - 1)
-    readonly property real gridHeight: cellSize * Math.max(1, app.boardSizeY - 1)
+    readonly property real gridWidth: cellSize * gridUnitWidth
+    readonly property real gridHeight: cellSize * gridUnitHeight
     readonly property real boardLeft: Math.round((width - gridWidth) / 2)
     readonly property real boardTop: Math.round((height - gridHeight) / 2)
     readonly property real boardRight: boardLeft + gridWidth
@@ -51,6 +60,9 @@ Item {
     readonly property bool variationPreviewActive: app.activeCandidateVariationPreviewActive()
 
     function boardPointLocal(x, y) {
+        if (hexBoard)
+            return Qt.point(boardLeft + (x + y * 0.5) * cellSize,
+                            boardTop + y * hexRowHeightRatio * cellSize)
         return Qt.point(boardLeft + x * cellSize, boardTop + y * cellSize)
     }
 
@@ -58,8 +70,10 @@ Item {
         if (cellSize <= 0)
             return null
 
-        var x = Math.round((mouseX - boardLeft) / cellSize)
-        var y = Math.round((mouseY - boardTop) / cellSize)
+        var y = hexBoard ? Math.round((mouseY - boardTop) / (cellSize * hexRowHeightRatio))
+                         : Math.round((mouseY - boardTop) / cellSize)
+        var x = hexBoard ? Math.round((mouseX - boardLeft) / cellSize - y * 0.5)
+                         : Math.round((mouseX - boardLeft) / cellSize)
         if (!app.pointInBoard(x, y))
             return null
 
@@ -156,31 +170,77 @@ Item {
             ctx.strokeStyle = "#2d2114"
             ctx.globalAlpha = app.gridOpacity
             ctx.lineWidth = Math.max(1, app.gridLineWidth)
-            for (var x = 0; x < app.boardSizeX; ++x) {
-                var px = left + x * cell
+            if (boardScene.hexBoard) {
+                for (var hy = 0; hy < app.boardSizeY; ++hy) {
+                    var hStart = boardScene.boardPointLocal(0, hy)
+                    var hEnd = boardScene.boardPointLocal(app.boardSizeX - 1, hy)
+                    ctx.beginPath()
+                    ctx.moveTo(hStart.x, hStart.y)
+                    ctx.lineTo(hEnd.x, hEnd.y)
+                    ctx.stroke()
+                }
+                for (var sy = 0; sy < app.boardSizeY - 1; ++sy) {
+                    for (var sx = 0; sx < app.boardSizeX; ++sx) {
+                        var downRightStart = boardScene.boardPointLocal(sx, sy)
+                        var downRightEnd = boardScene.boardPointLocal(sx, sy + 1)
+                        ctx.beginPath()
+                        ctx.moveTo(downRightStart.x, downRightStart.y)
+                        ctx.lineTo(downRightEnd.x, downRightEnd.y)
+                        ctx.stroke()
+                    }
+                    for (var dx = 0; dx < app.boardSizeX - 1; ++dx) {
+                        var downLeftStart = boardScene.boardPointLocal(dx + 1, sy)
+                        var downLeftEnd = boardScene.boardPointLocal(dx, sy + 1)
+                        ctx.beginPath()
+                        ctx.moveTo(downLeftStart.x, downLeftStart.y)
+                        ctx.lineTo(downLeftEnd.x, downLeftEnd.y)
+                        ctx.stroke()
+                    }
+                }
+                ctx.save()
+                ctx.globalAlpha = app.gridOpacity
+                ctx.lineWidth = Math.max(2, app.gridLineWidth * 1.6)
+                var p1 = boardScene.boardPointLocal(0, 0)
+                var p2 = boardScene.boardPointLocal(app.boardSizeX - 1, 0)
+                var p3 = boardScene.boardPointLocal(app.boardSizeX - 1, app.boardSizeY - 1)
+                var p4 = boardScene.boardPointLocal(0, app.boardSizeY - 1)
                 ctx.beginPath()
-                ctx.moveTo(px, top)
-                ctx.lineTo(px, bottom)
+                ctx.moveTo(p1.x, p1.y)
+                ctx.lineTo(p2.x, p2.y)
+                ctx.lineTo(p3.x, p3.y)
+                ctx.lineTo(p4.x, p4.y)
+                ctx.closePath()
                 ctx.stroke()
-            }
-            for (var y = 0; y < app.boardSizeY; ++y) {
-                var py = top + y * cell
-                ctx.beginPath()
-                ctx.moveTo(left, py)
-                ctx.lineTo(right, py)
-                ctx.stroke()
+                ctx.restore()
+            } else {
+                for (var x = 0; x < app.boardSizeX; ++x) {
+                    var px = left + x * cell
+                    ctx.beginPath()
+                    ctx.moveTo(px, top)
+                    ctx.lineTo(px, bottom)
+                    ctx.stroke()
+                }
+                for (var y = 0; y < app.boardSizeY; ++y) {
+                    var py = top + y * cell
+                    ctx.beginPath()
+                    ctx.moveTo(left, py)
+                    ctx.lineTo(right, py)
+                    ctx.stroke()
+                }
             }
             ctx.restore()
 
             var xs = starPoints(app.boardSizeX)
             var ys = starPoints(app.boardSizeY)
             ctx.fillStyle = "#2d2114"
-            for (var sx = 0; sx < xs.length; ++sx) {
-                for (var sy = 0; sy < ys.length; ++sy) {
-                    var star = boardScene.boardPointLocal(xs[sx], ys[sy])
-                    ctx.beginPath()
-                    ctx.arc(star.x, star.y, Math.max(2.8, cell * 0.065), 0, Math.PI * 2)
-                    ctx.fill()
+            if (app.gameRuleMode === app.gameRuleGo) {
+                for (var starX = 0; starX < xs.length; ++starX) {
+                    for (var starY = 0; starY < ys.length; ++starY) {
+                        var star = boardScene.boardPointLocal(xs[starX], ys[starY])
+                        ctx.beginPath()
+                        ctx.arc(star.x, star.y, Math.max(2.8, cell * 0.065), 0, Math.PI * 2)
+                        ctx.fill()
+                    }
                 }
             }
 
@@ -191,19 +251,21 @@ Item {
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
                 for (var lx = 0; lx < app.boardSizeX; ++lx) {
-                    var labelX = left + lx * cell
+                    var topPoint = boardScene.boardPointLocal(lx, 0)
+                    var bottomPoint = boardScene.boardPointLocal(lx, app.boardSizeY - 1)
                     var xLabel = app.xCoordinateText(lx)
-                    ctx.fillText(xLabel, labelX, top - boardScene.xCoordinateLabelOffset, cell * 0.96)
-                    ctx.fillText(xLabel, labelX, bottom + boardScene.xCoordinateLabelOffset, cell * 0.96)
+                    ctx.fillText(xLabel, topPoint.x, topPoint.y - boardScene.xCoordinateLabelOffset, cell * 0.96)
+                    ctx.fillText(xLabel, bottomPoint.x, bottomPoint.y + boardScene.xCoordinateLabelOffset, cell * 0.96)
                 }
                 ctx.textAlign = "center"
                 for (var ly = 0; ly < app.boardSizeY; ++ly) {
-                    var labelY = top + ly * cell
+                    var leftPoint = boardScene.boardPointLocal(0, ly)
+                    var rightPoint = boardScene.boardPointLocal(app.boardSizeX - 1, ly)
                     var yLabel = app.yCoordinateText(ly)
                     var yLabelMaxWidth = Math.max(1, boardScene.boardPaddingX
                                                      - cell * (boardScene.stoneRadiusRatio + boardScene.coordinateGapRatio))
-                    ctx.fillText(yLabel, left - boardScene.yCoordinateLabelOffset, labelY, yLabelMaxWidth)
-                    ctx.fillText(yLabel, right + boardScene.yCoordinateLabelOffset, labelY, yLabelMaxWidth)
+                    ctx.fillText(yLabel, leftPoint.x - boardScene.yCoordinateLabelOffset, leftPoint.y, yLabelMaxWidth)
+                    ctx.fillText(yLabel, rightPoint.x + boardScene.yCoordinateLabelOffset, rightPoint.y, yLabelMaxWidth)
                 }
                 ctx.restore()
             }
@@ -313,6 +375,7 @@ Item {
         Connections {
             target: app
             function onBoardRevisionChanged() { boardCanvas.requestPaint() }
+            function onGameRuleModeChanged() { boardCanvas.requestPaint() }
             function onBoardSizeXChanged() { boardCanvas.requestPaint() }
             function onBoardSizeYChanged() { boardCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { boardCanvas.requestPaint() }
@@ -419,6 +482,7 @@ Item {
             function onSelectedPointFromCandidateListChanged() { variationPreviewCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardRevisionChanged() { variationPreviewCanvas.requestPaint() }
+            function onGameRuleModeChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardSizeXChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardSizeYChanged() { variationPreviewCanvas.requestPaint() }
             function onStoneScaleChanged() { variationPreviewCanvas.requestPaint() }
@@ -487,6 +551,7 @@ Item {
             function onSelectedPointFromCandidateListChanged() { hoverOverlayCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardRevisionChanged() { hoverOverlayCanvas.requestPaint() }
+            function onGameRuleModeChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardSizeXChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardSizeYChanged() { hoverOverlayCanvas.requestPaint() }
             function onStoneScaleChanged() { hoverOverlayCanvas.requestPaint() }

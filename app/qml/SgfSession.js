@@ -12,7 +12,8 @@ function parse(app, text) {
         "maxBoardSize": app.maxBoardSize,
         "defaultRuleMode": app.gameRuleMode,
         "gameRuleGo": app.gameRuleGo,
-        "gameRuleGomoku": app.gameRuleGomoku
+        "gameRuleGomoku": app.gameRuleGomoku,
+        "gameRuleHex": app.gameRuleHex
     })
 }
 

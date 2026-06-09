@@ -77,8 +77,8 @@ function boardSizeText(xSize, ySize) {
 }
 
 function buildSgf(nodes, ruleMode, xSize, ySize, ruleText) {
-    var gameId = ruleMode === 0 ? 1 : 4
-    var ruleName = ruleMode === 0 ? "QLizzie-Go" : "QLizzie-Gomoku"
+    var gameId = ruleMode === 0 ? 1 : ruleMode === 2 ? 11 : 4
+    var ruleName = ruleMode === 0 ? "QLizzie-Go" : ruleMode === 2 ? "QLizzie-Hex" : "QLizzie-Gomoku"
     var numericCoordinates = useNumericSgfCoordinates(xSize, ySize)
     var text = "(;FF[4]GM[" + gameId + "]CA[UTF-8]AP[QLizzie]RU[" + sgfEscape(ruleName) + "]"
                + "SZ[" + boardSizeText(xSize, ySize) + "]"
@@ -114,6 +114,7 @@ function parseSgf(text, options) {
     var maxBoardSize = options.maxBoardSize
     var gameRuleGo = options.gameRuleGo
     var gameRuleGomoku = options.gameRuleGomoku
+    var gameRuleHex = options.gameRuleHex
     var parsedBoardSizeX = 19
     var parsedBoardSizeY = 19
     var parsedRuleMode = options.defaultRuleMode
@@ -233,6 +234,10 @@ function parseSgf(text, options) {
             parsedRuleMode = gameRuleGomoku
             return
         }
+        if (ruValue.indexOf("HEX") >= 0) {
+            parsedRuleMode = gameRuleHex
+            return
+        }
         if (ruValue.indexOf("GO") >= 0) {
             parsedRuleMode = gameRuleGo
             return
@@ -241,6 +246,8 @@ function parseSgf(text, options) {
             parsedRuleMode = gameRuleGo
         else if (gmValue === "4")
             parsedRuleMode = gameRuleGomoku
+        else if (gmValue === "11")
+            parsedRuleMode = gameRuleHex
     }
 
     function moveFromProperties(properties) {

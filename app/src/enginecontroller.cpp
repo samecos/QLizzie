@@ -76,15 +76,6 @@ QStringList resolvedEngineArguments(QStringList arguments)
     return arguments;
 }
 
-double normalizedWinrate(double value)
-{
-    if (value <= 1.0)
-        return value * 100.0;
-    if (value > 100.0)
-        return value / 100.0;
-    return value;
-}
-
 struct ParsedCandidateInfo {
     int order = 0;
     QVariantMap item;
@@ -109,6 +100,23 @@ QStringView nextToken(QStringView text, qsizetype &position)
     while (position < text.size() && !text.at(position).isSpace())
         ++position;
     return text.sliced(start, position - start);
+}
+
+QString nextMoveToken(QStringView text, qsizetype &position)
+{
+    while (position < text.size() && text.at(position).isSpace())
+        ++position;
+    const qsizetype start = position;
+    if (start < text.size() && text.at(start) == QLatin1Char('(')) {
+        while (position < text.size()) {
+            const QChar ch = text.at(position++);
+            if (ch == QLatin1Char(')'))
+                break;
+        }
+        return trimmedView(text.sliced(start, position - start)).toString();
+    }
+
+    return nextToken(text, position).toString();
 }
 
 qsizetype nextInfoSeparator(QStringView text, qsizetype from)
@@ -664,14 +672,22 @@ void EngineController::parseInfoLine(const QString &line)
             if (key == QLatin1StringView("pv")) {
                 QVariantList pv;
                 while (tokenPosition < segment.size()) {
-                    const QStringView pvMove = nextToken(segment, tokenPosition);
+                    const QString pvMove = nextMoveToken(segment, tokenPosition);
                     if (pvMove.isEmpty())
                         break;
-                    pv.append(pvMove.toString());
+                    pv.append(pvMove);
                 }
                 if (!pv.isEmpty())
                     item.insert(QStringLiteral("pv"), pv);
                 break;
+            }
+
+            if (key == QLatin1StringView("move")) {
+                const QString move = nextMoveToken(segment, tokenPosition);
+                if (move.isEmpty())
+                    break;
+                item.insert(QStringLiteral("move"), move);
+                continue;
             }
 
             const QStringView value = nextToken(segment, tokenPosition);
@@ -680,9 +696,7 @@ void EngineController::parseInfoLine(const QString &line)
 
             bool ok = false;
 
-            if (key == QLatin1StringView("move")) {
-                item.insert(QStringLiteral("move"), value.toString());
-            } else if (key == QLatin1StringView("order")) {
+            if (key == QLatin1StringView("order")) {
                 const int parsedOrder = value.toInt(&ok);
                 if (ok)
                     item.insert(QStringLiteral("order"), parsedOrder);
@@ -693,7 +707,7 @@ void EngineController::parseInfoLine(const QString &line)
             } else if (key == QLatin1StringView("winrate")) {
                 const double winrate = value.toDouble(&ok);
                 if (ok)
-                    item.insert(QStringLiteral("winrate"), normalizedWinrate(winrate));
+                    item.insert(QStringLiteral("winrate"), winrate);
             } else if (key == QLatin1StringView("scoreMean") || key == QLatin1StringView("scoreLead")) {
                 const double scoreMean = value.toDouble(&ok);
                 if (ok)

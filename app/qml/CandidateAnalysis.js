@@ -13,25 +13,21 @@ function winrateValue(app, candidate) {
     var value = Number(candidate.winrate)
     if (isNaN(value))
         return 0
-    if (value <= 1)
-        value *= 100
-    return app.clamp(value, 0, 100)
+    return app.clamp(value * 100, 0, 100)
 }
 
-function scoreValue(candidate) {
+function scoreValue(app, candidate) {
     if (!candidate || candidate.scoreMean === undefined)
         return NaN
     var value = Number(candidate.scoreMean)
     return isNaN(value) ? NaN : value
 }
 
-function formatCandidateNumber(app, value, decimals, showPercent, normalizePercent) {
+function formatCandidateNumber(app, value, decimals, showPercent) {
     var number = Number(value)
     if (isNaN(number))
         return ""
     var displayValue = number
-    if (showPercent && normalizePercent && Math.abs(displayValue) <= 1)
-        displayValue *= 100
     var text = displayValue.toFixed(Math.round(app.clamp(decimals, 0, 2)))
     if (showPercent)
         text += "%"
@@ -44,8 +40,7 @@ function winrateText(app, candidate) {
     return formatCandidateNumber(app,
                                  winrateValue(app, candidate),
                                  app.candidateWinrateDecimals,
-                                 app.candidateWinrateShowPercent,
-                                 false)
+                                 app.candidateWinrateShowPercent)
 }
 
 function scoreDisplayEnabled(app) {
@@ -58,13 +53,15 @@ function scoreTitle(app) {
 }
 
 function scoreText(app, candidate) {
-    if (!candidate || candidate.scoreMean === undefined || !scoreDisplayEnabled(app))
+    if (!candidate || !scoreDisplayEnabled(app))
+        return ""
+    var value = scoreValue(app, candidate)
+    if (isNaN(value))
         return ""
     return formatCandidateNumber(app,
-                                 scoreValue(candidate),
+                                 value,
                                  app.candidateScoreDecimals,
-                                 app.candidateScoreShowPercent,
-                                 false)
+                                 app.candidateScoreShowPercent)
 }
 
 function labelLines(app, candidate) {
@@ -398,9 +395,10 @@ function previewLabelLines(app, digitText) {
         })
     }
     if (scoreDisplayEnabled(app)) {
+        var previewScore = Number(digit + "." + digit)
         lines.push({
             "kind": 2,
-            "text": scoreText(app, { "scoreMean": Number(digit + "." + digit) }),
+            "text": scoreText(app, { "scoreMean": previewScore }),
             "fontSize": app.candidateScoreFontSize,
             "color": String(app.candidateLabelTextColor),
             "bold": app.candidateScoreBold
@@ -517,7 +515,7 @@ function buildCandidateItems(app, candidates) {
                 "outlineOpacity": markerOutlineOpacity(app, visitRatio),
                 "winrate": rawWinrate,
                 "winrateText": winrateText(app, candidate),
-                "scoreMean": scoreValue(candidate),
+                "scoreMean": scoreValue(app, candidate),
                 "scoreText": scoreText(app, candidate),
                 "pv": pvMoves(candidate),
                 "labelLines": labelLines(app, candidate)
