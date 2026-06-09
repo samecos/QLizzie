@@ -40,7 +40,7 @@ ApplicationWindow {
     readonly property int minBoardSize: 1
     readonly property int maxBoardSize: 1001
     readonly property int maxCachedLegalPoints: 40000
-    readonly property int currentSettingsVersion: 1
+    readonly property int currentSettingsVersion: 2
     property int loadedSettingsVersion: 0
     property bool settingsMigrated: false
     readonly property int defaultBoardSize: 19
@@ -149,6 +149,7 @@ ApplicationWindow {
     readonly property int coordinateDisplayGoNoI: 0
     readonly property int coordinateDisplayGomokuWithI: 1
     readonly property int coordinateDisplayNumeric: 2
+    readonly property int coordinateDisplayNone: 3
     property int coordinateDisplayMode: coordinateDisplayGoNoI
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
@@ -187,6 +188,7 @@ ApplicationWindow {
     property int maxAnalysisSeconds: 0
     property int candidateDisplayCount: 10
     property real candidateMinVisitRatio: 0.001
+    property bool candidateShowFilteredMarkers: true
     property bool candidateWinrateLabelVisible: true
     property bool candidateVisitsLabelVisible: true
     property bool candidateScoreLabelVisible: true
@@ -203,11 +205,19 @@ ApplicationWindow {
     property int candidateScoreDecimals: 1
     property bool candidateWinrateShowPercent: false
     property bool candidateScoreShowPercent: false
+    readonly property int candidateScoreTitleScoreMean: 0
+    readonly property int candidateScoreTitleDrawRate: 1
+    property int candidateScoreTitleMode: candidateScoreTitleScoreMean
     property bool candidateRingVisible: true
     property int candidateRingLineWidth: 12
+    property bool candidateRankLabelVisible: true
     property string candidateFirstLabelTextColor: "#ff0000"
     property string candidateLabelTextColor: "#000000"
     readonly property string firstCandidateRingColor: "#003b8e"
+    readonly property int candidateYzyMinAlpha: 32
+    readonly property int candidateYzyMaxAlpha: 240
+    readonly property real candidateYzyAlphaFactor: 5.0
+    readonly property real candidateYzyColorRatio: 2.0
 
     property int engineCommunicationLogLimit: 1000
     property bool showEngineCommunicationStdin: true
@@ -246,6 +256,15 @@ ApplicationWindow {
     }
 
     onCoordinateDisplayModeChanged: refreshCoordinateDisplayText()
+    onCandidateDisplayCountChanged: rebuildEngineCandidateItems()
+    onCandidateMinVisitRatioChanged: rebuildEngineCandidateItems()
+    onCandidateShowFilteredMarkersChanged: rebuildEngineCandidateItems()
+    onCandidateWinrateDecimalsChanged: rebuildEngineCandidateItems()
+    onCandidateScoreDecimalsChanged: rebuildEngineCandidateItems()
+    onCandidateWinrateShowPercentChanged: rebuildEngineCandidateItems()
+    onCandidateScoreShowPercentChanged: rebuildEngineCandidateItems()
+    onPackageModeChanged: rebuildEngineCandidateItems()
+    onGameRuleModeChanged: rebuildEngineCandidateItems()
 
     menuBar: MenuBar {
         font.pixelSize: root.compactLayout ? 15 : 17
@@ -464,6 +483,7 @@ ApplicationWindow {
     function coordinateDisplayForcedNumeric() {
         return effectiveCoordinateDisplayMode() === coordinateDisplayNumeric
                && coordinateDisplayMode !== coordinateDisplayNumeric
+               && coordinateDisplayMode !== coordinateDisplayNone
     }
 
     function xCoordinateText(x) {
@@ -483,7 +503,7 @@ ApplicationWindow {
     }
 
     function setCoordinateDisplayMode(mode) {
-        var nextMode = Math.round(clamp(mode, coordinateDisplayGoNoI, coordinateDisplayNumeric))
+        var nextMode = Math.round(clamp(mode, coordinateDisplayGoNoI, coordinateDisplayNone))
         if (coordinateDisplayMode === nextMode)
             return
         coordinateDisplayMode = nextMode
@@ -702,6 +722,7 @@ ApplicationWindow {
     }
 
     function rebuildPositionFromNode(id) {
+        clearEngineCandidates()
         var map = ({})
         var blackCap = 0
         var whiteCap = 0
@@ -921,7 +942,9 @@ ApplicationWindow {
 
     function gotoNode(id) {
         if (!nodeById(id))
-            return
+            return false
+        if (id === currentNodeId)
+            return false
         currentNodeId = id
         selectedPointLocked = false
         selectedPointFromCandidateList = false
@@ -929,6 +952,7 @@ ApplicationWindow {
         rebuildTreeLayout()
         scheduleAutoAnalysis()
         focusBoardInput()
+        return true
     }
 
     function gotoFirstMove() {
@@ -946,23 +970,24 @@ ApplicationWindow {
     }
 
     function gotoRelativeMove(delta) {
+        var targetId = currentNodeId
         if (delta < 0) {
             for (var i = 0; i < -delta; ++i) {
-                var node = currentNode()
+                var node = nodeById(targetId)
                 if (!node || node.parent < 0)
                     break
-                currentNodeId = node.parent
+                targetId = node.parent
             }
-            gotoNode(currentNodeId)
+            gotoNode(targetId)
             return
         }
         for (var f = 0; f < delta; ++f) {
-            var n = currentNode()
+            var n = nodeById(targetId)
             if (!n || !n.children || n.children.length <= 0)
                 break
-            currentNodeId = n.children[0]
+            targetId = n.children[0]
         }
-        gotoNode(currentNodeId)
+        gotoNode(targetId)
     }
 
     function gotoMoveNumber(moveNumber) {
@@ -1427,6 +1452,9 @@ ApplicationWindow {
         gameDirty = false
         statusMode = "message"
         statusMessage = trText("ruleChanged") + ": " + gameRuleText()
+        resetEngineSyncState()
+        scheduleAutoAnalysis()
+        requestAiMoveIfNeeded()
         focusBoardInput()
     }
 
@@ -1467,7 +1495,10 @@ ApplicationWindow {
         setSelectedPoint(0, 0)
         if (markDirty !== false)
             gameDirty = true
-        applyEngineCommandForCurrentPackageMode(true)
+        applyEngineCommandForCurrentPackageMode(false)
+        resetEngineSyncState()
+        scheduleAutoAnalysis()
+        requestAiMoveIfNeeded()
         return true
     }
 
@@ -1826,11 +1857,12 @@ ApplicationWindow {
     }
 
     function candidateScoreDisplayEnabled() {
-        return candidateScoreLabelVisible && packageMode !== packageModeGo
+        return candidateScoreLabelVisible
     }
 
     function candidateScoreTitle() {
-        return gameRuleMode === gameRuleGo ? trText("candidateScoreMean") : trText("candidateDrawRate")
+        return candidateScoreTitleMode === candidateScoreTitleDrawRate ? trText("candidateDrawRate")
+                                                                       : trText("candidateScoreMean")
     }
 
     function candidateScoreText(candidate) {
@@ -1916,6 +1948,13 @@ ApplicationWindow {
         return Math.max(1, candidateRingLineWidth * candidateLabelScale(markerRadius))
     }
 
+    function candidateRankLabelText(displayIndex) {
+        if (!candidateRankLabelVisible)
+            return ""
+        var rank = Math.round(Number(displayIndex))
+        return rank >= 1 && rank <= 9 ? String(rank) : ""
+    }
+
     function candidateLabelTotalHeight(lines) {
         if (!lines || lines.length <= 0)
             return 0
@@ -1967,12 +2006,43 @@ ApplicationWindow {
         }
     }
 
+    function drawCandidateRankLabel(ctx, centerX, centerY, markerRadius, rankText) {
+        if (!candidateRankLabelVisible || rankText === undefined || String(rankText).length <= 0)
+            return
+
+        var badgeRadius = Math.max(5, markerRadius * 0.22)
+        var badgeX = centerX + markerRadius * 0.58
+        var badgeY = centerY - markerRadius * 0.58
+        var fontFamily = String(coordinateFontFamily).replace(/"/g, "")
+
+        ctx.save()
+        ctx.globalAlpha = 0.96
+        ctx.fillStyle = "#f8fbfd"
+        ctx.strokeStyle = "#15191c"
+        ctx.lineWidth = Math.max(1, markerRadius * 0.035)
+        ctx.beginPath()
+        ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.globalAlpha = 1
+        ctx.fillStyle = "#15191c"
+        ctx.font = "700 " + Math.round(Math.max(8, badgeRadius * 1.35))
+                 + "px \"" + fontFamily + "\", sans-serif"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(String(rankText), badgeX, badgeY, badgeRadius * 1.5)
+        ctx.restore()
+    }
+
     function drawCandidateMarker(ctx, centerX, centerY, markerRadius, lines, options) {
         options = options || ({})
 
         var drawBackground = options.drawBackground === undefined ? true : !!options.drawBackground
+        var drawOutline = !!options.drawOutline
         var drawRing = !!options.drawRing && candidateRingVisible
         var fillOpacity = options.fillOpacity === undefined ? 1 : Number(options.fillOpacity)
+        var outlineOpacity = options.outlineOpacity === undefined ? 1 : Number(options.outlineOpacity)
         var ringOpacity = options.ringOpacity === undefined ? 1 : Number(options.ringOpacity)
 
         ctx.save()
@@ -1982,6 +2052,17 @@ ApplicationWindow {
             ctx.beginPath()
             ctx.arc(centerX, centerY, markerRadius, 0, Math.PI * 2)
             ctx.fill()
+        }
+        ctx.restore()
+
+        ctx.save()
+        if (drawOutline) {
+            ctx.globalAlpha = ctx.globalAlpha * outlineOpacity
+            ctx.strokeStyle = String(options.outlineColor || "#000000")
+            ctx.lineWidth = Math.max(1, markerRadius / 26.5)
+            ctx.beginPath()
+            ctx.arc(centerX, centerY, markerRadius, 0, Math.PI * 2)
+            ctx.stroke()
         }
         ctx.restore()
 
@@ -2007,6 +2088,8 @@ ApplicationWindow {
             ctx.fillText(String(options.fallbackText), centerX, centerY, Math.max(8, markerRadius * 2 - 4))
             ctx.restore()
         }
+
+        drawCandidateRankLabel(ctx, centerX, centerY, markerRadius, options.rankText)
     }
 
     function candidateMarkerRadius(width, height) {
@@ -2014,6 +2097,73 @@ ApplicationWindow {
         var markerRadius = side * 0.48
         var ringSafeRadius = (side * 0.5 - 1) / (1.02 + candidateRingLineWidth / 151)
         return Math.max(1, Math.min(markerRadius, ringSafeRadius))
+    }
+
+    function hexComponent(value) {
+        var text = Math.round(clamp(value, 0, 255)).toString(16)
+        return text.length < 2 ? "0" + text : text
+    }
+
+    function hsbColorHex(hue, saturation, brightness) {
+        hue = ((Number(hue) % 1) + 1) % 1
+        saturation = clamp(Number(saturation), 0, 1)
+        brightness = clamp(Number(brightness), 0, 1)
+        var r = brightness
+        var g = brightness
+        var b = brightness
+        if (saturation > 0) {
+            var h = hue * 6
+            var sector = Math.floor(h)
+            var fraction = h - sector
+            var p = brightness * (1 - saturation)
+            var q = brightness * (1 - saturation * fraction)
+            var t = brightness * (1 - saturation * (1 - fraction))
+            switch (sector) {
+            case 0:
+                r = brightness; g = t; b = p
+                break
+            case 1:
+                r = q; g = brightness; b = p
+                break
+            case 2:
+                r = p; g = brightness; b = t
+                break
+            case 3:
+                r = p; g = q; b = brightness
+                break
+            case 4:
+                r = t; g = p; b = brightness
+                break
+            default:
+                r = brightness; g = p; b = q
+                break
+            }
+        }
+        return "#" + hexComponent(r * 255) + hexComponent(g * 255) + hexComponent(b * 255)
+    }
+
+    function candidateYzyAlphaRatio(visitRatio) {
+        var ratio = clamp(Number(visitRatio), 0.000001, 1)
+        return Math.max(0, Math.log(ratio) / candidateYzyAlphaFactor + 1)
+    }
+
+    function candidateMarkerColor(displayIndex, visitRatio) {
+        if (displayIndex <= 1)
+            return hsbColorHex(0.5, 1.0, 0.85)
+        var fraction = Math.pow(clamp(Number(visitRatio), 0, 1), 1 / candidateYzyColorRatio)
+        var hue = (1 / 3) * fraction
+        return hsbColorHex(hue, 1.0, 0.85)
+    }
+
+    function candidateMarkerOpacity(displayIndex, visitRatio) {
+        var alphaRatio = candidateYzyAlphaRatio(visitRatio)
+        var alpha = candidateYzyMinAlpha + (candidateYzyMaxAlpha - candidateYzyMinAlpha) * alphaRatio
+        return clamp(alpha / 255, 0, 1)
+    }
+
+    function candidateMarkerOutlineOpacity(visitRatio) {
+        var alpha = 48 + 48 * candidateYzyAlphaRatio(visitRatio)
+        return clamp(alpha / 255, 0, 1)
     }
 
     function candidatePreviewLabelLines(digitText) {
@@ -2069,6 +2219,8 @@ ApplicationWindow {
         var visits = Number(value)
         if (isNaN(visits) || visits <= 0)
             return "0"
+        if (visits >= 1000000000)
+            return (visits / 1000000000).toFixed(visits >= 10000000000 ? 0 : 1) + "G"
         if (visits >= 1000000)
             return (visits / 1000000).toFixed(visits >= 10000000 ? 0 : 1) + "M"
         if (visits >= 1000)
@@ -2091,28 +2243,18 @@ ApplicationWindow {
             maxVisits = Math.max(maxVisits, candidateVisitCount(sorted[m]))
 
         var limit = candidateDisplayCount <= 0 ? sorted.length : Math.min(candidateDisplayCount, sorted.length)
-        var displayLimit = 0
-        if (maxVisits > 0) {
-            var threshold = maxVisits * candidateMinVisitRatio
-            for (var i = limit - 1; i >= 0; --i) {
-                if (candidateVisitCount(sorted[i]) >= threshold) {
-                    displayLimit = i + 1
-                    break
-                }
-            }
-        } else {
-            displayLimit = limit
-        }
+        var threshold = maxVisits > 0 ? maxVisits * candidateMinVisitRatio : 0
 
         var items = []
         var table = []
-        for (var c = 0; c < displayLimit; ++c) {
+        for (var c = 0; c < sorted.length; ++c) {
             var candidate = sorted[c]
             var point = parseEngineCoordinate(candidate.move)
             if (point && stoneAt(point.x, point.y) === 0) {
                 var visits = candidateVisitCount(candidate)
                 var visitRatio = maxVisits > 0 ? clamp(visits / maxVisits, 0, 1) : 1
                 var rawWinrate = candidateWinrateValue(candidate)
+                var qualified = c < limit && (maxVisits <= 0 || visits >= threshold)
                 var item = {
                     "x": point.x,
                     "y": point.y,
@@ -2122,8 +2264,11 @@ ApplicationWindow {
                     "displayIndex": c + 1,
                     "visits": visits,
                     "visitRatio": visitRatio,
-                    "opacity": c === 0 ? 1.0 : clamp(visitRatio, 0.14, 0.88),
-                    "color": c === 0 ? "#00ffff" : "#00ff36",
+                    "qualified": qualified,
+                    "boardVisible": qualified || candidateShowFilteredMarkers,
+                    "opacity": candidateMarkerOpacity(c + 1, visitRatio),
+                    "color": candidateMarkerColor(c + 1, visitRatio),
+                    "outlineOpacity": candidateMarkerOutlineOpacity(visitRatio),
                     "winrate": rawWinrate,
                     "winrateText": candidateWinrateText(candidate),
                     "scoreMean": candidateScoreValue(candidate),
@@ -2136,7 +2281,8 @@ ApplicationWindow {
                     "key": item.key,
                     "coordinate": coordinateText(point.x, point.y),
                     "winrateText": item.winrateText,
-                    "visitsText": visits > 0 ? String(visits) : ""
+                    "scoreText": item.scoreText,
+                    "visitsText": visits > 0 ? formatVisitCount(visits) : ""
                 })
             }
         }
@@ -2191,10 +2337,18 @@ ApplicationWindow {
     }
 
     function selectEngineCandidateRow(row) {
-        var index = Math.round(row) - 1
-        if (index < 0 || index >= engineCandidateItems.length)
+        var displayIndex = Math.round(row)
+        if (displayIndex <= 0)
             return
-        var candidate = engineCandidateItems[index]
+        var candidate = null
+        for (var i = 0; i < engineCandidateItems.length; ++i) {
+            if (engineCandidateItems[i] && engineCandidateItems[i].displayIndex === displayIndex) {
+                candidate = engineCandidateItems[i]
+                break
+            }
+        }
+        if (!candidate)
+            return
         setSelectedPoint(candidate.x, candidate.y, true, true)
         focusBoardInput()
     }
@@ -2450,6 +2604,7 @@ ApplicationWindow {
     function resetCandidateVisualSettings() {
         candidateDisplayCount = 10
         candidateMinVisitRatio = 0.001
+        candidateShowFilteredMarkers = true
         candidateWinrateLabelVisible = true
         candidateVisitsLabelVisible = true
         candidateScoreLabelVisible = true
@@ -2466,8 +2621,10 @@ ApplicationWindow {
         candidateScoreDecimals = 1
         candidateWinrateShowPercent = false
         candidateScoreShowPercent = false
+        candidateScoreTitleMode = candidateScoreTitleScoreMean
         candidateRingVisible = true
         candidateRingLineWidth = 12
+        candidateRankLabelVisible = true
         candidateFirstLabelTextColor = "#ff0000"
         candidateLabelTextColor = "#000000"
         boardRevision += 1
@@ -2627,7 +2784,7 @@ ApplicationWindow {
             stoneColorMode = stoneColorModeAuto
         if (moveNumberDisplayMode < moveNumberModeAll || moveNumberDisplayMode > moveNumberModeHidden)
             moveNumberDisplayMode = defaultMoveNumberDisplayMode
-        if (coordinateDisplayMode < coordinateDisplayGoNoI || coordinateDisplayMode > coordinateDisplayNumeric)
+        if (coordinateDisplayMode < coordinateDisplayGoNoI || coordinateDisplayMode > coordinateDisplayNone)
             coordinateDisplayMode = coordinateDisplayGoNoI
         packageMode = Math.round(clamp(packageMode, packageModeUniversal, packageModeSix))
         candidateDisplayCount = Math.round(clamp(candidateDisplayCount, 0, 65536))
@@ -2640,6 +2797,9 @@ ApplicationWindow {
         candidateScoreOffsetY = Math.round(clamp(candidateScoreOffsetY, -64, 64))
         candidateWinrateDecimals = Math.round(clamp(candidateWinrateDecimals, 0, 2))
         candidateScoreDecimals = Math.round(clamp(candidateScoreDecimals, 0, 2))
+        candidateScoreTitleMode = Math.round(clamp(candidateScoreTitleMode,
+                                                   candidateScoreTitleScoreMean,
+                                                   candidateScoreTitleDrawRate))
         candidateRingLineWidth = Math.round(clamp(candidateRingLineWidth, 1, 64))
         candidateFirstLabelTextColor = normalizeColorHex(candidateFirstLabelTextColor, "#ff0000")
         candidateLabelTextColor = normalizeColorHex(candidateLabelTextColor, "#000000")
@@ -2678,6 +2838,14 @@ ApplicationWindow {
     }
 
     function migratePersistentSettings() {
+        if (loadedSettingsVersion < 2) {
+            persistedEngineCommand = defaultGo7EngineCommand
+            go5EngineCommand = defaultGo7EngineCommand
+            go7EngineCommand = defaultGo7EngineCommand
+            six11EngineCommand = defaultGo7EngineCommand
+            six13EngineCommand = defaultGo7EngineCommand
+            settingsMigrated = true
+        }
         loadedSettingsVersion = currentSettingsVersion
     }
 
@@ -2703,6 +2871,7 @@ ApplicationWindow {
         maxAnalysisSeconds = Number(settingValue("maxAnalysisSeconds", maxAnalysisSeconds))
         candidateDisplayCount = Number(settingValue("candidateDisplayCount", candidateDisplayCount))
         candidateMinVisitRatio = Number(settingValue("candidateMinVisitRatio", candidateMinVisitRatio))
+        candidateShowFilteredMarkers = settingBool("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
         candidateWinrateLabelVisible = settingBool("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         candidateVisitsLabelVisible = settingBool("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
         candidateScoreLabelVisible = settingBool("candidateScoreLabelVisible", candidateScoreLabelVisible)
@@ -2719,8 +2888,10 @@ ApplicationWindow {
         candidateScoreDecimals = Number(settingValue("candidateScoreDecimals", candidateScoreDecimals))
         candidateWinrateShowPercent = settingBool("candidateWinrateShowPercent", candidateWinrateShowPercent)
         candidateScoreShowPercent = settingBool("candidateScoreShowPercent", candidateScoreShowPercent)
+        candidateScoreTitleMode = Number(settingValue("candidateScoreTitleMode", candidateScoreTitleMode))
         candidateRingVisible = settingBool("candidateRingVisible", candidateRingVisible)
         candidateRingLineWidth = Number(settingValue("candidateRingLineWidth", candidateRingLineWidth))
+        candidateRankLabelVisible = settingBool("candidateRankLabelVisible", candidateRankLabelVisible)
         candidateFirstLabelTextColor = String(settingValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor))
         candidateLabelTextColor = String(settingValue("candidateLabelTextColor", candidateLabelTextColor))
         backgroundColor = String(settingValue("backgroundColor", backgroundColor))
@@ -2761,6 +2932,7 @@ ApplicationWindow {
         appSettings.setValue("maxAnalysisSeconds", maxAnalysisSeconds)
         appSettings.setValue("candidateDisplayCount", candidateDisplayCount)
         appSettings.setValue("candidateMinVisitRatio", candidateMinVisitRatio)
+        appSettings.setValue("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
         appSettings.setValue("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         appSettings.setValue("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
         appSettings.setValue("candidateScoreLabelVisible", candidateScoreLabelVisible)
@@ -2777,8 +2949,10 @@ ApplicationWindow {
         appSettings.setValue("candidateScoreDecimals", candidateScoreDecimals)
         appSettings.setValue("candidateWinrateShowPercent", candidateWinrateShowPercent)
         appSettings.setValue("candidateScoreShowPercent", candidateScoreShowPercent)
+        appSettings.setValue("candidateScoreTitleMode", candidateScoreTitleMode)
         appSettings.setValue("candidateRingVisible", candidateRingVisible)
         appSettings.setValue("candidateRingLineWidth", candidateRingLineWidth)
+        appSettings.setValue("candidateRankLabelVisible", candidateRankLabelVisible)
         appSettings.setValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor)
         appSettings.setValue("candidateLabelTextColor", candidateLabelTextColor)
         appSettings.setValue("backgroundColor", backgroundColor)
@@ -2861,6 +3035,8 @@ ApplicationWindow {
     function appendEngineCommunication(stream, line) {
         if (!engineCommunicationLogModel)
             return
+        if (engineCommunicationLineFiltered(stream, line))
+            return
         engineCommunicationLogModel.append({
             "stream": stream,
             "line": String(line),
@@ -2872,6 +3048,12 @@ ApplicationWindow {
 
     function clearEngineCommunicationLog() {
         engineCommunicationLogModel.clear()
+    }
+
+    function engineCommunicationLineFiltered(stream, line) {
+        if (stream !== "stdout")
+            return false
+        return /^info\s+move\b/.test(String(line).trim())
     }
 
     function engineCommunicationColor(stream) {

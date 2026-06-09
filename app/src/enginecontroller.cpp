@@ -40,6 +40,41 @@ QString resolvedProgramPath(const QString &program)
     return QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(program));
 }
 
+QString resolvedConfigPath(const QString &configPath)
+{
+    const QFileInfo configInfo(configPath);
+    if (configInfo.isAbsolute())
+        return configPath;
+
+    const QString portablePath = QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(configPath));
+    if (QFileInfo::exists(portablePath))
+        return portablePath;
+
+#ifdef Q_OS_WIN
+    const QString lizziePath = QDir::cleanPath(QDir(QStringLiteral("C:/lizzie")).absoluteFilePath(configPath));
+    if (QFileInfo::exists(lizziePath))
+        return lizziePath;
+#endif
+
+    return portablePath;
+}
+
+QStringList resolvedEngineArguments(QStringList arguments)
+{
+    for (int i = 0; i < arguments.size(); ++i) {
+        if (arguments.at(i) == QStringLiteral("-config") && i + 1 < arguments.size()) {
+            arguments[i + 1] = resolvedConfigPath(arguments.at(i + 1));
+            ++i;
+            continue;
+        }
+
+        const QString configPrefix = QStringLiteral("-config=");
+        if (arguments.at(i).startsWith(configPrefix))
+            arguments[i] = configPrefix + resolvedConfigPath(arguments.at(i).mid(configPrefix.size()));
+    }
+    return arguments;
+}
+
 double normalizedWinrate(double value)
 {
     if (value <= 1.0)
@@ -453,7 +488,7 @@ void EngineController::startProcess()
     m_stdoutBuffer.clear();
     m_stderrBuffer.clear();
     m_process.setWorkingDirectory(portableRootPath());
-    m_process.start(resolvedProgramPath(parts.first()), parts.mid(1));
+    m_process.start(resolvedProgramPath(parts.first()), resolvedEngineArguments(parts.mid(1)));
 }
 
 void EngineController::sendPendingCommands()
@@ -576,41 +611,38 @@ void EngineController::parseInfoLine(const QString &line)
         QVariantMap item;
         item.insert(QStringLiteral("order"), segmentIndex);
 
-        for (int i = 0; i + 1 < tokens.size(); ++i) {
+        for (int i = 0; i < tokens.size();) {
             const QString key = tokens.at(i);
+            if (key == QStringLiteral("pv"))
+                break;
+            if (i + 1 >= tokens.size())
+                break;
             const QString value = tokens.at(i + 1);
+            i += 2;
             bool ok = false;
 
             if (key == QStringLiteral("move")) {
                 item.insert(QStringLiteral("move"), value);
-                ++i;
             } else if (key == QStringLiteral("order")) {
                 const int order = value.toInt(&ok);
                 if (ok)
                     item.insert(QStringLiteral("order"), order);
-                ++i;
             } else if (key == QStringLiteral("visits")) {
                 const int visits = value.toInt(&ok);
                 if (ok)
                     item.insert(QStringLiteral("visits"), visits);
-                ++i;
             } else if (key == QStringLiteral("winrate")) {
                 const double winrate = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("winrate"), normalizedWinrate(winrate));
-                ++i;
-            } else if (key == QStringLiteral("scoreMean")) {
+            } else if (key == QStringLiteral("scoreMean") || key == QStringLiteral("scoreLead")) {
                 const double scoreMean = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("scoreMean"), scoreMean);
-                ++i;
             } else if (key == QStringLiteral("scoreStdev")) {
                 const double scoreStdev = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("scoreStdev"), scoreStdev);
-                ++i;
-            } else if (key == QStringLiteral("pv")) {
-                break;
             }
         }
 

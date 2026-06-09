@@ -7,8 +7,11 @@ Item {
     property var labelLines: []
     property bool drawBackground: false
     property bool drawRing: false
+    property bool drawOutline: false
+    property string rankText: ""
     property color backgroundColor: "#00ffff"
     property real backgroundOpacity: 0.72
+    property real outlineOpacity: 0.3
     readonly property real markerRadius: app.candidateMarkerRadius(width, height)
 
     Canvas {
@@ -27,9 +30,12 @@ Item {
                                                drawBackground: marker.drawBackground,
                                                fillColor: marker.backgroundColor,
                                                fillOpacity: marker.backgroundOpacity,
+                                               drawOutline: marker.drawOutline,
+                                               outlineOpacity: marker.outlineOpacity,
                                                drawRing: marker.drawRing,
                                                ringColor: marker.app.firstCandidateRingColor,
-                                               textColor: marker.drawRing ? marker.app.candidateFirstLabelTextColor : ""
+                                               textColor: marker.drawRing ? marker.app.candidateFirstLabelTextColor : "",
+                                               rankText: marker.rankText
                                            })
         }
     }
@@ -39,8 +45,11 @@ Item {
     onLabelLinesChanged: markerCanvas.requestPaint()
     onDrawBackgroundChanged: markerCanvas.requestPaint()
     onDrawRingChanged: markerCanvas.requestPaint()
+    onDrawOutlineChanged: markerCanvas.requestPaint()
+    onRankTextChanged: markerCanvas.requestPaint()
     onBackgroundColorChanged: markerCanvas.requestPaint()
     onBackgroundOpacityChanged: markerCanvas.requestPaint()
+    onOutlineOpacityChanged: markerCanvas.requestPaint()
 
     Connections {
         target: marker.app
@@ -63,6 +72,7 @@ Item {
         function onCandidateScoreShowPercentChanged() { markerCanvas.requestPaint() }
         function onCandidateRingVisibleChanged() { markerCanvas.requestPaint() }
         function onCandidateRingLineWidthChanged() { markerCanvas.requestPaint() }
+        function onCandidateRankLabelVisibleChanged() { markerCanvas.requestPaint() }
         function onCandidateFirstLabelTextColorChanged() { markerCanvas.requestPaint() }
         function onCandidateLabelTextColorChanged() { markerCanvas.requestPaint() }
     }

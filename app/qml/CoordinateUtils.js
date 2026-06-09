@@ -3,6 +3,7 @@
 var COORDINATE_FORMAT_GO_NO_I = 0
 var COORDINATE_FORMAT_GOMOKU_WITH_I = 1
 var COORDINATE_FORMAT_NUMERIC = 2
+var COORDINATE_FORMAT_NONE = 3
 var GO_ALPHABET = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
 var GOMOKU_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 var SGF_COORDINATE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -24,6 +25,8 @@ function boardPointCount(xSize, ySize) {
 }
 
 function effectiveCoordinateFormat(width, height, preferredFormat) {
+    if (preferredFormat === COORDINATE_FORMAT_NONE)
+        return COORDINATE_FORMAT_NONE
     if (width >= 25 || height >= 25)
         return COORDINATE_FORMAT_NUMERIC
     if (preferredFormat === COORDINATE_FORMAT_GOMOKU_WITH_I)
@@ -112,6 +115,8 @@ function parseSgfCoordinateText(text) {
 
 function xCoordinateText(x, width, height, preferredFormat) {
     var format = effectiveCoordinateFormat(width, height, preferredFormat)
+    if (format === COORDINATE_FORMAT_NONE)
+        return ""
     if (format === COORDINATE_FORMAT_NUMERIC)
         return String(x)
     var alphabet = coordinateAlphabet(format)
@@ -120,6 +125,8 @@ function xCoordinateText(x, width, height, preferredFormat) {
 
 function yCoordinateText(y, width, height, preferredFormat) {
     var format = effectiveCoordinateFormat(width, height, preferredFormat)
+    if (format === COORDINATE_FORMAT_NONE)
+        return ""
     if (format === COORDINATE_FORMAT_NUMERIC)
         return String(y)
     return String(height - y)
@@ -127,6 +134,8 @@ function yCoordinateText(y, width, height, preferredFormat) {
 
 function coordinateText(x, y, width, height, preferredFormat) {
     var format = effectiveCoordinateFormat(width, height, preferredFormat)
+    if (format === COORDINATE_FORMAT_NONE)
+        return ""
     if (format === COORDINATE_FORMAT_NUMERIC)
         return x + "," + y
     return xCoordinateText(x, width, height, preferredFormat)
@@ -146,7 +155,7 @@ function parseCoordinateText(text, width, height, preferredFormat) {
         return null
     }
 
-    if (format === COORDINATE_FORMAT_NUMERIC)
+    if (format === COORDINATE_FORMAT_NUMERIC || format === COORDINATE_FORMAT_NONE)
         return null
 
     var named = value.match(/^([A-Z])(\d+)$/i)

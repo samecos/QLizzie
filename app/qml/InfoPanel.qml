@@ -22,10 +22,11 @@ Rectangle {
     readonly property int panelPadding: app.compactLayout ? 9 : 12
     readonly property int tableRowHeight: app.compactLayout ? 22 : 24
     readonly property int tableHeaderHeight: app.compactLayout ? 23 : 25
-    readonly property int indexColumnWidth: app.compactLayout ? 38 : 44
-    readonly property int positionColumnWidth: app.compactLayout ? 58 : 68
-    readonly property int winrateColumnWidth: app.compactLayout ? 64 : 76
-    readonly property int visitsColumnWidth: app.compactLayout ? 64 : 76
+    readonly property int indexColumnWidth: app.compactLayout ? 34 : 38
+    readonly property int positionColumnWidth: app.compactLayout ? 52 : 60
+    readonly property int winrateColumnWidth: app.compactLayout ? 54 : 64
+    readonly property int scoreColumnWidth: app.compactLayout ? 48 : 58
+    readonly property int visitsColumnWidth: app.compactLayout ? 56 : 68
     readonly property int summaryRowHeight: 72
     readonly property int winrateBarHeight: 40
     readonly property int winrateGraphHeight: 96
@@ -413,6 +414,11 @@ Rectangle {
             }
 
             TableHeaderCell {
+                width: infoPanel.scoreColumnWidth
+                text: app.trText("candidateScoreMean")
+            }
+
+            TableHeaderCell {
                 width: infoPanel.visitsColumnWidth
                 text: app.trText("candidateVisits")
             }
@@ -428,6 +434,7 @@ Rectangle {
                 "key": item && item.key !== undefined ? String(item.key) : "",
                 "coordinate": item && item.coordinate !== undefined ? String(item.coordinate) : "",
                 "winrateText": item && item.winrateText !== undefined ? String(item.winrateText) : "",
+                "scoreText": item && item.scoreText !== undefined ? String(item.scoreText) : "",
                 "visitsText": item && item.visitsText !== undefined ? String(item.visitsText) : ""
             }
         }
@@ -559,6 +566,13 @@ Rectangle {
                     TableCell {
                         width: infoPanel.winrateColumnWidth
                         text: model.winrateText
+                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        font.bold: parent.parent.selected
+                    }
+
+                    TableCell {
+                        width: infoPanel.scoreColumnWidth
+                        text: model.scoreText
                         color: parent.parent.selected ? "#003cff" : "#15191c"
                         font.bold: parent.parent.selected
                     }

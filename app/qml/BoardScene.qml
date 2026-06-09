@@ -9,12 +9,39 @@ Item {
     width: parent.width - app.boardStageLeftReserve - app.boardStageRightReserve
     height: parent.height - app.analysisToolbarHeight - app.commandToolbarHeight - app.panelGap
 
-    readonly property real usableSide: Math.max(280, Math.min(width - 36, height - 36))
-    readonly property real boardPadding: app.compactLayout ? 30 : 38
-    readonly property real gridSpan: Math.max(1, usableSide - boardPadding * 2)
-    readonly property real cellSize: Math.max(1, Math.min(
-        gridSpan / Math.max(1, app.boardSizeX - 1),
-        gridSpan / Math.max(1, app.boardSizeY - 1)))
+    readonly property bool coordinatesVisible: app.effectiveCoordinateDisplayMode() !== app.coordinateDisplayNone
+    readonly property real boardOuterMargin: app.compactLayout ? 12 : 18
+    readonly property real coordinateFontRatio: 0.32
+    readonly property real coordinateCharWidthRatio: 0.58
+    readonly property real coordinateGapRatio: 0.10
+    readonly property real coordinateOuterGapRatio: 0.10
+    readonly property real stoneRadiusRatio: app.stoneScale * 0.5
+    readonly property int maxXCoordinateChars: coordinatesVisible
+                                                ? Math.max(String(app.xCoordinateText(0)).length,
+                                                           String(app.xCoordinateText(Math.max(0, app.boardSizeX - 1))).length)
+                                                : 0
+    readonly property int maxYCoordinateChars: coordinatesVisible
+                                                ? Math.max(String(app.yCoordinateText(0)).length,
+                                                           String(app.yCoordinateText(Math.max(0, app.boardSizeY - 1))).length)
+                                                : 0
+    readonly property real xCoordinateTextWidthRatio: maxXCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
+    readonly property real yCoordinateTextWidthRatio: maxYCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
+    readonly property real horizontalPaddingRatio: coordinatesVisible
+                                                    ? stoneRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio + coordinateOuterGapRatio
+                                                    : stoneRadiusRatio + coordinateOuterGapRatio
+    readonly property real verticalPaddingRatio: coordinatesVisible
+                                                  ? stoneRadiusRatio + coordinateGapRatio + coordinateFontRatio + coordinateOuterGapRatio
+                                                  : stoneRadiusRatio + coordinateOuterGapRatio
+    readonly property real availableWidth: Math.max(1, width - boardOuterMargin * 2)
+    readonly property real availableHeight: Math.max(1, height - boardOuterMargin * 2)
+    readonly property real cellSize: Math.max(0.1, Math.min(
+        availableWidth / (Math.max(1, app.boardSizeX - 1) + horizontalPaddingRatio * 2),
+        availableHeight / (Math.max(1, app.boardSizeY - 1) + verticalPaddingRatio * 2)))
+    readonly property real boardPaddingX: horizontalPaddingRatio * cellSize
+    readonly property real boardPaddingY: verticalPaddingRatio * cellSize
+    readonly property real coordinateFontSize: coordinateFontRatio * cellSize
+    readonly property real xCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize
+    readonly property real yCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize
     readonly property real gridWidth: cellSize * Math.max(1, app.boardSizeX - 1)
     readonly property real gridHeight: cellSize * Math.max(1, app.boardSizeY - 1)
     readonly property real boardLeft: Math.round((width - gridWidth) / 2)
@@ -45,9 +72,10 @@ Item {
     }
 
     Rectangle {
-        anchors.centerIn: parent
-        width: boardScene.gridWidth + boardScene.boardPadding * 2
-        height: boardScene.gridHeight + boardScene.boardPadding * 2
+        x: boardScene.boardLeft - boardScene.boardPaddingX
+        y: boardScene.boardTop - boardScene.boardPaddingY
+        width: boardScene.gridWidth + boardScene.boardPaddingX * 2
+        height: boardScene.gridHeight + boardScene.boardPaddingY * 2
         radius: 6
         color: app.boardWoodColor
         border.color: "#9d7442"
@@ -87,7 +115,7 @@ Item {
 
         function canvasFont(size, bold) {
             var family = String(app.coordinateFontFamily).replace(/"/g, "")
-            return (bold ? "700 " : "400 ") + Math.round(size) + "px \"" + family + "\", sans-serif"
+            return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size)) + "px \"" + family + "\", sans-serif"
         }
 
         function drawCenteredText(ctx, text, x, y, color, size, bold, maxWidth) {
@@ -181,23 +209,29 @@ Item {
                 }
             }
 
-            ctx.save()
-            ctx.font = canvasFont(app.compactLayout ? 12 : 13, false)
-            ctx.fillStyle = "#4f371f"
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-            for (var lx = 0; lx < app.boardSizeX; ++lx) {
-                var labelX = left + lx * cell
-                ctx.fillText(app.xCoordinateText(lx), labelX, top - boardScene.boardPadding * 0.52)
-                ctx.fillText(app.xCoordinateText(lx), labelX, bottom + boardScene.boardPadding * 0.52)
+            if (boardScene.coordinatesVisible) {
+                ctx.save()
+                ctx.font = canvasFont(boardScene.coordinateFontSize, false)
+                ctx.fillStyle = "#4f371f"
+                ctx.textAlign = "center"
+                ctx.textBaseline = "middle"
+                for (var lx = 0; lx < app.boardSizeX; ++lx) {
+                    var labelX = left + lx * cell
+                    var xLabel = app.xCoordinateText(lx)
+                    ctx.fillText(xLabel, labelX, top - boardScene.xCoordinateLabelOffset, cell * 0.96)
+                    ctx.fillText(xLabel, labelX, bottom + boardScene.xCoordinateLabelOffset, cell * 0.96)
+                }
+                ctx.textAlign = "center"
+                for (var ly = 0; ly < app.boardSizeY; ++ly) {
+                    var labelY = top + ly * cell
+                    var yLabel = app.yCoordinateText(ly)
+                    var yLabelMaxWidth = Math.max(1, boardScene.boardPaddingX
+                                                     - cell * (boardScene.stoneRadiusRatio + boardScene.coordinateGapRatio))
+                    ctx.fillText(yLabel, left - boardScene.yCoordinateLabelOffset, labelY, yLabelMaxWidth)
+                    ctx.fillText(yLabel, right + boardScene.yCoordinateLabelOffset, labelY, yLabelMaxWidth)
+                }
+                ctx.restore()
             }
-            ctx.textAlign = "center"
-            for (var ly = 0; ly < app.boardSizeY; ++ly) {
-                var labelY = top + ly * cell
-                ctx.fillText(app.yCoordinateText(ly), left - boardScene.boardPadding * 0.52, labelY)
-                ctx.fillText(app.yCoordinateText(ly), right + boardScene.boardPadding * 0.52, labelY)
-            }
-            ctx.restore()
 
             var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
             var candidateRadius = stoneRadius
@@ -205,22 +239,33 @@ Item {
                 var candidate = app.engineCandidateItems[c]
                 if (app.stoneAt(candidate.x, candidate.y) !== 0)
                     continue
+                var highlightedCandidate = app.hoverKey === candidate.key
+                if (!candidate.boardVisible && !highlightedCandidate)
+                    continue
                 var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
-                var candidateLines = app.candidateLabelLines(candidate)
+                var showCandidateText = candidate.qualified || highlightedCandidate
+                var candidateLines = showCandidateText ? app.candidateLabelLines(candidate) : []
                 var isFirstCandidate = candidate.displayIndex === 1
                 var isBestCandidate = app.bestCandidateRingVisible
                                       && app.candidateRingVisible
                                       && candidate.key === app.bestCandidateRingKey
-                app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, {
-                                            fillColor: isFirstCandidate ? "#00c8ff" : "#2ed36f",
-                                            fillOpacity: candidate.opacity,
-                                            drawRing: isBestCandidate,
-                                            ringColor: app.firstCandidateRingColor,
-                                            textColor: isFirstCandidate ? app.candidateFirstLabelTextColor : "",
-                                            fallbackText: String(candidate.displayIndex),
-                                            fallbackColor: isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29",
-                                            fallbackFontSize: Math.max(10, Math.min(16, cell * 0.20))
-                                        })
+                var markerOptions = {
+                    "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
+                                                                              candidate.visitRatio),
+                    "fillOpacity": candidate.opacity,
+                    "drawOutline": !isFirstCandidate,
+                    "outlineOpacity": candidate.outlineOpacity,
+                    "drawRing": isBestCandidate,
+                    "ringColor": app.firstCandidateRingColor,
+                    "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
+                    "rankText": app.candidateRankLabelText(candidate.displayIndex)
+                }
+                if (showCandidateText) {
+                    markerOptions.fallbackText = String(candidate.displayIndex)
+                    markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
+                    markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
+                }
+                app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, markerOptions)
             }
 
             for (var s = 0; s < app.stoneItems.length; ++s) {
@@ -284,26 +329,14 @@ Item {
 
             if (app.hoverKey !== "" && app.pointIsEngineCandidateKey(app.hoverKey)) {
                 var hp = boardScene.boardPointLocal(app.hoverX, app.hoverY)
-                var selectionRadius = Math.max(6, stoneRadius * app.selectedPointScale)
-                var selectionColor = app.selectedPointLegal() ? "#2fb97f" : "#e3342f"
-                ctx.fillStyle = selectionColor
-                ctx.globalAlpha = app.selectedPointLocked ? 0.46 : 0.34
-                ctx.beginPath()
-                ctx.arc(hp.x, hp.y, selectionRadius, 0, Math.PI * 2)
-                ctx.fill()
+                ctx.save()
                 ctx.globalAlpha = 1
-                ctx.strokeStyle = selectionColor
-                ctx.lineWidth = Math.max(2, stoneRadius * 0.08)
+                ctx.strokeStyle = "#ff1010"
+                ctx.lineWidth = app.candidateRingLineWidthForRadius(stoneRadius)
                 ctx.beginPath()
-                ctx.arc(hp.x, hp.y, selectionRadius, 0, Math.PI * 2)
+                ctx.arc(hp.x, hp.y, app.candidateRingRadius(stoneRadius), 0, Math.PI * 2)
                 ctx.stroke()
-                if (app.selectedPointLocked) {
-                    ctx.strokeStyle = "#1d63c8"
-                    ctx.lineWidth = 3
-                    ctx.beginPath()
-                    ctx.arc(hp.x, hp.y, selectionRadius + Math.max(3, stoneRadius * 0.18), 0, Math.PI * 2)
-                    ctx.stroke()
-                }
+                ctx.restore()
             }
         }
 
@@ -317,6 +350,7 @@ Item {
             function onBoardSizeYChanged() { boardCanvas.requestPaint() }
             function onHoverKeyChanged() { boardCanvas.requestPaint() }
             function onSelectedPointLockedChanged() { boardCanvas.requestPaint() }
+            function onSelectedPointFromCandidateListChanged() { boardCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { boardCanvas.requestPaint() }
             function onBestCandidateRingVisibleChanged() { boardCanvas.requestPaint() }
             function onGomokuWinLineItemsChanged() { boardCanvas.requestPaint() }
@@ -344,6 +378,10 @@ Item {
             function onCandidateScoreDecimalsChanged() { boardCanvas.requestPaint() }
             function onCandidateWinrateShowPercentChanged() { boardCanvas.requestPaint() }
             function onCandidateScoreShowPercentChanged() { boardCanvas.requestPaint() }
+            function onCandidateScoreTitleModeChanged() { boardCanvas.requestPaint() }
+            function onCandidateRingVisibleChanged() { boardCanvas.requestPaint() }
+            function onCandidateRingLineWidthChanged() { boardCanvas.requestPaint() }
+            function onCandidateRankLabelVisibleChanged() { boardCanvas.requestPaint() }
             function onCandidateFirstLabelTextColorChanged() { boardCanvas.requestPaint() }
             function onCandidateLabelTextColorChanged() { boardCanvas.requestPaint() }
         }

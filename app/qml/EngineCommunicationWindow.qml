@@ -67,6 +67,16 @@ Window {
         })
     }
 
+    function streamVisible(stream) {
+        if (stream === "stdin")
+            return app.showEngineCommunicationStdin
+        if (stream === "stdout")
+            return app.showEngineCommunicationStdout
+        if (stream === "stderr")
+            return app.showEngineCommunicationStderr
+        return true
+    }
+
     function submitCommand() {
         var command = engineCommunicationCommandField.text.trim()
         if (command.length <= 0)
@@ -103,6 +113,22 @@ Window {
     Shortcut {
         sequence: "Esc"
         onActivated: engineCommunicationDialog.visible = false
+    }
+
+    Connections {
+        target: app
+
+        function onShowEngineCommunicationStdinChanged() {
+            engineCommunicationDialog.queueScrollLogToEnd()
+        }
+
+        function onShowEngineCommunicationStdoutChanged() {
+            engineCommunicationDialog.queueScrollLogToEnd()
+        }
+
+        function onShowEngineCommunicationStderrChanged() {
+            engineCommunicationDialog.queueScrollLogToEnd()
+        }
     }
 
     ColumnLayout {
@@ -150,7 +176,7 @@ Window {
                 clip: true
                 model: engineCommunicationDialog.logModel
                 boundsBehavior: Flickable.StopAtBounds
-                spacing: 1
+                spacing: 0
 
                 onContentYChanged: {
                     if (!engineCommunicationDialog.rebuildingLog)
@@ -170,8 +196,11 @@ Window {
                 }
 
                 delegate: Rectangle {
+                    readonly property bool entryVisible: engineCommunicationDialog.streamVisible(model.stream)
                     width: engineCommunicationList.width
-                    height: Math.max(23, logText.implicitHeight + 8)
+                    height: entryVisible ? Math.max(24, logText.implicitHeight + 9) : 0
+                    visible: entryVisible
+                    clip: true
                     color: index % 2 === 0 ? "#111820" : "#16212b"
 
                     Text {

@@ -320,27 +320,6 @@ Basic.Dialog {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("moveNumberDisplay")
-                                color: "#24313a"
-                                Layout.preferredWidth: 120
-                            }
-
-                            ComboBox {
-                                model: [
-                                    app.trText("moveNumberAll"),
-                                    app.trText("moveNumberLastOnly"),
-                                    app.trText("moveNumberHidden")
-                                ]
-                                currentIndex: app.moveNumberDisplayMode
-                                Layout.preferredWidth: 180
-                                onActivated: function(index) { app.moveNumberDisplayMode = index }
-                            }
-                        }
                     }
                 }
 
@@ -448,10 +427,10 @@ Basic.Dialog {
                                 model: [
                                     app.trText("coordinateDisplayGoNoI"),
                                     app.trText("coordinateDisplayGomokuWithI"),
-                                    app.trText("coordinateDisplayNumeric")
+                                    app.trText("coordinateDisplayNumeric"),
+                                    app.trText("coordinateDisplayNone")
                                 ]
                                 currentIndex: app.effectiveCoordinateDisplayMode()
-                                enabled: !app.coordinateDisplayForcedNumeric()
                                 Layout.preferredWidth: 210
                                 onActivated: function(index) { app.setCoordinateDisplayMode(index) }
                             }
@@ -492,7 +471,31 @@ Basic.Dialog {
                             onMoved: function(v) { app.gridLineWidth = v }
                         }
 
-                        SelectionPreview {
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("moveNumberDisplay")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            ComboBox {
+                                model: [
+                                    app.trText("moveNumberAll"),
+                                    app.trText("moveNumberLastOnly"),
+                                    app.trText("moveNumberHidden")
+                                ]
+                                currentIndex: app.moveNumberDisplayMode
+                                Layout.preferredWidth: 210
+                                onActivated: function(index) { app.moveNumberDisplayMode = index }
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        BoardVisualPreview {
                             Layout.fillWidth: true
                         }
 
@@ -551,8 +554,9 @@ Basic.Dialog {
                                     labelLines: app.candidatePreviewLabelLines("6")
                                     drawBackground: true
                                     drawRing: true
-                                    backgroundColor: "#00ffff"
-                                    backgroundOpacity: 1.0
+                                    rankText: "1"
+                                    backgroundColor: app.candidateMarkerColor(1, 1.0)
+                                    backgroundOpacity: app.candidateMarkerOpacity(1, 1.0)
                                 }
 
                                 CandidateMarkerView {
@@ -564,8 +568,11 @@ Basic.Dialog {
                                     labelLines: app.candidatePreviewLabelLines("5")
                                     drawBackground: true
                                     drawRing: false
-                                    backgroundColor: "#2ed36f"
-                                    backgroundOpacity: 0.88
+                                    drawOutline: true
+                                    rankText: "2"
+                                    backgroundColor: app.candidateMarkerColor(2, 0.55)
+                                    backgroundOpacity: app.candidateMarkerOpacity(2, 0.55)
+                                    outlineOpacity: app.candidateMarkerOutlineOpacity(0.55)
                                 }
                             }
 
@@ -590,7 +597,7 @@ Basic.Dialog {
 
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 44
+                                    Layout.preferredHeight: 40
                                     radius: 6
                                     color: "#ffffff"
                                     border.color: "#c7d4db"
@@ -601,29 +608,74 @@ Basic.Dialog {
                                         anchors.rightMargin: 10
                                         spacing: 8
 
-                                        CheckBox {
-                                            text: app.trText("candidateRingVisible")
-                                            checked: app.candidateRingVisible
-                                            onToggled: app.candidateRingVisible = checked
-                                        }
-
                                         Label {
-                                            text: app.trText("candidateRingWidth")
-                                            color: "#53656f"
+                                            text: app.trText("candidateThirdLineTitle")
+                                            color: "#24313a"
                                             font.pixelSize: 12
+                                            Layout.preferredWidth: 88
+                                            elide: Text.ElideRight
                                         }
 
-                                        SpinBox {
-                                            enabled: app.candidateRingVisible
-                                            from: 1
-                                            to: 64
-                                            editable: true
-                                            value: app.candidateRingLineWidth
-                                            Layout.preferredWidth: 78
-                                            onValueModified: app.candidateRingLineWidth = value
+                                        ComboBox {
+                                            model: [
+                                                app.trText("candidateScoreMean"),
+                                                app.trText("candidateDrawRate")
+                                            ]
+                                            currentIndex: app.candidateScoreTitleMode
+                                            Layout.preferredWidth: 126
+                                            onActivated: function(index) { app.candidateScoreTitleMode = index }
                                         }
 
                                         Item { Layout.fillWidth: true }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 72
+                                    radius: 6
+                                    color: "#ffffff"
+                                    border.color: "#c7d4db"
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 8
+                                        spacing: 4
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+
+                                            CheckBox {
+                                                text: app.trText("candidateRingVisible")
+                                                checked: app.candidateRingVisible
+                                                onToggled: app.candidateRingVisible = checked
+                                            }
+
+                                            Label {
+                                                text: app.trText("candidateRingWidth")
+                                                color: "#53656f"
+                                                font.pixelSize: 12
+                                            }
+
+                                            SpinBox {
+                                                enabled: app.candidateRingVisible
+                                                from: 1
+                                                to: 64
+                                                editable: true
+                                                value: app.candidateRingLineWidth
+                                                Layout.preferredWidth: 78
+                                                onValueModified: app.candidateRingLineWidth = value
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+                                        }
+
+                                        CheckBox {
+                                            text: app.trText("candidateRankLabelVisible")
+                                            checked: app.candidateRankLabelVisible
+                                            onToggled: app.candidateRankLabelVisible = checked
+                                        }
                                     }
                                 }
 
@@ -714,6 +766,31 @@ Basic.Dialog {
                             }
 
                             Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateShowFilteredMarkers")
+                                color: "#24313a"
+                                Layout.preferredWidth: 190
+                                elide: Text.ElideRight
+                            }
+
+                            CheckBox {
+                                checked: app.candidateShowFilteredMarkers
+                                onToggled: app.candidateShowFilteredMarkers = checked
+                            }
+
+                            Label {
+                                text: app.trText("candidateShowFilteredMarkersTip")
+                                color: "#52636d"
+                                font.pixelSize: 12
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
                         }
 
                         SavePromptButton {
@@ -959,7 +1036,7 @@ Basic.Dialog {
 
         required property int lineKind
         required property string title
-        property bool controlsEnabled: lineKind !== 2 || app.packageMode !== app.packageModeGo
+        property bool controlsEnabled: true
 
         function lineVisible() {
             if (lineKind === 0)
@@ -1152,7 +1229,8 @@ Basic.Dialog {
 
             CheckBox {
                 visible: labelControl.lineKind === 0
-                         || (labelControl.lineKind === 2 && app.gameRuleMode !== app.gameRuleGo)
+                         || (labelControl.lineKind === 2
+                             && app.candidateScoreTitleMode === app.candidateScoreTitleDrawRate)
                 enabled: labelControl.controlsEnabled
                 text: "%"
                 checked: labelControl.lineShowPercent()
@@ -1160,19 +1238,7 @@ Basic.Dialog {
                 onToggled: labelControl.setLineShowPercent(checked)
             }
 
-            Label {
-                visible: labelControl.lineKind === 2 && app.packageMode === app.packageModeGo
-                text: app.trText("candidateScoreUnsupported")
-                color: "#7f3f38"
-                font.pixelSize: 12
-                Layout.fillWidth: true
-                elide: Text.ElideRight
-            }
-
-            Item {
-                visible: !(labelControl.lineKind === 2 && app.packageMode === app.packageModeGo)
-                Layout.fillWidth: true
-            }
+            Item { Layout.fillWidth: true }
         }
     }
 
@@ -1214,25 +1280,25 @@ Basic.Dialog {
         }
     }
 
-    component SelectionPreview: RowLayout {
-        id: selectionPreview
+    component BoardVisualPreview: RowLayout {
+        id: boardVisualPreview
         spacing: 10
 
         Label {
-            text: app.trText("selectedPointPreview")
+            text: app.trText("boardVisualPreview")
             color: "#24313a"
             Layout.preferredWidth: 190
         }
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 88
+            Layout.preferredHeight: 110
             radius: 5
             color: "#ffffff"
             border.color: "#c4d0d7"
 
             Canvas {
-                id: selectionPreviewCanvas
+                id: boardVisualPreviewCanvas
                 anchors.fill: parent
                 anchors.margins: 8
 
@@ -1240,47 +1306,107 @@ Basic.Dialog {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
 
-                    var centerX = Math.round(width * 0.38)
+                    var cell = Math.min(44, Math.max(20, (width - 36) / 4))
                     var centerY = Math.round(height * 0.5)
-                    var stoneRadius = Math.min(28, Math.max(18, height * 0.34))
-                    var selectionRadius = stoneRadius * app.selectedPointScale
+                    var startX = Math.round((width - cell * 4) * 0.5)
+                    var endX = startX + cell * 4
+                    var top = centerY - cell * 0.7
+                    var bottom = centerY + cell * 0.7
+                    var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
+                    var fontFamily = String(app.coordinateFontFamily).replace(/"/g, "")
+
+                    function drawStone(cx, cy, player) {
+                        ctx.save()
+                        var gradient = ctx.createRadialGradient(cx - stoneRadius * 0.28,
+                                                                 cy - stoneRadius * 0.35,
+                                                                 stoneRadius * 0.1,
+                                                                 cx,
+                                                                 cy,
+                                                                 stoneRadius)
+                        if (player === 1) {
+                            gradient.addColorStop(0, "#555555")
+                            gradient.addColorStop(1, "#050505")
+                        } else {
+                            gradient.addColorStop(0, "#ffffff")
+                            gradient.addColorStop(1, "#d7d7d7")
+                        }
+                        ctx.fillStyle = gradient
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, stoneRadius, 0, Math.PI * 2)
+                        ctx.fill()
+                        ctx.strokeStyle = player === 1 ? "#050505" : "#8f8f8f"
+                        ctx.lineWidth = Math.max(1, stoneRadius * 0.05)
+                        ctx.stroke()
+                        ctx.restore()
+                    }
+
+                    function fittedMoveNumberSize(text) {
+                        var size = Math.max(8, stoneRadius * 0.76 * app.moveNumberLabelScale)
+                        var maxWidth = stoneRadius * 1.62
+                        while (size > 6) {
+                            ctx.font = "700 " + Math.round(size) + "px \"" + fontFamily + "\", sans-serif"
+                            if (ctx.measureText(text).width <= maxWidth)
+                                break
+                            size -= 1
+                        }
+                        return Math.round(size)
+                    }
+
+                    function drawMoveNumber(cx, cy, player, moveNumber, last) {
+                        if (!app.stoneNumberVisible(moveNumber, last))
+                            return
+                        var text = String(moveNumber)
+                        var size = fittedMoveNumberSize(text)
+                        ctx.save()
+                        ctx.fillStyle = app.stoneNumberColor(player, last)
+                        ctx.font = "700 " + size + "px \"" + fontFamily + "\", sans-serif"
+                        ctx.textAlign = "center"
+                        ctx.textBaseline = "middle"
+                        ctx.fillText(text, cx, cy + size * 0.04, stoneRadius * 1.62)
+                        ctx.restore()
+                    }
+
+                    function drawLastMoveMarker(cx, cy) {
+                        var markerSize = stoneRadius * 0.62
+                        var cornerX = cx - stoneRadius
+                        var cornerY = cy - stoneRadius
+                        ctx.fillStyle = "#e3342f"
+                        ctx.beginPath()
+                        ctx.moveTo(cornerX, cornerY)
+                        ctx.lineTo(cornerX + markerSize, cornerY)
+                        ctx.lineTo(cornerX, cornerY + markerSize)
+                        ctx.closePath()
+                        ctx.fill()
+                    }
 
                     ctx.fillStyle = app.boardWoodColor
-                    ctx.fillRect(8, 8, width - 16, height - 16)
-                    ctx.strokeStyle = "#6b4b29"
-                    ctx.lineWidth = 1
-                    ctx.beginPath()
-                    ctx.moveTo(centerX - stoneRadius * 1.45, centerY)
-                    ctx.lineTo(centerX + stoneRadius * 1.45, centerY)
-                    ctx.moveTo(centerX, centerY - stoneRadius * 1.45)
-                    ctx.lineTo(centerX, centerY + stoneRadius * 1.45)
-                    ctx.stroke()
+                    ctx.fillRect(6, 6, width - 12, height - 12)
 
+                    ctx.save()
+                    ctx.globalAlpha = app.gridOpacity
                     ctx.strokeStyle = "#1b252c"
-                    ctx.globalAlpha = 0.36
-                    ctx.lineWidth = 2
+                    ctx.lineWidth = Math.max(0.5, app.gridLineWidth)
                     ctx.beginPath()
-                    ctx.arc(centerX, centerY, stoneRadius, 0, Math.PI * 2)
+                    ctx.moveTo(startX, centerY)
+                    ctx.lineTo(endX, centerY)
+                    for (var i = 0; i < 5; ++i) {
+                        var x = startX + i * cell
+                        ctx.moveTo(x, top)
+                        ctx.lineTo(x, bottom)
+                    }
                     ctx.stroke()
+                    ctx.restore()
 
-                    ctx.globalAlpha = 0.30
-                    ctx.fillStyle = "#2fb97f"
-                    ctx.beginPath()
-                    ctx.arc(centerX, centerY, selectionRadius, 0, Math.PI * 2)
-                    ctx.fill()
-                    ctx.globalAlpha = 1
-
-                    ctx.strokeStyle = "#2fb97f"
-                    ctx.lineWidth = 2
-                    ctx.beginPath()
-                    ctx.arc(centerX, centerY, selectionRadius, 0, Math.PI * 2)
-                    ctx.stroke()
-
-                    ctx.fillStyle = "#52636d"
-                    ctx.font = "13px \"" + String(app.coordinateFontFamily).replace(/"/g, "") + "\", sans-serif"
-                    ctx.textAlign = "left"
-                    ctx.textBaseline = "middle"
-                    ctx.fillText(Math.round(app.selectedPointScale * 100) + "%", centerX + stoneRadius * 1.8, centerY)
+                    var black1X = startX + cell
+                    var white2X = startX + cell * 2
+                    var black3X = startX + cell * 3
+                    drawStone(black1X, centerY, 1)
+                    drawMoveNumber(black1X, centerY, 1, 1, false)
+                    drawStone(white2X, centerY, 2)
+                    drawMoveNumber(white2X, centerY, 2, 2, false)
+                    drawStone(black3X, centerY, 1)
+                    drawLastMoveMarker(black3X, centerY)
+                    drawMoveNumber(black3X, centerY, 1, 3, true)
                 }
 
                 onWidthChanged: requestPaint()
@@ -1288,8 +1414,12 @@ Basic.Dialog {
 
                 Connections {
                     target: app
-                    function onSelectedPointScaleChanged() { selectionPreviewCanvas.requestPaint() }
-                    function onBoardWoodColorChanged() { selectionPreviewCanvas.requestPaint() }
+                    function onBoardWoodColorChanged() { boardVisualPreviewCanvas.requestPaint() }
+                    function onGridOpacityChanged() { boardVisualPreviewCanvas.requestPaint() }
+                    function onGridLineWidthChanged() { boardVisualPreviewCanvas.requestPaint() }
+                    function onStoneScaleChanged() { boardVisualPreviewCanvas.requestPaint() }
+                    function onMoveNumberDisplayModeChanged() { boardVisualPreviewCanvas.requestPaint() }
+                    function onMoveNumberLabelScaleChanged() { boardVisualPreviewCanvas.requestPaint() }
                 }
             }
         }
