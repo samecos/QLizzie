@@ -28,17 +28,22 @@ qt_add_qml_module(qlizzie
     VERSION 1.0
     QML_FILES
         qml/AboutDialog.qml
+        qml/AnalysisStatus.js
         qml/AppScrollBar.qml
         qml/AnalysisToolbar.qml
         qml/BoardSizeDialog.qml
         qml/BoardSizeStepper.qml
+        qml/BoardInteraction.js
+        qml/BoardVisuals.js
         qml/BoardInputLayer.qml
         qml/BoardScene.qml
         qml/BranchPanel.qml
+        qml/CandidateAnalysis.js
         qml/CandidateMarkerView.qml
         qml/CommandToolbar.qml
         qml/ConfirmDeleteNodeDialog.qml
         qml/CoordinateUtils.js
+        qml/EngineSupport.js
         qml/EngineCommunicationWindow.qml
         qml/EngineFailureDialog.qml
         qml/EngineParametersDialog.qml
@@ -50,12 +55,16 @@ qt_add_qml_module(qlizzie
         qml/InitialSetupDialog.qml
         qml/InfoPanel.qml
         qml/Main.qml
+        qml/RuleSupport.js
         qml/RuleChangeSaveDialog.qml
         qml/RuleVariantComboBox.qml
         qml/SavePromptButton.qml
         qml/SettingsDialog.qml
+        qml/SettingsStore.js
+        qml/SgfSession.js
         qml/SgfUtils.js
         qml/Translations.js
+        qml/TreeLayout.js
         qml/UnsavedSgfDialog.qml
 )
 

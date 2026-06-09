@@ -4,10 +4,19 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "AnalysisStatus.js" as AnalysisStatus
+import "BoardInteraction.js" as BoardInteraction
+import "BoardVisuals.js" as BoardVisuals
+import "CandidateAnalysis.js" as CandidateAnalysis
 import "CoordinateUtils.js" as CoordinateUtils
+import "EngineSupport.js" as EngineSupport
 import "GameRules.js" as GameRules
+import "RuleSupport.js" as RuleSupport
+import "SettingsStore.js" as SettingsStore
+import "SgfSession.js" as SgfSession
 import "SgfUtils.js" as SgfUtils
 import "Translations.js" as TranslationData
+import "TreeLayout.js" as TreeLayout
 
 ApplicationWindow {
     id: root
@@ -500,6 +509,10 @@ ApplicationWindow {
 
     function boardDimensionsText() {
         return CoordinateUtils.boardDimensionsText(boardSizeX, boardSizeY)
+    }
+
+    function boardDimensionsTextForSize(xSize, ySize) {
+        return CoordinateUtils.boardDimensionsText(xSize, ySize)
     }
 
     function boardPointCount() {
@@ -1241,14 +1254,7 @@ ApplicationWindow {
     }
 
     function treeNodeAt(x, y) {
-        for (var i = treeNodes.length - 1; i >= 0; --i) {
-            var node = treeNodes[i]
-            var dx = x - node.x
-            var dy = y - node.y
-            if (Math.sqrt(dx * dx + dy * dy) <= node.radius + 4)
-                return node.id
-        }
-        return -1
+        return TreeLayout.nodeAt(treeNodes, x, y)
     }
 
     function scheduleTreeLayoutRebuild() {
@@ -1259,407 +1265,132 @@ ApplicationWindow {
     }
 
     function rebuildTreeLayout() {
-        var rowHeight = 38
-        var columnWidth = 42
-        var margin = compactLayout ? 32 : 36
-        var radius = 12
-        var laneById = ({})
-        var nextLane = 0
-
-        function assignLane(id) {
-            var node = nodeById(id)
-            if (!node)
-                return 0
-            var children = node.children || []
-            if (children.length === 0) {
-                laneById[id] = nextLane
-                nextLane += 1
-                return laneById[id]
-            }
-            var firstLane = -1
-            for (var i = 0; i < children.length; ++i) {
-                var childLane = assignLane(children[i])
-                if (firstLane < 0)
-                    firstLane = childLane
-            }
-            laneById[id] = firstLane < 0 ? 0 : firstLane
-            return laneById[id]
-        }
-
-        assignLane(0)
-        if (nextLane === 0)
-            nextLane = 1
-
-        var currentPathMap = ({})
-        currentPathMap[0] = true
-        var path = nodePath(currentNodeId)
-        for (var p = 0; p < path.length; ++p)
-            currentPathMap[path[p].id] = true
-
-        var nodes = []
-        var nodeMap = ({})
-        var maxMove = 0
-        for (var id = 0; id < gameNodes.length; ++id) {
-            var node = nodeById(id)
-            if (!node)
-                continue
-
-            var lane = laneById[id] === undefined ? 0 : laneById[id]
-            var treeNode = {
-                "id": id,
-                "parent": node.parent,
-                "x": margin + lane * columnWidth,
-                "y": margin + node.moveNumber * rowHeight,
-                "radius": radius,
-                "moveNumber": node.moveNumber,
-                "player": node.player,
-                "isPass": node.isPass === true,
-                "coordinate": node.id === 0
-                              ? trText("rootMove")
-                              : node.isPass
-                                ? trText("passMove")
-                                : coordinateText(node.x, node.y),
-                "current": id === currentNodeId,
-                "currentPath": currentPathMap[id] === true,
-                "label": node.moveNumber === 0 ? "0" : node.isPass ? "P" : String(node.moveNumber)
-            }
-            nodes.push(treeNode)
-            nodeMap[id] = treeNode
-            maxMove = Math.max(maxMove, node.moveNumber)
-        }
-
-        var edges = []
-        for (var e = 0; e < nodes.length; ++e) {
-            var child = nodes[e]
-            var parent = nodeMap[child.parent]
-            if (parent) {
-                edges.push({
-                    "x1": parent.x,
-                    "y1": parent.y,
-                    "x2": child.x,
-                    "y2": child.y,
-                    "current": child.currentPath
-                })
-            }
-        }
-
-        treeNodes = nodes
-        treeEdges = edges
-        treeCanvasWidth = Math.max(minimumTreeCanvasWidth, margin * 2 + Math.max(0, nextLane - 1) * columnWidth + radius * 2)
-        treeCanvasHeight = Math.max(minimumTreeCanvasHeight, margin * 2 + maxMove * rowHeight + radius * 2)
-        treeRevision += 1
+        TreeLayout.rebuild(root)
     }
 
     function gomokuRuleLabel(rule) {
-        if (rule === gomokuRuleStdCon5)
-            return trText("gomokuRuleStdCon5")
-        if (rule === gomokuRuleFreestyle)
-            return trText("gomokuRuleFreestyle")
-        if (rule === gomokuRuleStandard)
-            return trText("gomokuRuleStandard")
-        if (rule === gomokuRuleCon7)
-            return trText("gomokuRuleCon7")
-        if (rule === gomokuRuleDirectCon5)
-            return trText("gomokuRuleDirectCon5")
-        return trText("gomokuRuleCon5")
+        return RuleSupport.gomokuRuleLabel(root, rule)
     }
 
     function gomokuRuleTip(rule) {
-        if (rule === gomokuRuleStdCon5)
-            return trText("gomokuRuleStdCon5Tip")
-        if (rule === gomokuRuleFreestyle)
-            return trText("gomokuRuleFreestyleTip")
-        if (rule === gomokuRuleStandard)
-            return trText("gomokuRuleStandardTip")
-        if (rule === gomokuRuleCon7)
-            return trText("gomokuRuleCon7Tip")
-        if (rule === gomokuRuleDirectCon5)
-            return trText("gomokuRuleDirectCon5Tip")
-        return trText("gomokuRuleCon5Tip")
+        return RuleSupport.gomokuRuleTip(root, rule)
     }
 
     function gomokuRuleEngineValue(rule) {
-        if (rule === gomokuRuleStdCon5)
-            return "stdcon5"
-        if (rule === gomokuRuleFreestyle)
-            return "freestyle"
-        if (rule === gomokuRuleStandard)
-            return "standard"
-        if (rule === gomokuRuleCon7)
-            return "con7"
-        if (rule === gomokuRuleDirectCon5)
-            return "dcon5"
-        return "con5"
+        return RuleSupport.gomokuRuleEngineValue(root, rule)
     }
 
     function gameRuleText() {
-        return gameRuleMode === gameRuleGo ? trText("gameRuleGo") : gomokuRuleLabel(gomokuRuleMode)
+        return RuleSupport.gameRuleText(root)
     }
 
     function goRuleOptions() {
-        return [{ "label": trText("goRuleTrompTaylor"), "value": -1, "tip": trText("goRuleTrompTaylorTip") }]
+        return RuleSupport.goRuleOptions(root)
     }
 
     function gomokuRuleOptions() {
-        var options = [
-            { "label": gomokuRuleLabel(gomokuRuleCon5), "value": gomokuRuleCon5, "tip": gomokuRuleTip(gomokuRuleCon5) },
-            { "label": gomokuRuleLabel(gomokuRuleStdCon5), "value": gomokuRuleStdCon5, "tip": gomokuRuleTip(gomokuRuleStdCon5) },
-            { "label": gomokuRuleLabel(gomokuRuleFreestyle), "value": gomokuRuleFreestyle, "tip": gomokuRuleTip(gomokuRuleFreestyle) },
-            { "label": gomokuRuleLabel(gomokuRuleStandard), "value": gomokuRuleStandard, "tip": gomokuRuleTip(gomokuRuleStandard) },
-            { "label": gomokuRuleLabel(gomokuRuleCon7), "value": gomokuRuleCon7, "tip": gomokuRuleTip(gomokuRuleCon7) },
-            { "label": gomokuRuleLabel(gomokuRuleDirectCon5), "value": gomokuRuleDirectCon5, "tip": gomokuRuleTip(gomokuRuleDirectCon5) }
-        ]
-        if (packageMode !== packageModeSix)
-            return options
-        return [options[gomokuRuleFreestyle], options[gomokuRuleStandard], options[gomokuRuleCon7], options[gomokuRuleDirectCon5]]
+        return RuleSupport.gomokuRuleOptions(root)
     }
 
     function ruleVariantOptions() {
-        return gameRuleMode === gameRuleGo ? goRuleOptions() : gomokuRuleOptions()
+        return RuleSupport.ruleVariantOptions(root)
     }
 
     function ruleVariantCurrentIndex() {
-        var options = ruleVariantOptions()
-        if (gameRuleMode === gameRuleGo)
-            return 0
-        for (var i = 0; i < options.length; ++i) {
-            if (options[i].value === gomokuRuleMode)
-                return i
-        }
-        return 0
+        return RuleSupport.ruleVariantCurrentIndex(root)
     }
 
     function ruleVariantCurrentTip() {
-        var options = ruleVariantOptions()
-        var index = ruleVariantCurrentIndex()
-        return index >= 0 && index < options.length ? options[index].tip : ""
+        return RuleSupport.ruleVariantCurrentTip(root)
     }
 
     function setRuleVariantFromIndex(index) {
-        var options = ruleVariantOptions()
-        if (index < 0 || index >= options.length)
-            return
-        if (gameRuleMode === gameRuleGomoku) {
-            gomokuRuleMode = options[index].value
-            rebuildPositionFromNode(currentNodeId)
-            resetEngineSyncState()
-            scheduleAutoAnalysis()
-        }
+        RuleSupport.setRuleVariantFromIndex(root, index)
     }
 
     function ruleModeButtonsVisible() {
-        return packageMode === packageModeUniversal
+        return RuleSupport.ruleModeButtonsVisible(root)
     }
 
     function ruleVariantComboVisible() {
-        return packageMode !== packageModeGo
+        return RuleSupport.ruleVariantComboVisible(root)
     }
 
     function komiControlsVisible() {
-        return packageMode !== packageModeSix
+        return RuleSupport.komiControlsVisible(root)
     }
 
     function engineCommandEditable() {
-        return packageMode === packageModeUniversal
+        return RuleSupport.engineCommandEditable(root)
     }
 
     function customBoardSizeAllowed() {
-        return packageMode === packageModeUniversal
+        return RuleSupport.customBoardSizeAllowed(root)
     }
 
     function boardSizePresetAllowed(size) {
-        if (packageMode === packageModeGo)
-            return size === 5 || size === 7 || size === 9 || size === 13 || size === 19
-        if (packageMode === packageModeSix)
-            return size === 11 || size === 13
-        return size === 5 || size === 7 || size === 9 || size === 13 || size === 19
+        return RuleSupport.boardSizePresetAllowed(root, size)
     }
 
     function boardDimensionsAllowedForPackage(xSize, ySize) {
-        if (packageMode === packageModeUniversal)
-            return true
-        if (xSize !== ySize)
-            return false
-        return boardSizePresetAllowed(xSize)
+        return RuleSupport.boardDimensionsAllowedForPackage(root, xSize, ySize)
     }
 
     function ruleModeAllowedForPackage(mode) {
-        if (packageMode === packageModeGo)
-            return mode === gameRuleGo
-        if (packageMode === packageModeSix)
-            return mode === gameRuleGomoku
-        return true
+        return RuleSupport.ruleModeAllowedForPackage(root, mode)
     }
 
     function packageDefaultBoardSize() {
-        if (packageMode === packageModeGo)
-            return 19
-        if (packageMode === packageModeSix)
-            return 13
-        return defaultBoardSize
+        return RuleSupport.packageDefaultBoardSize(root)
     }
 
     function packageModeText(mode) {
-        if (mode === packageModeGo)
-            return trText("packageModeGo")
-        if (mode === packageModeSix)
-            return trText("packageModeSix")
-        return trText("packageModeUniversal")
+        return RuleSupport.packageModeText(root, mode)
     }
 
     function packageBoardSizeRejectText(xSize, ySize) {
-        var dims = CoordinateUtils.boardDimensionsText(xSize, ySize)
-        if (packageMode === packageModeGo)
-            return trText("packageBoardSizeRejected") + ": " + dims
-        if (packageMode === packageModeSix)
-            return trText("packageBoardSizeRejected") + ": " + dims + " (11x11 / 13x13)"
-        return trText("packageBoardSizeRejected") + ": " + dims
+        return RuleSupport.packageBoardSizeRejectText(root, xSize, ySize)
     }
 
     function normalizeGomokuRuleForCurrentMode() {
-        if (gameRuleMode !== gameRuleGomoku)
-            return
-        if (packageMode === packageModeSix && gomokuRuleMode !== gomokuRuleFreestyle
-                && gomokuRuleMode !== gomokuRuleStandard
-                && gomokuRuleMode !== gomokuRuleCon7
-                && gomokuRuleMode !== gomokuRuleDirectCon5)
-            gomokuRuleMode = gomokuRuleFreestyle
+        RuleSupport.normalizeGomokuRuleForCurrentMode(root)
     }
 
     function requestRuleModeChange(mode) {
-        if (mode === gameRuleMode)
-            return
-        if (!ruleModeAllowedForPackage(mode))
-            return
-        if (gameDirty) {
-            pendingClearAction = "ruleMode"
-            pendingRuleMode = mode
-            ruleChangeSaveDialog.open()
-            return
-        }
-        applyRuleModeChange(mode)
+        RuleSupport.requestRuleModeChange(root, mode, ruleChangeSaveDialog)
     }
 
     function applyRuleModeChange(mode) {
-        if (mode !== gameRuleGo && mode !== gameRuleGomoku)
-            return
-        if (!ruleModeAllowedForPackage(mode))
-            return
-        gameRuleMode = mode
-        normalizeGomokuRuleForCurrentMode()
-        clearHover(true)
-        resetGameTree()
-        gameDirty = false
-        statusMode = "message"
-        statusMessage = trText("ruleChanged") + ": " + gameRuleText()
-        resetEngineSyncState()
-        scheduleAutoAnalysis()
-        requestAiMoveIfNeeded()
-        focusBoardInput()
+        RuleSupport.applyRuleModeChange(root, mode)
     }
 
     function requestBoardDimensionsChange(xSize, ySize, markDirty) {
-        var nextX = Math.round(clamp(xSize, minBoardSize, maxBoardSize))
-        var nextY = Math.round(clamp(ySize, minBoardSize, maxBoardSize))
-        if (!boardDimensionsAllowedForPackage(nextX, nextY)) {
-            statusMode = "message"
-            statusMessage = packageBoardSizeRejectText(nextX, nextY)
-            return false
-        }
-        if (nextX === boardSizeX && nextY === boardSizeY)
-            return true
-        if (gameDirty) {
-            pendingClearAction = "boardSize"
-            pendingBoardSizeX = nextX
-            pendingBoardSizeY = nextY
-            ruleChangeSaveDialog.open()
-            return false
-        }
-        return setBoardDimensions(nextX, nextY, markDirty)
+        return RuleSupport.requestBoardDimensionsChange(root, xSize, ySize, markDirty, ruleChangeSaveDialog)
     }
 
     function setBoardDimensions(xSize, ySize, markDirty) {
-        var nextX = Math.round(clamp(xSize, minBoardSize, maxBoardSize))
-        var nextY = Math.round(clamp(ySize, minBoardSize, maxBoardSize))
-        if (!boardDimensionsAllowedForPackage(nextX, nextY)) {
-            statusMode = "message"
-            statusMessage = packageBoardSizeRejectText(nextX, nextY)
-            return false
-        }
-        if (nextX === boardSizeX && nextY === boardSizeY)
-            return true
-        boardSizeX = nextX
-        boardSizeY = nextY
-        clearHover(true)
-        resetGameTree()
-        setSelectedPoint(0, 0)
-        if (markDirty !== false)
-            gameDirty = true
-        applyEngineCommandForCurrentPackageMode(false)
-        resetEngineSyncState()
-        scheduleAutoAnalysis()
-        requestAiMoveIfNeeded()
-        return true
+        return RuleSupport.setBoardDimensions(root, xSize, ySize, markDirty)
     }
 
     function resetBoardSize() {
-        var size = packageDefaultBoardSize()
-        setBoardDimensions(size, size)
+        RuleSupport.resetBoardSize(root)
     }
 
     function pendingClearMessage() {
-        if (pendingClearAction === "openSgf")
-            return trText("confirmOpenSgfSave")
-        if (pendingClearAction === "boardSize")
-            return trText("confirmBoardSizeChangeSave")
-        if (pendingClearAction === "clearBoard")
-            return trText("confirmBoardSizeChangeSave")
-        return trText("confirmRuleChangeSave")
+        return RuleSupport.pendingClearMessage(root)
     }
 
     function pendingClearTitle() {
-        return trText("clearGamePromptTitle")
+        return RuleSupport.pendingClearTitle(root)
     }
 
     function clearPendingClearAction() {
-        pendingClearAction = ""
-        pendingRuleMode = -1
-        pendingBoardSizeX = -1
-        pendingBoardSizeY = -1
+        RuleSupport.clearPendingClearAction(root)
     }
 
     function applyPendingClearAction() {
-        if (pendingClearAction === "ruleMode") {
-            var mode = pendingRuleMode
-            clearPendingClearAction()
-            gameDirty = false
-            applyRuleModeChange(mode)
-            return
-        }
-        if (pendingClearAction === "boardSize") {
-            var xSize = pendingBoardSizeX
-            var ySize = pendingBoardSizeY
-            clearPendingClearAction()
-            gameDirty = false
-            setBoardDimensions(xSize, ySize)
-            return
-        }
-        if (pendingClearAction === "openSgf") {
-            clearPendingClearAction()
-            gameDirty = false
-            loadSgfDialog.open()
-            return
-        }
-        if (pendingClearAction === "clearBoard") {
-            clearPendingClearAction()
-            gameDirty = false
-            resetGameTree()
-            return
-        }
-        clearPendingClearAction()
-        focusBoardInput()
+        RuleSupport.applyPendingClearAction(root, loadSgfDialog)
     }
-
     function engineRuleCommand() {
         if (gameRuleMode !== gameRuleGomoku)
             return ""
@@ -1948,749 +1679,188 @@ ApplicationWindow {
     }
 
     function candidateVisitCount(candidate) {
-        if (!candidate)
-            return 0
-        var visits = Number(candidate.visits)
-        return isNaN(visits) ? 0 : visits
+        return CandidateAnalysis.visitCount(candidate)
     }
 
     function candidateWinrateValue(candidate) {
-        if (!candidate || candidate.winrate === undefined)
-            return 0
-        var value = Number(candidate.winrate)
-        if (isNaN(value))
-            return 0
-        if (value <= 1)
-            value *= 100
-        return clamp(value, 0, 100)
+        return CandidateAnalysis.winrateValue(root, candidate)
     }
 
     function candidateScoreValue(candidate) {
-        if (!candidate || candidate.scoreMean === undefined)
-            return NaN
-        var value = Number(candidate.scoreMean)
-        return isNaN(value) ? NaN : value
+        return CandidateAnalysis.scoreValue(candidate)
     }
 
     function formatCandidateNumber(value, decimals, showPercent, normalizePercent) {
-        var number = Number(value)
-        if (isNaN(number))
-            return ""
-        var displayValue = number
-        if (showPercent && normalizePercent && Math.abs(displayValue) <= 1)
-            displayValue *= 100
-        var text = displayValue.toFixed(Math.round(clamp(decimals, 0, 2)))
-        if (showPercent)
-            text += "%"
-        return text
+        return CandidateAnalysis.formatCandidateNumber(root, value, decimals, showPercent, normalizePercent)
     }
 
     function candidateWinrateText(candidate) {
-        if (!candidate || candidate.winrate === undefined)
-            return ""
-        return formatCandidateNumber(candidateWinrateValue(candidate),
-                                     candidateWinrateDecimals,
-                                     candidateWinrateShowPercent,
-                                     false)
+        return CandidateAnalysis.winrateText(root, candidate)
     }
 
     function candidateScoreDisplayEnabled() {
-        return candidateScoreLabelVisible
+        return CandidateAnalysis.scoreDisplayEnabled(root)
     }
 
     function candidateScoreTitle() {
-        return candidateScoreTitleMode === candidateScoreTitleDrawRate ? trText("candidateDrawRate")
-                                                                       : trText("candidateScoreMean")
+        return CandidateAnalysis.scoreTitle(root)
     }
 
     function candidateScoreText(candidate) {
-        if (!candidate || candidate.scoreMean === undefined || !candidateScoreDisplayEnabled())
-            return ""
-        return formatCandidateNumber(candidateScoreValue(candidate),
-                                     candidateScoreDecimals,
-                                     candidateScoreShowPercent,
-                                     false)
+        return CandidateAnalysis.scoreText(root, candidate)
     }
 
     function candidateLabelLines(candidate) {
-        var lines = []
-        var winrateLabel = candidateWinrateText(candidate)
-        if (candidateWinrateLabelVisible && winrateLabel.length > 0) {
-            lines.push({
-                "kind": 0,
-                "text": winrateLabel,
-                "fontSize": candidateWinrateFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateWinrateBold
-            })
-        }
-        if (candidateVisitsLabelVisible) {
-            var visitsLabel = formatVisitCount(candidateVisitCount(candidate))
-            if (visitsLabel.length > 0) {
-                lines.push({
-                    "kind": 1,
-                    "text": visitsLabel,
-                    "fontSize": candidateVisitsFontSize,
-                    "color": String(candidateLabelTextColor),
-                    "bold": candidateVisitsBold
-                })
-            }
-        }
-        var scoreLabel = candidateScoreText(candidate)
-        if (scoreLabel.length > 0) {
-            lines.push({
-                "kind": 2,
-                "text": scoreLabel,
-                "fontSize": candidateScoreFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateScoreBold
-            })
-        }
-        if (lines.length <= 0 && winrateLabel.length > 0) {
-            lines.push({
-                "kind": 0,
-                "text": winrateLabel,
-                "fontSize": candidateWinrateFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateWinrateBold
-            })
-        }
-        return lines
+        return CandidateAnalysis.labelLines(root, candidate)
     }
 
     function candidateLabelLineOffset(kind) {
-        if (kind === 0)
-            return candidateWinrateOffsetY
-        if (kind === 1)
-            return candidateVisitsOffsetY
-        return candidateScoreOffsetY
+        return CandidateAnalysis.labelLineOffset(root, kind)
     }
 
     function candidateLabelLineHeight(line) {
-        return Math.max(16, Number(line.fontSize) * 0.88)
+        return CandidateAnalysis.labelLineHeight(line)
     }
 
     function candidateLabelScale(markerRadius) {
-        return Math.max(0.12, markerRadius * 2 / 151)
+        return CandidateAnalysis.labelScale(markerRadius)
     }
 
     function candidateLabelGap(markerRadius) {
-        return 2 * candidateLabelScale(markerRadius)
+        return CandidateAnalysis.labelGap(markerRadius)
     }
 
     function candidateRingRadius(markerRadius) {
-        return markerRadius * 1.02
+        return CandidateAnalysis.ringRadius(markerRadius)
     }
 
     function candidateRingLineWidthForRadius(markerRadius) {
-        return Math.max(1, candidateRingLineWidth * candidateLabelScale(markerRadius))
+        return CandidateAnalysis.ringLineWidthForRadius(root, markerRadius)
     }
 
     function candidateRankLabelText(displayIndex) {
-        if (!candidateRankLabelVisible)
-            return ""
-        var rank = Math.round(Number(displayIndex))
-        return rank >= 1 && rank <= 9 ? String(rank) : ""
+        return CandidateAnalysis.rankLabelText(root, displayIndex)
     }
 
     function candidateLabelTotalHeight(lines) {
-        if (!lines || lines.length <= 0)
-            return 0
-        var totalHeight = 0
-        for (var i = 0; i < lines.length; ++i)
-            totalHeight += candidateLabelLineHeight(lines[i])
-        return totalHeight + 2 * Math.max(0, lines.length - 1)
+        return CandidateAnalysis.labelTotalHeight(lines)
     }
 
     function candidateLabelLineCenterY(lines, lineIndex, height) {
-        if (!lines || lineIndex < 0 || lineIndex >= lines.length)
-            return height * 0.5
-        var gap = 2
-        var y = (height - candidateLabelTotalHeight(lines)) * 0.5
-        for (var i = 0; i < lineIndex; ++i)
-            y += candidateLabelLineHeight(lines[i]) + gap
-        return y + candidateLabelLineHeight(lines[lineIndex]) * 0.5
+        return CandidateAnalysis.labelLineCenterY(root, lines, lineIndex, height)
     }
 
     function candidateLabelScaledTotalHeight(lines, markerRadius) {
-        if (!lines || lines.length <= 0)
-            return 0
-        var scale = candidateLabelScale(markerRadius)
-        var totalHeight = 0
-        for (var i = 0; i < lines.length; ++i)
-            totalHeight += candidateLabelLineHeight(lines[i]) * scale
-        return totalHeight + candidateLabelGap(markerRadius) * Math.max(0, lines.length - 1)
+        return CandidateAnalysis.labelScaledTotalHeight(root, lines, markerRadius)
     }
 
     function drawCandidateLabelLines(ctx, lines, centerX, centerY, markerRadius, overrideColor) {
-        if (!lines || lines.length <= 0)
-            return
-
-        var scale = candidateLabelScale(markerRadius)
-        var y = centerY - candidateLabelScaledTotalHeight(lines, markerRadius) * 0.5
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        for (var lineIndex = 0; lineIndex < lines.length; ++lineIndex) {
-            var line = lines[lineIndex]
-            var lineHeight = candidateLabelLineHeight(line) * scale
-            var fontSize = Math.max(7, Number(line.fontSize) * scale)
-            ctx.font = (line.bold ? "700 " : "400 ") + Math.round(fontSize) + "px sans-serif"
-            ctx.fillStyle = overrideColor || line.color || String(candidateLabelTextColor)
-            ctx.fillText(line.text || "",
-                         centerX,
-                         y + lineHeight * 0.5 - candidateLabelLineOffset(line.kind) * scale,
-                         Math.max(8, markerRadius * 2 - 4))
-            y += lineHeight + candidateLabelGap(markerRadius)
-        }
+        CandidateAnalysis.drawLabelLines(root, ctx, lines, centerX, centerY, markerRadius, overrideColor)
     }
 
     function drawCandidateRankLabel(ctx, centerX, centerY, markerRadius, rankText) {
-        if (!candidateRankLabelVisible || rankText === undefined || String(rankText).length <= 0)
-            return
-
-        var text = String(rankText)
-        var squareWidth = markerRadius * 2 / Math.max(0.1, Number(stoneScale))
-        var anchorX = centerX + squareWidth * 0.43 + (text === "1" ? 1 : 0)
-        var anchorY = centerY - squareWidth * 0.358 - (text === "1" ? 1 : 0)
-        var maxFontHeight = squareWidth * 0.36
-        var maxFontWidth = squareWidth * 0.39
-        var fontFamily = String(coordinateFontFamily).replace(/"/g, "")
-
-        ctx.save()
-        var fontSize = Math.max(1, maxFontHeight)
-        ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
-        var measured = ctx.measureText(text)
-        if (measured.width > maxFontWidth && measured.width > 0) {
-            fontSize *= maxFontWidth / measured.width
-            ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
-            measured = ctx.measureText(text)
-        }
-
-        var textWidth = Math.max(1, measured.width)
-        var ascent = measured.actualBoundingBoxAscent || fontSize * 0.72
-        var descent = measured.actualBoundingBoxDescent || fontSize * 0.12
-        var textHeight = Math.max(1, ascent - descent)
-        var x1 = anchorX - textWidth * 0.5
-        var y1 = anchorY
-
-        ctx.globalAlpha = 1
-        ctx.fillStyle = "#ffa500"
-        ctx.fillRect(x1, y1 - textHeight, textWidth, textHeight + Math.max(1, textHeight / 12))
-        ctx.fillStyle = "#15191c"
-        ctx.textAlign = "left"
-        ctx.textBaseline = "alphabetic"
-        ctx.fillText(text, x1, y1)
-        ctx.restore()
+        CandidateAnalysis.drawRankLabel(root, ctx, centerX, centerY, markerRadius, rankText)
     }
 
     function drawCandidateMarker(ctx, centerX, centerY, markerRadius, lines, options) {
-        options = options || ({})
-
-        var drawBackground = options.drawBackground === undefined ? true : !!options.drawBackground
-        var drawOutline = !!options.drawOutline
-        var drawRing = !!options.drawRing && candidateRingVisible
-        var fillOpacity = options.fillOpacity === undefined ? 1 : Number(options.fillOpacity)
-        var outlineOpacity = options.outlineOpacity === undefined ? 1 : Number(options.outlineOpacity)
-        var ringOpacity = options.ringOpacity === undefined ? 1 : Number(options.ringOpacity)
-
-        ctx.save()
-        if (drawBackground) {
-            ctx.globalAlpha = ctx.globalAlpha * fillOpacity
-            ctx.fillStyle = String(options.fillColor || "#00c8ff")
-            ctx.beginPath()
-            ctx.arc(centerX, centerY, markerRadius, 0, Math.PI * 2)
-            ctx.fill()
-        }
-        ctx.restore()
-
-        ctx.save()
-        if (drawOutline) {
-            ctx.globalAlpha = ctx.globalAlpha * outlineOpacity
-            ctx.strokeStyle = String(options.outlineColor || "#000000")
-            ctx.lineWidth = Math.max(1, markerRadius / 26.5)
-            ctx.beginPath()
-            ctx.arc(centerX, centerY, markerRadius, 0, Math.PI * 2)
-            ctx.stroke()
-        }
-        ctx.restore()
-
-        ctx.save()
-        if (drawRing) {
-            ctx.globalAlpha = ctx.globalAlpha * ringOpacity
-            ctx.strokeStyle = String(options.ringColor || "#f01818")
-            ctx.lineWidth = candidateRingLineWidthForRadius(markerRadius)
-            ctx.beginPath()
-            ctx.arc(centerX, centerY, candidateRingRadius(markerRadius), 0, Math.PI * 2)
-            ctx.stroke()
-        }
-        ctx.restore()
-
-        if (lines && lines.length > 0) {
-            drawCandidateLabelLines(ctx, lines, centerX, centerY, markerRadius, options.textColor)
-        } else if (options.fallbackText !== undefined) {
-            ctx.save()
-            ctx.fillStyle = String(options.fallbackColor || candidateLabelTextColor)
-            ctx.font = "700 " + Math.round(options.fallbackFontSize || Math.max(8, markerRadius * 0.8)) + "px sans-serif"
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-            ctx.fillText(String(options.fallbackText), centerX, centerY, Math.max(8, markerRadius * 2 - 4))
-            ctx.restore()
-        }
-
-        drawCandidateRankLabel(ctx, centerX, centerY, markerRadius, options.rankText)
+        CandidateAnalysis.drawMarker(root, ctx, centerX, centerY, markerRadius, lines, options)
     }
 
     function candidateMarkerRadius(width, height) {
-        var side = Math.min(width, height)
-        var markerRadius = side * 0.48
-        var ringSafeRadius = (side * 0.5 - 1) / (1.02 + candidateRingLineWidth / 151)
-        return Math.max(1, Math.min(markerRadius, ringSafeRadius))
+        return CandidateAnalysis.markerRadius(root, width, height)
     }
 
     function hexComponent(value) {
-        var text = Math.round(clamp(value, 0, 255)).toString(16)
-        return text.length < 2 ? "0" + text : text
+        return CandidateAnalysis.hexComponent(root, value)
     }
 
     function hsbColorHex(hue, saturation, brightness) {
-        hue = ((Number(hue) % 1) + 1) % 1
-        saturation = clamp(Number(saturation), 0, 1)
-        brightness = clamp(Number(brightness), 0, 1)
-        var r = brightness
-        var g = brightness
-        var b = brightness
-        if (saturation > 0) {
-            var h = hue * 6
-            var sector = Math.floor(h)
-            var fraction = h - sector
-            var p = brightness * (1 - saturation)
-            var q = brightness * (1 - saturation * fraction)
-            var t = brightness * (1 - saturation * (1 - fraction))
-            switch (sector) {
-            case 0:
-                r = brightness; g = t; b = p
-                break
-            case 1:
-                r = q; g = brightness; b = p
-                break
-            case 2:
-                r = p; g = brightness; b = t
-                break
-            case 3:
-                r = p; g = q; b = brightness
-                break
-            case 4:
-                r = t; g = p; b = brightness
-                break
-            default:
-                r = brightness; g = p; b = q
-                break
-            }
-        }
-        return "#" + hexComponent(r * 255) + hexComponent(g * 255) + hexComponent(b * 255)
+        return CandidateAnalysis.hsbColorHex(root, hue, saturation, brightness)
     }
 
     function candidateYzyAlphaRatio(visitRatio) {
-        var ratio = clamp(Number(visitRatio), 0.000001, 1)
-        return Math.max(0, Math.log(ratio) / candidateYzyAlphaFactor + 1)
+        return CandidateAnalysis.yzyAlphaRatio(root, visitRatio)
     }
 
     function candidateMarkerColor(displayIndex, visitRatio) {
-        if (displayIndex <= 1)
-            return hsbColorHex(0.5, 1.0, 0.85)
-        var fraction = Math.pow(clamp(Number(visitRatio), 0, 1), 1 / candidateYzyColorRatio)
-        var hue = (1 / 3) * fraction
-        return hsbColorHex(hue, 1.0, 0.85)
+        return CandidateAnalysis.markerColor(root, displayIndex, visitRatio)
     }
 
     function candidateMarkerOpacity(displayIndex, visitRatio) {
-        var alphaRatio = candidateYzyAlphaRatio(visitRatio)
-        var alpha = candidateYzyMinAlpha + (candidateYzyMaxAlpha - candidateYzyMinAlpha) * alphaRatio
-        return clamp(alpha / 255, 0, 1)
+        return CandidateAnalysis.markerOpacity(root, displayIndex, visitRatio)
     }
 
     function candidateMarkerOutlineOpacity(visitRatio) {
-        var alpha = 48 + 48 * candidateYzyAlphaRatio(visitRatio)
-        return clamp(alpha / 255, 0, 1)
+        return CandidateAnalysis.markerOutlineOpacity(root, visitRatio)
     }
 
     function candidatePreviewLabelLines(digitText) {
-        var lines = []
-        var decimals = Math.round(clamp(candidateWinrateDecimals, 0, 2))
-        var digit = digitText === undefined ? "6" : String(digitText)
-        var winrateText = decimals === 0 ? digit + digit
-                         : decimals === 1 ? digit + digit + "." + digit
-                         : digit + digit + "." + digit + digit
-        if (candidateWinrateShowPercent)
-            winrateText += "%"
-
-        if (candidateWinrateLabelVisible) {
-            lines.push({
-                "kind": 0,
-                "text": winrateText,
-                "fontSize": candidateWinrateFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateWinrateBold
-            })
-        }
-        if (candidateVisitsLabelVisible) {
-            lines.push({
-                "kind": 1,
-                "text": digit + digit + "K",
-                "fontSize": candidateVisitsFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateVisitsBold
-            })
-        }
-        if (candidateScoreDisplayEnabled()) {
-            lines.push({
-                "kind": 2,
-                "text": candidateScoreText({ "scoreMean": Number(digit + "." + digit) }),
-                "fontSize": candidateScoreFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateScoreBold
-            })
-        }
-        if (lines.length <= 0) {
-            lines.push({
-                "kind": 0,
-                "text": winrateText,
-                "fontSize": candidateWinrateFontSize,
-                "color": String(candidateLabelTextColor),
-                "bold": candidateWinrateBold
-            })
-        }
-        return lines
+        return CandidateAnalysis.previewLabelLines(root, digitText)
     }
 
     function formatVisitCount(value) {
-        var visits = Number(value)
-        if (isNaN(visits) || visits <= 0)
-            return "0"
-        if (visits >= 1000000000)
-            return (visits / 1000000000).toFixed(visits >= 10000000000 ? 0 : 1) + "G"
-        if (visits >= 1000000)
-            return (visits / 1000000).toFixed(visits >= 10000000 ? 0 : 1) + "M"
-        if (visits >= 1000)
-            return (visits / 1000).toFixed(visits >= 10000 ? 0 : 1) + "K"
-        return String(Math.round(visits))
+        return CandidateAnalysis.formatVisitCount(value)
     }
 
     function cloneEngineCandidate(candidate) {
-        var copy = ({})
-        if (!candidate)
-            return copy
-
-        for (var key in candidate) {
-            var value = candidate[key]
-            if (Array.isArray(value)) {
-                copy[key] = value.slice()
-            } else if (value && typeof value === "object" && value.length !== undefined
-                       && typeof value.slice === "function") {
-                copy[key] = value.slice()
-            } else {
-                copy[key] = value
-            }
-        }
-        return copy
+        return CandidateAnalysis.cloneCandidate(candidate)
     }
 
     function cloneEngineCandidateList(candidates) {
-        var copy = []
-        if (!candidates)
-            return copy
-        for (var i = 0; i < candidates.length; ++i)
-            copy.push(cloneEngineCandidate(candidates[i]))
-        return copy
+        return CandidateAnalysis.cloneCandidateList(candidates)
     }
 
     function resetEngineCandidateDisplay() {
-        engineCandidates = []
-        engineCandidatesFromCache = false
-        engineCandidateItems = []
-        engineCandidateItemMap = ({})
-        engineCandidateTableItems = []
-        bestCandidateRingVisible = false
-        bestCandidateRingKey = ""
-        engineCandidateRevision += 1
+        CandidateAnalysis.resetDisplay(root)
     }
 
     function setEngineCandidateDisplay(candidates, fromCache, revision) {
-        engineCandidates = cloneEngineCandidateList(candidates)
-        engineCandidatesFromCache = fromCache === true
-        if (revision === undefined)
-            engineCandidateRevision += 1
-        else
-            engineCandidateRevision = revision
-        rebuildEngineCandidateItems()
+        CandidateAnalysis.setDisplay(root, candidates, fromCache, revision)
     }
 
     function nodeAnalysisCacheUsable(node) {
-        return !!node
-               && node.analysisCandidates !== undefined
-               && node.analysisCandidates.length > 0
-               && node.analysisCandidateBoardSignature === engineBoardSignature()
-               && node.analysisCandidateKomiSignature === engineKomiSignature()
+        return CandidateAnalysis.nodeAnalysisCacheUsable(root, node)
     }
 
     function recordAnalysisWinrateForNode(node, candidates, playerToMove) {
-        if (!node || !candidates || candidates.length <= 0)
-            return false
-        var best = candidates[0]
-        if (!best || best.winrate === undefined)
-            return false
-
-        var blackWinrate = playerToMove === 1 ? candidateWinrateValue(best)
-                                              : 100 - candidateWinrateValue(best)
-        blackWinrate = clamp(blackWinrate, 0, 100)
-        if (node.analysisBlackWinrate !== undefined
-                && Math.abs(Number(node.analysisBlackWinrate) - blackWinrate) < 0.0001)
-            return false
-        node.analysisBlackWinrate = blackWinrate
-        analysisRevision += 1
-        return true
+        return CandidateAnalysis.recordAnalysisWinrateForNode(root, node, candidates, playerToMove)
     }
 
     function cacheAnalysisCandidatesForNode(node, candidates, boardSignature, komiSignature) {
-        if (!node || !candidates || candidates.length <= 0)
-            return false
-
-        node.analysisCandidates = cloneEngineCandidateList(candidates)
-        node.analysisCandidateBoardSignature = boardSignature || engineBoardSignature()
-        node.analysisCandidateKomiSignature = komiSignature || engineKomiSignature()
-        recordAnalysisWinrateForNode(node, node.analysisCandidates, playerToMoveAfterNode(node))
-        gameNodes = gameNodes.slice()
-        return true
+        return CandidateAnalysis.cacheAnalysisCandidatesForNode(root, node, candidates, boardSignature, komiSignature)
     }
 
     function showCachedAnalysisForCurrentNode() {
-        var node = currentNode()
-        if (!nodeAnalysisCacheUsable(node))
-            return false
-        setEngineCandidateDisplay(node.analysisCandidates, true)
-        return engineCandidateItems.length > 0
+        return CandidateAnalysis.showCachedAnalysisForCurrentNode(root)
     }
 
     function applyEngineCandidateUpdate(candidates, revision) {
-        if (!analysisModeActive()) {
-            resetEngineCandidateDisplay()
-            return
-        }
-
-        var incoming = cloneEngineCandidateList(candidates)
-        if (incoming.length <= 0) {
-            if (!showCachedAnalysisForCurrentNode())
-                resetEngineCandidateDisplay()
-            return
-        }
-
-        engineLoading = false
-        var targetId = engineAnalysisRequestNodeId >= 0 ? engineAnalysisRequestNodeId : currentNodeId
-        var targetGeneration = engineAnalysisRequestGeneration >= 0 ? engineAnalysisRequestGeneration
-                                                                     : gameTreeGeneration
-        if (targetGeneration !== gameTreeGeneration) {
-            if (!showCachedAnalysisForCurrentNode())
-                resetEngineCandidateDisplay()
-            return
-        }
-        var targetNode = nodeById(targetId)
-        var targetBoardSignature = engineAnalysisRequestBoardSignature.length > 0
-                                 ? engineAnalysisRequestBoardSignature
-                                 : engineBoardSignature()
-        var targetKomiSignature = engineAnalysisRequestKomiSignature.length > 0
-                                ? engineAnalysisRequestKomiSignature
-                                : engineKomiSignature()
-
-        if (targetNode)
-            cacheAnalysisCandidatesForNode(targetNode, incoming, targetBoardSignature, targetKomiSignature)
-
-        if (targetId !== currentNodeId || targetBoardSignature !== engineBoardSignature()
-                || targetKomiSignature !== engineKomiSignature()) {
-            if (!showCachedAnalysisForCurrentNode())
-                resetEngineCandidateDisplay()
-            return
-        }
-
-        setEngineCandidateDisplay(incoming, false, revision)
-        if (engineCandidateItems.length > 0) {
-            statusMode = "message"
-            statusMessage = engineCandidateSummaryText()
-        }
+        CandidateAnalysis.applyEngineCandidateUpdate(root, candidates, revision)
     }
 
     function rebuildEngineCandidateItems() {
-        var sorted = []
-        for (var s = 0; s < engineCandidates.length; ++s)
-            sorted.push(engineCandidates[s])
-        sorted.sort(function(left, right) {
-            var lo = left.order === undefined ? 0 : Number(left.order)
-            var ro = right.order === undefined ? 0 : Number(right.order)
-            return lo - ro
-        })
-
-        var maxVisits = 0
-        for (var m = 0; m < sorted.length; ++m)
-            maxVisits = Math.max(maxVisits, candidateVisitCount(sorted[m]))
-
-        var limit = candidateDisplayCount <= 0 ? sorted.length : Math.min(candidateDisplayCount, sorted.length)
-        var threshold = maxVisits > 0 ? maxVisits * candidateMinVisitRatio : 0
-
-        var items = []
-        var itemMap = ({})
-        var table = []
-        for (var c = 0; c < sorted.length; ++c) {
-            var candidate = sorted[c]
-            var point = parseEngineCoordinate(candidate.move)
-            if (point && stoneAt(point.x, point.y) === 0) {
-                var visits = candidateVisitCount(candidate)
-                var visitRatio = maxVisits > 0 ? clamp(visits / maxVisits, 0, 1) : 1
-                var rawWinrate = candidateWinrateValue(candidate)
-                var qualified = c < limit && (maxVisits <= 0 || visits >= threshold)
-                var item = {
-                    "x": point.x,
-                    "y": point.y,
-                    "key": keyFor(point.x, point.y),
-                    "move": candidate.move,
-                    "order": candidate.order,
-                    "displayIndex": c + 1,
-                    "visits": visits,
-                    "visitRatio": visitRatio,
-                    "qualified": qualified,
-                    "boardVisible": qualified || candidateShowFilteredMarkers,
-                    "opacity": candidateMarkerOpacity(c + 1, visitRatio),
-                    "color": candidateMarkerColor(c + 1, visitRatio),
-                    "outlineOpacity": candidateMarkerOutlineOpacity(visitRatio),
-                    "winrate": rawWinrate,
-                    "winrateText": candidateWinrateText(candidate),
-                    "scoreMean": candidateScoreValue(candidate),
-                    "scoreText": candidateScoreText(candidate),
-                    "pv": candidatePvMoves(candidate),
-                    "labelLines": candidateLabelLines(candidate)
-                }
-                items.push(item)
-                itemMap[item.key] = item
-                table.push({
-                    "row": c + 1,
-                    "key": item.key,
-                    "coordinate": coordinateText(point.x, point.y),
-                    "winrateText": item.winrateText,
-                    "scoreText": item.scoreText,
-                    "visitsText": visits > 0 ? formatVisitCount(visits) : ""
-                })
-            }
-        }
-        engineCandidateItems = items
-        engineCandidateItemMap = itemMap
-        engineCandidateTableItems = table
-        updateBestCandidateRing(items)
+        CandidateAnalysis.rebuildItems(root)
     }
 
     function candidatePvMoves(candidate) {
-        if (!candidate)
-            return []
-
-        var moves = []
-        var pv = candidate.pv || []
-        for (var i = 0; i < pv.length; ++i) {
-            var pvMove = String(pv[i]).trim()
-            if (pvMove.length > 0)
-                moves.push(pvMove)
-        }
-        return moves
+        return CandidateAnalysis.pvMoves(candidate)
     }
 
     function activeCandidateForVariationPreview() {
-        if (!candidateVariationPreviewVisible || hoverKey === "" || !pointIsEngineCandidateKey(hoverKey))
-            return null
-        var candidate = engineCandidateItemMap[hoverKey]
-        if (!candidate || stoneAt(candidate.x, candidate.y) !== 0)
-            return null
-        return candidate
+        return CandidateAnalysis.activeCandidateForVariationPreview(root)
     }
 
     function activeCandidateVariationPreviewActive() {
-        var candidate = activeCandidateForVariationPreview()
-        return !!candidate && candidate.pv && candidate.pv.length > 0
+        return CandidateAnalysis.activeCandidateVariationPreviewActive(root)
     }
 
     function activeCandidateVariationItems(respectMaxMoves) {
-        var candidate = activeCandidateForVariationPreview()
-        if (!candidate || !candidate.pv || candidate.pv.length <= 0)
-            return []
-
-        var items = []
-        var player = currentPlayer
-        var moveNumber = 1
-        var useMaxMoves = respectMaxMoves !== false
-        var maxMoves = useMaxMoves ? Math.round(Number(candidateVariationPreviewMaxMoves)) : 0
-        if (isNaN(maxMoves))
-            maxMoves = 0
-        maxMoves = Math.max(0, maxMoves)
-
-        for (var i = 0; i < candidate.pv.length; ++i) {
-            if (maxMoves > 0 && moveNumber > maxMoves)
-                break
-            var moveText = String(candidate.pv[i])
-            var point = parseEngineCoordinate(moveText)
-            if (!point) {
-                if (moveText.trim().toLowerCase() === "pass") {
-                    player = player === 1 ? 2 : 1
-                    moveNumber += 1
-                }
-                continue
-            }
-            if (!pointInBoard(point.x, point.y))
-                continue
-
-            var key = keyFor(point.x, point.y)
-            items.push({
-                "x": point.x,
-                "y": point.y,
-                "key": key,
-                "player": player,
-                "moveNumber": moveNumber,
-                "nodeId": -1
-            })
-            player = player === 1 ? 2 : 1
-            moveNumber += 1
-        }
-        return items
+        return CandidateAnalysis.activeCandidateVariationItems(root, respectMaxMoves)
     }
 
     function playActiveCandidateVariation() {
-        if (!activeCandidateVariationPreviewActive())
-            return false
-
-        var candidate = activeCandidateForVariationPreview()
-        if (!candidate || !candidate.pv || candidate.pv.length <= 0)
-            return false
-
-        var moves = candidate.pv.slice()
-        var played = false
-        for (var i = 0; i < moves.length; ++i) {
-            var moveText = String(moves[i]).trim()
-            if (moveText.length <= 0)
-                continue
-            if (moveText.toLowerCase() === "pass") {
-                passMove()
-                played = true
-                continue
-            }
-
-            var point = parseEngineCoordinate(moveText)
-            if (!point || !pointInBoard(point.x, point.y))
-                continue
-            if (!placeStone(point.x, point.y))
-                break
-            played = true
-        }
-        if (played) {
-            clearHover(true)
-            focusBoardInput()
-        }
-        return played
+        return CandidateAnalysis.playActiveCandidateVariation(root)
     }
-
     function updateBestCandidateRing(items) {
         if (!items || items.length <= 0) {
             bestCandidateRingVisible = false
@@ -2757,109 +1927,63 @@ ApplicationWindow {
     }
 
     function recordCurrentAnalysisFromCandidates() {
-        if (engineCandidates.length <= 0)
-            return
-        var node = currentNode()
-        if (!node)
-            return
-        if (recordAnalysisWinrateForNode(node, engineCandidates, currentPlayer))
-            gameNodes = gameNodes.slice()
+        AnalysisStatus.recordCurrentAnalysisFromCandidates(root)
     }
 
     function currentAnalysisHasWinrate() {
-        var node = currentNode()
-        return !!node && node.analysisBlackWinrate !== undefined && node.analysisBlackWinrate >= 0
+        return AnalysisStatus.currentAnalysisHasWinrate(root)
     }
 
     function currentAnalysisBlackWinrate() {
-        var node = currentNode()
-        return currentAnalysisHasWinrate() ? node.analysisBlackWinrate : 50
+        return AnalysisStatus.currentAnalysisBlackWinrate(root)
     }
 
     function currentAnalysisWhiteWinrate() {
-        return 100 - currentAnalysisBlackWinrate()
+        return AnalysisStatus.currentAnalysisWhiteWinrate(root)
     }
 
     function winrateHistoryPoints() {
-        var points = []
-        var path = nodePath(currentNodeId)
-        for (var i = 0; i < path.length; ++i) {
-            var node = path[i]
-            if (node.analysisBlackWinrate !== undefined && node.analysisBlackWinrate >= 0)
-                points.push({ "move": node.moveNumber, "winrate": node.analysisBlackWinrate })
-        }
-        return points
+        return AnalysisStatus.winrateHistoryPoints(root)
     }
 
     function engineWinratePlaceholderActive() {
-        return analysisModeActive() && !currentAnalysisHasWinrate()
+        return AnalysisStatus.engineWinratePlaceholderActive(root)
     }
 
     function engineWinratePlaceholderText() {
-        if (engineDisabled)
-            return trText("engineNoEngineMode")
-        if (enginePaused)
-            return trText("enginePaused")
-        if (engineLoading)
-            return trText("engineLoading")
-        if (engineController && engineController.failed)
-            return trText("engineFailedNotice")
-        if (engineCandidateItems.length <= 0)
-            return trText("engineNoCandidates")
-        return ""
+        return AnalysisStatus.engineWinratePlaceholderText(root, engineController)
     }
 
     function engineCandidateSummaryText() {
-        if (engineCandidateItems.length <= 0)
-            return trText("engineNoCandidates")
-        var best = engineCandidateItems[0]
-        return trText("engineBestMove") + ": " + coordinateText(best.x, best.y) + " " + best.winrateText
+        return AnalysisStatus.engineCandidateSummaryText(root)
     }
 
     function engineDotColor() {
-        if (engineDisabled)
-            return "#8d969c"
-        if (enginePaused || (engineController && engineController.failed))
-            return "#d64238"
-        if (engineLoading)
-            return "#b5bec4"
-        if (engineController && engineController.running)
-            return "#25b56f"
-        return "#9aa5ab"
+        return AnalysisStatus.engineDotColor(root, engineController)
     }
 
     function engineNoticeVisible() {
-        if (engineNoticeDismissed)
-            return false
-        if (engineDisabled)
-            return false
-        return engineLoading || (engineController && engineController.failed)
+        return AnalysisStatus.engineNoticeVisible(root, engineController)
     }
 
     function engineNoticeText() {
-        if (engineController && engineController.failed)
-            return engineFailureMessage()
-        return trText("engineStartingNotice")
+        return AnalysisStatus.engineNoticeText(root, engineController)
     }
 
     function engineNoticeFillColor() {
-        return engineController && engineController.failed ? "#fff1ee" : "#eef5f8"
+        return AnalysisStatus.engineNoticeFillColor(engineController)
     }
 
     function engineNoticeBorderColor() {
-        return engineController && engineController.failed ? "#d0695f" : "#8fb7c6"
+        return AnalysisStatus.engineNoticeBorderColor(engineController)
     }
 
     function engineNoticeTextColor() {
-        return engineController && engineController.failed ? "#641a14" : "#183643"
+        return AnalysisStatus.engineNoticeTextColor(engineController)
     }
 
     function engineFailureMessage() {
-        if (engineController && engineController.failureMessage.length > 0)
-            return engineController.failureMessage
-        if (engineController && engineController.lastError.length > 0)
-            return engineController.lastError
-        return trText("engineFailedNotice")
+        return AnalysisStatus.engineFailureMessage(root, engineController)
     }
 
     function effectiveKomi() {
@@ -2874,203 +1998,89 @@ ApplicationWindow {
     }
 
     function buildGomokuWinLineItems(map) {
-        var runs = GameRules.buildGomokuWinRuns(map, boardDims(), gameRuleMode, gomokuRuleMode)
-        var items = []
-        for (var i = 0; i < runs.length; ++i) {
-            var run = runs[i]
-            items.push({
-                "startX": run.startX,
-                "startY": run.startY,
-                "endX": run.endX,
-                "endY": run.endY,
-                "player": run.player
-            })
-        }
-        return items
+        return BoardVisuals.buildGomokuWinLineItems(root, map)
     }
 
     function stoneOverlayVisible(moveNumber, lastMove) {
-        if (moveNumberDisplayMode === moveNumberModeHidden)
-            return lastMove
-        if (moveNumberDisplayMode === moveNumberModeLastOnly)
-            return lastMove
-        return moveNumber > 0
+        return BoardVisuals.stoneOverlayVisible(root, moveNumber, lastMove)
     }
 
     function stoneNumberVisible(moveNumber, lastMove) {
-        if (moveNumberDisplayMode === moveNumberModeHidden)
-            return false
-        if (moveNumberDisplayMode === moveNumberModeLastOnly)
-            return lastMove
-        return moveNumber > 0
+        return BoardVisuals.stoneNumberVisible(root, moveNumber, lastMove)
     }
 
     function stoneNumberColor(player, lastMove) {
-        return player === 1 ? "#f5f7f8" : "#1a252d"
+        return BoardVisuals.stoneNumberColor(player, lastMove)
     }
 
     function stoneNumberCanvasFont(size, bold) {
-        var family = String(coordinateFontFamily).replace(/"/g, "")
-        return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size))
-             + "px \"" + family + "\", sans-serif"
+        return BoardVisuals.stoneNumberCanvasFont(root, size, bold)
     }
 
     function stoneNumberBaseFontSize(ctx, text, radius) {
-        var label = String(text)
-        var digits = Math.max(1, label.length)
-        var digitFactor = digits <= 1 ? 1.18
-                        : digits === 2 ? 1.02
-                        : digits === 3 ? 0.86
-                        : Math.max(0.58, 0.86 - (digits - 3) * 0.12)
-        var baseSize = Math.min(radius * digitFactor, radius * 1.42)
-        var maxWidth = radius * 1.78
-        if (ctx) {
-            ctx.save()
-            ctx.font = stoneNumberCanvasFont(baseSize, true)
-            var measuredWidth = Math.max(1, ctx.measureText(label).width)
-            ctx.restore()
-            if (measuredWidth > maxWidth)
-                baseSize *= maxWidth / measuredWidth
-        }
-        return Math.max(1, baseSize)
+        return BoardVisuals.stoneNumberBaseFontSize(root, ctx, text, radius)
     }
 
     function stoneNumberFontSize(ctx, text, radius) {
-        return Math.max(1, stoneNumberBaseFontSize(ctx, text, radius) * Number(moveNumberLabelScale))
+        return BoardVisuals.stoneNumberFontSize(root, ctx, text, radius)
     }
 
     function stoneNumberMaxWidth(radius) {
-        return radius * 1.86 * Math.max(1, Number(moveNumberLabelScale))
+        return BoardVisuals.stoneNumberMaxWidth(root, radius)
     }
 
     function stoneNumberOffsetY(fontSize) {
-        return Math.max(1, Number(fontSize) * 0.08)
+        return BoardVisuals.stoneNumberOffsetY(fontSize)
     }
 
     function focusBoardInput() {
-        if (inputLayer)
-            inputLayer.forceActiveFocus()
+        BoardInteraction.focusBoardInput(inputLayer)
     }
 
     function itemContainsInputPoint(item, sourceItem, x, y) {
-        if (!item || !item.visible)
-            return false
-        var point = item.mapFromItem(sourceItem, x, y)
-        return point.x >= 0 && point.x <= item.width && point.y >= 0 && point.y <= item.height
+        return BoardInteraction.itemContainsInputPoint(item, sourceItem, x, y)
     }
 
     function boardInputBlocked(sourceItem, x, y) {
-        return itemContainsInputPoint(analysisToolbar, sourceItem, x, y)
-               || itemContainsInputPoint(infoPanel, sourceItem, x, y)
-               || itemContainsInputPoint(branchPanel, sourceItem, x, y)
-               || itemContainsInputPoint(commandToolbar, sourceItem, x, y)
+        return BoardInteraction.boardInputBlocked(sourceItem, x, y,
+                                                  analysisToolbar, infoPanel,
+                                                  branchPanel, commandToolbar)
     }
 
     function pointFromMouse(x, y) {
-        if (!boardScene)
-            return null
-        return boardScene.pointFromMouse(x, y)
+        return BoardInteraction.pointFromMouse(boardScene, x, y)
     }
 
     function clearHover(force) {
-        if (selectedPointLocked && force !== true)
-            return
-        selectedPointLocked = false
-        selectedPointFromCandidateList = false
-        hoverX = -1
-        hoverY = -1
-        hoverKey = ""
+        BoardInteraction.clearHover(root, force)
     }
 
     function cancelCandidateListSelection() {
-        if (!selectedPointLocked || !selectedPointFromCandidateList)
-            return false
-        clearHover(true)
-        return true
+        return BoardInteraction.cancelCandidateListSelection(root)
     }
 
     function updateHover(x, y) {
-        if (selectedPointLocked)
-            return
-        var point = pointFromMouse(x, y)
-        if (point) {
-            var nextKey = keyFor(point.x, point.y)
-            if (hoverKey === nextKey)
-                return
-            selectedPointFromCandidateList = false
-            setHoverPoint(point.x, point.y)
-        } else {
-            clearHover()
-        }
+        BoardInteraction.updateHover(root, boardScene, x, y)
     }
 
     function handleBoardClickFromMouse(x, y) {
-        var point = pointFromMouse(x, y)
-        if (!point) {
-            clearHover(true)
-            return false
-        }
-
-        selectedPointLocked = false
-        selectedPointFromCandidateList = false
-        setHoverPoint(point.x, point.y)
-        placeStone(point.x, point.y)
-        return true
+        return BoardInteraction.handleBoardClickFromMouse(root, boardScene, x, y)
     }
 
     function cycleMoveNumberDisplayMode() {
-        moveNumberDisplayMode = (moveNumberDisplayMode + 1) % 3
-        boardRevision += 1
+        BoardInteraction.cycleMoveNumberDisplayMode(root)
     }
 
     function resetBoardVisualSettings() {
-        backgroundColor = defaultBackgroundColor
-        boardWoodColor = defaultBoardWoodColor
-        stoneScale = defaultStoneScale
-        gridOpacity = defaultGridOpacity
-        gridLineWidth = defaultGridLineWidth
-        selectedPointScale = defaultSelectedPointScale
-        moveNumberLabelScale = defaultMoveNumberLabelScale
-        mouseHitRadiusScale = defaultMouseHitRadiusScale
-        coordinateDisplayMode = coordinateDisplayGoNoI
-        boardRevision += 1
+        SettingsStore.resetBoardVisualSettings(root)
     }
 
     function resetCandidateVisualSettings() {
-        candidateDisplayCount = 10
-        candidateMinVisitRatio = 0.001
-        candidateShowFilteredMarkers = true
-        candidateVariationPreviewVisible = true
-        candidateVariationPreviewMaxMoves = 10
-        candidateVariationPreviewOpacity = defaultCandidateVariationPreviewOpacity
-        candidateWinrateLabelVisible = true
-        candidateVisitsLabelVisible = true
-        candidateScoreLabelVisible = true
-        candidateWinrateFontSize = 57
-        candidateVisitsFontSize = 42
-        candidateScoreFontSize = 36
-        candidateWinrateBold = true
-        candidateVisitsBold = false
-        candidateScoreBold = true
-        candidateWinrateOffsetY = -10
-        candidateVisitsOffsetY = -5
-        candidateScoreOffsetY = -5
-        candidateWinrateDecimals = 1
-        candidateScoreDecimals = 1
-        candidateWinrateShowPercent = false
-        candidateScoreShowPercent = false
-        candidateScoreTitleMode = candidateScoreTitleScoreMean
-        candidateRingVisible = true
-        candidateRingLineWidth = 12
-        candidateRankLabelVisible = true
-        candidateFirstLabelTextColor = "#ff0000"
-        candidateLabelTextColor = "#000000"
-        boardRevision += 1
+        SettingsStore.resetCandidateVisualSettings(root)
     }
 
     function resetVisualSettings() {
-        resetBoardVisualSettings()
-        resetCandidateVisualSettings()
+        SettingsStore.resetVisualSettings(root)
     }
 
     function openBoardSizeDialog() {
@@ -3104,86 +2114,23 @@ ApplicationWindow {
     }
 
     function buildSgf() {
-        return SgfUtils.buildSgf(gameNodes, gameRuleMode, boardSizeX, boardSizeY, gameRuleText())
+        return SgfSession.build(root)
     }
 
     function saveSgfToFile(url) {
-        var ok = fileIo.writeTextFile(url, buildSgf())
-        if (ok) {
-            gameDirty = false
-            statusMode = "message"
-            statusMessage = trText("sgfSaved") + ": " + url
-        } else {
-            statusMode = "message"
-            statusMessage = trText("sgfSaveFailed") + ": " + fileIo.lastError
-        }
-        if (saveDialogClosesApp) {
-            saveDialogClosesApp = false
-            suppressUnsavedPrompt = true
-            Qt.quit()
-        }
-        focusBoardInput()
+        SgfSession.saveToFile(root, fileIo, url)
     }
 
     function parseSgf(text) {
-        return SgfUtils.parseSgf(text, {
-            "minBoardSize": minBoardSize,
-            "maxBoardSize": maxBoardSize,
-            "defaultRuleMode": gameRuleMode,
-            "gameRuleGo": gameRuleGo,
-            "gameRuleGomoku": gameRuleGomoku
-        })
+        return SgfSession.parse(root, text)
     }
 
     function applyParsedSgf(parsed, url) {
-        resetEngineSyncState()
-        var parsedRuleMode = parsed.ruleMode === undefined ? gameRuleMode : parsed.ruleMode
-        if (!ruleModeAllowedForPackage(parsedRuleMode)) {
-            statusMode = "message"
-            statusMessage = trText("sgfLoadFailed") + ": " + trText("packageRuleRejected")
-            focusBoardInput()
-            return
-        }
-        if (!boardDimensionsAllowedForPackage(parsed.boardSizeX, parsed.boardSizeY)) {
-            statusMode = "message"
-            statusMessage = trText("sgfLoadFailed") + ": "
-                            + packageBoardSizeRejectText(parsed.boardSizeX, parsed.boardSizeY)
-            focusBoardInput()
-            return
-        }
-        gameRuleMode = parsedRuleMode
-        boardSizeX = parsed.boardSizeX
-        boardSizeY = parsed.boardSizeY
-        gameTreeGeneration += 1
-        gameNodes = parsed.nodes
-        nextNodeId = parsed.nextNodeId
-        currentNodeId = 0
-        clearHover(true)
-        rebuildPositionFromNode(currentNodeId)
-        rebuildTreeLayout()
-        gotoLastMove()
-        gameDirty = false
-        statusMode = "message"
-        statusMessage = trText("sgfLoaded") + ": " + url
-        focusBoardInput()
+        SgfSession.applyParsed(root, parsed, url)
     }
 
     function loadSgfFromFile(url) {
-        var text = fileIo.readTextFile(url)
-        if (fileIo.lastError !== "") {
-            statusMode = "message"
-            statusMessage = trText("sgfLoadFailed") + ": " + fileIo.lastError
-            focusBoardInput()
-            return
-        }
-        var parsed = parseSgf(text)
-        if (!parsed.ok) {
-            statusMode = "message"
-            statusMessage = trText("sgfLoadFailed") + ": " + parsed.error
-            focusBoardInput()
-            return
-        }
-        applyParsedSgf(parsed, url)
+        SgfSession.loadFromFile(root, fileIo, url)
     }
 
     function closeWithoutSaving() {
@@ -3205,274 +2152,50 @@ ApplicationWindow {
     }
 
     function normalizeColorHex(value, fallback) {
-        var text = String(value)
-        if (/^#[0-9a-fA-F]{6}$/.test(text))
-            return text
-        return fallback
+        return SettingsStore.normalizeColorHex(value, fallback)
     }
 
     function normalizePersistentSettings() {
-        boardSizeX = Math.round(clamp(boardSizeX, minBoardSize, maxBoardSize))
-        boardSizeY = Math.round(clamp(boardSizeY, minBoardSize, maxBoardSize))
-        if (gameRuleMode !== gameRuleGo && gameRuleMode !== gameRuleGomoku)
-            gameRuleMode = gameRuleGo
-        gomokuRuleMode = Math.round(clamp(gomokuRuleMode, gomokuRuleCon5, gomokuRuleDirectCon5))
-        if (stoneColorMode !== stoneColorModeAuto
-                && stoneColorMode !== stoneColorModeBlack
-                && stoneColorMode !== stoneColorModeWhite)
-            stoneColorMode = stoneColorModeAuto
-        if (moveNumberDisplayMode < moveNumberModeAll || moveNumberDisplayMode > moveNumberModeHidden)
-            moveNumberDisplayMode = defaultMoveNumberDisplayMode
-        if (coordinateDisplayMode < coordinateDisplayGoNoI || coordinateDisplayMode > coordinateDisplayNone)
-            coordinateDisplayMode = coordinateDisplayGoNoI
-        packageMode = Math.round(clamp(packageMode, packageModeUniversal, packageModeSix))
-        candidateDisplayCount = Math.round(clamp(candidateDisplayCount, 0, 65536))
-        candidateMinVisitRatio = clamp(candidateMinVisitRatio, 0, 1)
-        var previewMaxMoves = Number(candidateVariationPreviewMaxMoves)
-        if (isNaN(previewMaxMoves))
-            previewMaxMoves = 0
-        candidateVariationPreviewMaxMoves = Math.round(clamp(previewMaxMoves, 0, maxLargeIntegerSetting))
-        var previewOpacity = Number(candidateVariationPreviewOpacity)
-        if (isNaN(previewOpacity))
-            previewOpacity = defaultCandidateVariationPreviewOpacity
-        candidateVariationPreviewOpacity = clamp(previewOpacity, 0, 1)
-        candidateWinrateFontSize = Math.round(clamp(candidateWinrateFontSize, 12, 120))
-        candidateVisitsFontSize = Math.round(clamp(candidateVisitsFontSize, 12, 120))
-        candidateScoreFontSize = Math.round(clamp(candidateScoreFontSize, 12, 120))
-        candidateWinrateOffsetY = Math.round(clamp(candidateWinrateOffsetY, -64, 64))
-        candidateVisitsOffsetY = Math.round(clamp(candidateVisitsOffsetY, -64, 64))
-        candidateScoreOffsetY = Math.round(clamp(candidateScoreOffsetY, -64, 64))
-        candidateWinrateDecimals = Math.round(clamp(candidateWinrateDecimals, 0, 2))
-        candidateScoreDecimals = Math.round(clamp(candidateScoreDecimals, 0, 2))
-        candidateScoreTitleMode = Math.round(clamp(candidateScoreTitleMode,
-                                                   candidateScoreTitleScoreMean,
-                                                   candidateScoreTitleDrawRate))
-        candidateRingLineWidth = Math.round(clamp(candidateRingLineWidth, 1, 64))
-        candidateFirstLabelTextColor = normalizeColorHex(candidateFirstLabelTextColor, "#ff0000")
-        candidateLabelTextColor = normalizeColorHex(candidateLabelTextColor, "#000000")
-        backgroundColor = normalizeColorHex(backgroundColor, defaultBackgroundColor)
-        boardWoodColor = normalizeColorHex(boardWoodColor, defaultBoardWoodColor)
-        analysisIntervalCentiseconds = Math.round(clamp(Number(analysisIntervalCentiseconds), 0, maxLargeIntegerSetting))
-        maxAnalysisSeconds = Math.round(clamp(Number(maxAnalysisSeconds), 0, maxLargeIntegerSetting))
-        stoneScale = clamp(stoneScale, minStoneScale, 1.0)
-        gridOpacity = clamp(gridOpacity, 0.25, 1)
-        gridLineWidth = clamp(Number(gridLineWidth), 0.5, 4)
-        selectedPointScale = clamp(Number(selectedPointScale), 0.5, 1.0)
-        moveNumberLabelScale = clamp(Number(moveNumberLabelScale), 0.5, 2.0)
-        mouseHitRadiusScale = clamp(Number(mouseHitRadiusScale), 0.1, 1.0)
-        secondsPerMove = Math.max(0.1, Number(secondsPerMove))
-        resignMinMove = Math.max(1, Math.round(Number(resignMinMove)))
-        resignConsecutiveMoves = Math.max(1, Math.round(Number(resignConsecutiveMoves)))
-        resignWinrateThreshold = clamp(Number(resignWinrateThreshold), 0, 100)
-        normalizeGomokuRuleForCurrentMode()
-        applyPackageModeConstraints(false)
+        SettingsStore.normalizePersistentSettings(root)
     }
 
     function settingValue(key, fallback) {
-        return appSettings.value(key, fallback)
+        return SettingsStore.settingValue(appSettings, key, fallback)
     }
 
     function settingBool(key, fallback) {
-        var value = settingValue(key, fallback)
-        if (typeof value === "boolean")
-            return value
-        var text = String(value).toLowerCase()
-        return text === "true" || text === "1" || text === "yes"
+        return SettingsStore.settingBool(appSettings, key, fallback)
     }
 
     function settingNumberEquals(value, expected) {
-        return Math.abs(Number(value) - Number(expected)) < 0.000001
+        return SettingsStore.settingNumberEquals(value, expected)
     }
 
     function migratePersistentSettings() {
-        if (loadedSettingsVersion < 2) {
-            persistedEngineCommand = defaultGo7EngineCommand
-            go5EngineCommand = defaultGo7EngineCommand
-            go7EngineCommand = defaultGo7EngineCommand
-            six11EngineCommand = defaultGo7EngineCommand
-            six13EngineCommand = defaultGo7EngineCommand
-            settingsMigrated = true
-        }
-        loadedSettingsVersion = currentSettingsVersion
+        SettingsStore.migratePersistentSettings(root)
     }
 
     function loadPersistentSettings() {
-        loadedSettingsVersion = Number(settingValue("settingsVersion", loadedSettingsVersion))
-        language = String(settingValue("language", language))
-        firstLaunchCompleted = settingBool("firstLaunchCompleted", firstLaunchCompleted)
-        boardSizeX = Number(settingValue("boardSizeX", boardSizeX))
-        boardSizeY = Number(settingValue("boardSizeY", boardSizeY))
-        gameRuleMode = Number(settingValue("gameRuleMode", gameRuleMode))
-        gomokuRuleMode = Number(settingValue("gomokuRuleMode", gomokuRuleMode))
-        stoneColorMode = Number(settingValue("stoneColorMode", stoneColorMode))
-        komi = Number(settingValue("komi", komi))
-        moveNumberDisplayMode = Number(settingValue("moveNumberDisplayMode", moveNumberDisplayMode))
-        coordinateDisplayMode = Number(settingValue("coordinateDisplayMode", coordinateDisplayMode))
-        packageMode = Number(settingValue("packageMode", packageMode))
-        persistedEngineCommand = String(settingValue("engineCommand", persistedEngineCommand))
-        go5EngineCommand = String(settingValue("go5EngineCommand", go5EngineCommand))
-        go7EngineCommand = String(settingValue("go7EngineCommand", go7EngineCommand))
-        six11EngineCommand = String(settingValue("six11EngineCommand", six11EngineCommand))
-        six13EngineCommand = String(settingValue("six13EngineCommand", six13EngineCommand))
-        analysisIntervalCentiseconds = Number(settingValue("analysisIntervalCentiseconds", analysisIntervalCentiseconds))
-        maxAnalysisSeconds = Number(settingValue("maxAnalysisSeconds", maxAnalysisSeconds))
-        candidateDisplayCount = Number(settingValue("candidateDisplayCount", candidateDisplayCount))
-        candidateMinVisitRatio = Number(settingValue("candidateMinVisitRatio", candidateMinVisitRatio))
-        candidateShowFilteredMarkers = settingBool("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
-        candidateVariationPreviewVisible = settingBool("candidateVariationPreviewVisible", candidateVariationPreviewVisible)
-        candidateVariationPreviewMaxMoves = Number(settingValue("candidateVariationPreviewMaxMoves", candidateVariationPreviewMaxMoves))
-        candidateVariationPreviewOpacity = Number(settingValue("candidateVariationPreviewOpacity", candidateVariationPreviewOpacity))
-        candidateWinrateLabelVisible = settingBool("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
-        candidateVisitsLabelVisible = settingBool("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
-        candidateScoreLabelVisible = settingBool("candidateScoreLabelVisible", candidateScoreLabelVisible)
-        candidateWinrateFontSize = Number(settingValue("candidateWinrateFontSize", candidateWinrateFontSize))
-        candidateVisitsFontSize = Number(settingValue("candidateVisitsFontSize", candidateVisitsFontSize))
-        candidateScoreFontSize = Number(settingValue("candidateScoreFontSize", candidateScoreFontSize))
-        candidateWinrateBold = settingBool("candidateWinrateBold", candidateWinrateBold)
-        candidateVisitsBold = settingBool("candidateVisitsBold", candidateVisitsBold)
-        candidateScoreBold = settingBool("candidateScoreBold", candidateScoreBold)
-        candidateWinrateOffsetY = Number(settingValue("candidateWinrateOffsetY", candidateWinrateOffsetY))
-        candidateVisitsOffsetY = Number(settingValue("candidateVisitsOffsetY", candidateVisitsOffsetY))
-        candidateScoreOffsetY = Number(settingValue("candidateScoreOffsetY", candidateScoreOffsetY))
-        candidateWinrateDecimals = Number(settingValue("candidateWinrateDecimals", candidateWinrateDecimals))
-        candidateScoreDecimals = Number(settingValue("candidateScoreDecimals", candidateScoreDecimals))
-        candidateWinrateShowPercent = settingBool("candidateWinrateShowPercent", candidateWinrateShowPercent)
-        candidateScoreShowPercent = settingBool("candidateScoreShowPercent", candidateScoreShowPercent)
-        candidateScoreTitleMode = Number(settingValue("candidateScoreTitleMode", candidateScoreTitleMode))
-        candidateRingVisible = settingBool("candidateRingVisible", candidateRingVisible)
-        candidateRingLineWidth = Number(settingValue("candidateRingLineWidth", candidateRingLineWidth))
-        candidateRankLabelVisible = settingBool("candidateRankLabelVisible", candidateRankLabelVisible)
-        candidateFirstLabelTextColor = String(settingValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor))
-        candidateLabelTextColor = String(settingValue("candidateLabelTextColor", candidateLabelTextColor))
-        backgroundColor = String(settingValue("backgroundColor", backgroundColor))
-        boardWoodColor = String(settingValue("boardWoodColor", boardWoodColor))
-        stoneScale = Number(settingValue("stoneScale", stoneScale))
-        gridOpacity = Number(settingValue("gridOpacity", gridOpacity))
-        gridLineWidth = Number(settingValue("gridLineWidth", gridLineWidth))
-        selectedPointScale = Number(settingValue("selectedPointScale", selectedPointScale))
-        moveNumberLabelScale = Number(settingValue("moveNumberLabelScale", moveNumberLabelScale))
-        secondsPerMove = Number(settingValue("secondsPerMove", secondsPerMove))
-        resignMinMove = Number(settingValue("resignMinMove", resignMinMove))
-        resignConsecutiveMoves = Number(settingValue("resignConsecutiveMoves", resignConsecutiveMoves))
-        resignWinrateThreshold = Number(settingValue("resignWinrateThreshold", resignWinrateThreshold))
-        migratePersistentSettings()
+        SettingsStore.loadPersistentSettings(root, appSettings)
     }
 
     function savePersistentSettings() {
-        if (!appSettings)
-            return
-        appSettings.setValue("settingsVersion", currentSettingsVersion)
-        appSettings.setValue("language", language)
-        appSettings.setValue("firstLaunchCompleted", firstLaunchCompleted)
-        appSettings.setValue("boardSizeX", boardSizeX)
-        appSettings.setValue("boardSizeY", boardSizeY)
-        appSettings.setValue("gameRuleMode", gameRuleMode)
-        appSettings.setValue("gomokuRuleMode", gomokuRuleMode)
-        appSettings.setValue("stoneColorMode", stoneColorMode)
-        appSettings.setValue("komi", komi)
-        appSettings.setValue("moveNumberDisplayMode", moveNumberDisplayMode)
-        appSettings.setValue("coordinateDisplayMode", coordinateDisplayMode)
-        appSettings.setValue("packageMode", packageMode)
-        appSettings.setValue("engineCommand", engineController ? engineController.command : persistedEngineCommand)
-        appSettings.setValue("go5EngineCommand", go5EngineCommand)
-        appSettings.setValue("go7EngineCommand", go7EngineCommand)
-        appSettings.setValue("six11EngineCommand", six11EngineCommand)
-        appSettings.setValue("six13EngineCommand", six13EngineCommand)
-        appSettings.setValue("analysisIntervalCentiseconds", analysisIntervalCentiseconds)
-        appSettings.setValue("maxAnalysisSeconds", maxAnalysisSeconds)
-        appSettings.setValue("candidateDisplayCount", candidateDisplayCount)
-        appSettings.setValue("candidateMinVisitRatio", candidateMinVisitRatio)
-        appSettings.setValue("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
-        appSettings.setValue("candidateVariationPreviewVisible", candidateVariationPreviewVisible)
-        appSettings.setValue("candidateVariationPreviewMaxMoves", candidateVariationPreviewMaxMoves)
-        appSettings.setValue("candidateVariationPreviewOpacity", candidateVariationPreviewOpacity)
-        appSettings.setValue("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
-        appSettings.setValue("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
-        appSettings.setValue("candidateScoreLabelVisible", candidateScoreLabelVisible)
-        appSettings.setValue("candidateWinrateFontSize", candidateWinrateFontSize)
-        appSettings.setValue("candidateVisitsFontSize", candidateVisitsFontSize)
-        appSettings.setValue("candidateScoreFontSize", candidateScoreFontSize)
-        appSettings.setValue("candidateWinrateBold", candidateWinrateBold)
-        appSettings.setValue("candidateVisitsBold", candidateVisitsBold)
-        appSettings.setValue("candidateScoreBold", candidateScoreBold)
-        appSettings.setValue("candidateWinrateOffsetY", candidateWinrateOffsetY)
-        appSettings.setValue("candidateVisitsOffsetY", candidateVisitsOffsetY)
-        appSettings.setValue("candidateScoreOffsetY", candidateScoreOffsetY)
-        appSettings.setValue("candidateWinrateDecimals", candidateWinrateDecimals)
-        appSettings.setValue("candidateScoreDecimals", candidateScoreDecimals)
-        appSettings.setValue("candidateWinrateShowPercent", candidateWinrateShowPercent)
-        appSettings.setValue("candidateScoreShowPercent", candidateScoreShowPercent)
-        appSettings.setValue("candidateScoreTitleMode", candidateScoreTitleMode)
-        appSettings.setValue("candidateRingVisible", candidateRingVisible)
-        appSettings.setValue("candidateRingLineWidth", candidateRingLineWidth)
-        appSettings.setValue("candidateRankLabelVisible", candidateRankLabelVisible)
-        appSettings.setValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor)
-        appSettings.setValue("candidateLabelTextColor", candidateLabelTextColor)
-        appSettings.setValue("backgroundColor", backgroundColor)
-        appSettings.setValue("boardWoodColor", boardWoodColor)
-        appSettings.setValue("stoneScale", stoneScale)
-        appSettings.setValue("gridOpacity", gridOpacity)
-        appSettings.setValue("gridLineWidth", gridLineWidth)
-        appSettings.setValue("selectedPointScale", selectedPointScale)
-        appSettings.setValue("moveNumberLabelScale", moveNumberLabelScale)
-        appSettings.setValue("secondsPerMove", secondsPerMove)
-        appSettings.setValue("resignMinMove", resignMinMove)
-        appSettings.setValue("resignConsecutiveMoves", resignConsecutiveMoves)
-        appSettings.setValue("resignWinrateThreshold", resignWinrateThreshold)
-        appSettings.sync()
+        SettingsStore.savePersistentSettings(root, appSettings, engineController)
     }
-
     function applyPackageModeConstraints(restartIfChanged) {
-        if (packageMode === packageModeGo) {
-            gameRuleMode = gameRuleGo
-            if (!boardDimensionsAllowedForPackage(boardSizeX, boardSizeY)) {
-                boardSizeX = 19
-                boardSizeY = 19
-            }
-        } else if (packageMode === packageModeSix) {
-            gameRuleMode = gameRuleGomoku
-            if (!boardDimensionsAllowedForPackage(boardSizeX, boardSizeY)) {
-                boardSizeX = 13
-                boardSizeY = 13
-            }
-        }
-        normalizeGomokuRuleForCurrentMode()
-        if (packageMode === packageModeUniversal)
-            applyUniversalEngineCommand(restartIfChanged)
-        else
-            applyEngineCommandForCurrentPackageMode(restartIfChanged)
+        EngineSupport.applyPackageModeConstraints(root, restartIfChanged, engineController)
     }
 
     function packageEngineCommandForCurrentBoard() {
-        if (packageMode === packageModeGo)
-            return boardSizeX === 5 ? go5EngineCommand : go7EngineCommand
-        if (packageMode === packageModeSix)
-            return boardSizeX === 11 ? six11EngineCommand : six13EngineCommand
-        return ""
+        return EngineSupport.packageEngineCommandForCurrentBoard(root)
     }
 
     function applyEngineCommandForCurrentPackageMode(restartIfChanged) {
-        if (!engineController || packageMode === packageModeUniversal)
-            return
-        var command = packageEngineCommandForCurrentBoard()
-        if (command.length <= 0 || engineController.command === command)
-            return
-        engineController.command = command
-        resetEngineSyncState()
-        if (restartIfChanged && appReady && engineController.running)
-            restartEngine()
+        EngineSupport.applyEngineCommandForCurrentPackageMode(root, restartIfChanged, engineController)
     }
 
     function applyUniversalEngineCommand(restartIfChanged) {
-        if (!engineController || packageMode !== packageModeUniversal)
-            return
-        var command = persistedEngineCommand.length > 0 ? persistedEngineCommand : defaultGo7EngineCommand
-        if (command.length <= 0 || engineController.command === command)
-            return
-        engineController.command = command
-        resetEngineSyncState()
-        if (restartIfChanged && appReady && engineController.running)
-            restartEngine()
+        EngineSupport.applyUniversalEngineCommand(root, restartIfChanged, engineController)
     }
 
     function completeInitialSetup(openTutorial) {
@@ -3486,35 +2209,19 @@ ApplicationWindow {
     }
 
     function appendEngineCommunication(stream, line) {
-        if (!engineCommunicationLogModel)
-            return
-        if (engineCommunicationLineFiltered(stream, line))
-            return
-        engineCommunicationLogModel.append({
-            "stream": stream,
-            "line": String(line),
-            "color": engineCommunicationColor(stream)
-        })
-        while (engineCommunicationLogModel.count > engineCommunicationLogLimit)
-            engineCommunicationLogModel.remove(0)
+        EngineSupport.appendCommunication(engineCommunicationLogModel, stream, line, engineCommunicationLogLimit)
     }
 
     function clearEngineCommunicationLog() {
-        engineCommunicationLogModel.clear()
+        EngineSupport.clearCommunication(engineCommunicationLogModel)
     }
 
     function engineCommunicationLineFiltered(stream, line) {
-        if (stream !== "stdout")
-            return false
-        return /^info\s+move\b/.test(String(line).trim())
+        return EngineSupport.communicationLineFiltered(stream, line)
     }
 
     function engineCommunicationColor(stream) {
-        if (stream === "stdin")
-            return "#7ee2a8"
-        if (stream === "stderr")
-            return "#ff8b7f"
-        return "#d9e6ee"
+        return EngineSupport.communicationColor(stream)
     }
 
     Connections {
