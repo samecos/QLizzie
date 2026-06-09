@@ -181,7 +181,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
-                        text: model.lineText
+                        text: model.line
                         color: app.engineCommunicationColor(model.stream)
                         font.family: "Consolas"
                         font.pixelSize: app.compactLayout ? 11 : 12

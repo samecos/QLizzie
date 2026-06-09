@@ -35,6 +35,7 @@ qt_add_qml_module(qlizzie
         qml/BoardInputLayer.qml
         qml/BoardScene.qml
         qml/BranchPanel.qml
+        qml/CandidateMarkerView.qml
         qml/CommandToolbar.qml
         qml/ConfirmDeleteNodeDialog.qml
         qml/CoordinateUtils.js
@@ -46,7 +47,6 @@ qt_add_qml_module(qlizzie
         qml/GameRules.js
         qml/HelpKeysDialog.qml
         qml/HiddenSettingsDialog.qml
-        qml/HoverCoordinateBadge.qml
         qml/InitialSetupDialog.qml
         qml/InfoPanel.qml
         qml/Main.qml

@@ -15,26 +15,60 @@ function sgfEscape(value) {
         .replace(/\r?\n/g, "\\n")
 }
 
-function sgfCoordinateText(x, y) {
-    var base = "a".charCodeAt(0)
-    return String.fromCharCode(base + x) + String.fromCharCode(base + y)
+var SGF_COORDINATE_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+function useNumericSgfCoordinates(xSize, ySize) {
+    return xSize > SGF_COORDINATE_ALPHABET.length || ySize > SGF_COORDINATE_ALPHABET.length
 }
 
-function sgfMoveNode(node) {
+function sgfCoordinateText(x, y, numeric) {
+    if (numeric === true
+            || x >= SGF_COORDINATE_ALPHABET.length
+            || y >= SGF_COORDINATE_ALPHABET.length)
+        return x + "," + y
+    return SGF_COORDINATE_ALPHABET.charAt(x) + SGF_COORDINATE_ALPHABET.charAt(y)
+}
+
+function parseSgfCoordinateText(value) {
+    var coordinate = String(value).trim()
+    if (coordinate.length === 0 || coordinate.toLowerCase() === "pass")
+        return { "ok": true, "x": -1, "y": -1, "isPass": true }
+
+    var numeric = coordinate.match(/^\(?\s*(\d+)\s*[,: ]\s*(\d+)\s*\)?$/)
+    if (numeric) {
+        return {
+            "ok": true,
+            "x": parseInt(numeric[1], 10),
+            "y": parseInt(numeric[2], 10),
+            "isPass": false
+        }
+    }
+
+    if (coordinate.length < 2)
+        return { "ok": false }
+
+    var x = SGF_COORDINATE_ALPHABET.indexOf(coordinate.charAt(0))
+    var y = SGF_COORDINATE_ALPHABET.indexOf(coordinate.charAt(1))
+    if (x < 0 || y < 0)
+        return { "ok": false }
+    return { "ok": true, "x": x, "y": y, "isPass": false }
+}
+
+function sgfMoveNode(node, numericCoordinates) {
     var color = node.player === 1 ? "B" : "W"
-    var coordinate = node.isPass ? "" : sgfCoordinateText(node.x, node.y)
+    var coordinate = node.isPass ? "" : sgfCoordinateText(node.x, node.y, numericCoordinates)
     return color + "[" + coordinate + "]MN[" + node.moveNumber + "]"
 }
 
-function sgfSubtree(nodes, id) {
+function sgfSubtree(nodes, id, numericCoordinates) {
     var node = nodes[id]
     if (!node)
         return ""
 
-    var text = "(;" + sgfMoveNode(node)
+    var text = "(;" + sgfMoveNode(node, numericCoordinates)
     var children = node.children || []
     for (var i = 0; i < children.length; ++i)
-        text += sgfSubtree(nodes, children[i])
+        text += sgfSubtree(nodes, children[i], numericCoordinates)
     return text + ")"
 }
 
@@ -45,13 +79,14 @@ function boardSizeText(xSize, ySize) {
 function buildSgf(nodes, ruleMode, xSize, ySize, ruleText) {
     var gameId = ruleMode === 0 ? 1 : 4
     var ruleName = ruleMode === 0 ? "QLizzie-Go" : "QLizzie-Gomoku"
+    var numericCoordinates = useNumericSgfCoordinates(xSize, ySize)
     var text = "(;FF[4]GM[" + gameId + "]CA[UTF-8]AP[QLizzie]RU[" + sgfEscape(ruleName) + "]"
                + "SZ[" + boardSizeText(xSize, ySize) + "]"
                + "C[" + sgfEscape("QLizzie " + ruleText) + "]"
     var rootNode = nodes[0]
     var children = rootNode ? (rootNode.children || []) : []
     for (var i = 0; i < children.length; ++i)
-        text += sgfSubtree(nodes, children[i])
+        text += sgfSubtree(nodes, children[i], numericCoordinates)
     return text + ")\n"
 }
 
@@ -217,21 +252,17 @@ function parseSgf(text, options) {
             return null
         }
 
-        var coordinate = String(value).trim().toLowerCase()
-        if (coordinate.length === 0 || coordinate === "pass")
-            return { "x": -1, "y": -1, "player": player, "isPass": true }
-        if (coordinate.length < 2) {
+        var point = parseSgfCoordinateText(value)
+        if (!point.ok) {
             fail("Expected coordinate: " + value + ".")
             return null
         }
 
-        var base = "a".charCodeAt(0)
-        var x = coordinate.charCodeAt(0) - base
-        var y = coordinate.charCodeAt(1) - base
-        if (x < 0 || y < 0) {
-            fail("Invalid coordinate: " + value + ".")
-            return null
-        }
+        if (point.isPass)
+            return { "x": -1, "y": -1, "player": player, "isPass": true }
+
+        var x = point.x
+        var y = point.y
         maxX = Math.max(maxX, x)
         maxY = Math.max(maxY, y)
         return { "x": x, "y": y, "player": player, "isPass": false }

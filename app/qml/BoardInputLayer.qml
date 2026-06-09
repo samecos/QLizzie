@@ -103,11 +103,8 @@ Item {
             if (!inputLayer.boardPressBlocked && !inputLayer.moved) {
                 if (inputLayer.pressedButton === Qt.LeftButton)
                     skipHoverUpdate = app.handleBoardClickFromMouse(mouse.x, mouse.y) === true
-                else if (inputLayer.pressedButton === Qt.RightButton) {
-                    skipHoverUpdate = app.cancelSelectedPoint() === true
-                    if (!skipHoverUpdate)
-                        app.undoMove()
-                }
+                else if (inputLayer.pressedButton === Qt.RightButton)
+                    skipHoverUpdate = app.cancelCandidateListSelection() === true
             }
             inputLayer.pressedButton = 0
             inputLayer.boardPressBlocked = false
@@ -118,6 +115,21 @@ Item {
             else
                 app.updateHover(mouse.x, mouse.y)
             mouse.accepted = true
+        }
+
+        onWheel: function(wheel) {
+            if (app.boardInputBlocked(inputLayer, wheel.x, wheel.y)) {
+                wheel.accepted = true
+                return
+            }
+
+            app.focusBoardInput()
+            var delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.pixelDelta.y
+            if (delta > 0)
+                app.gotoRelativeMove(-1)
+            else if (delta < 0)
+                app.gotoRelativeMove(1)
+            wheel.accepted = true
         }
 
         onExited: app.clearHover()

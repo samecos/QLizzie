@@ -38,7 +38,11 @@ ApplicationWindow {
                                                     : "JetBrains Mono"
 
     readonly property int minBoardSize: 1
-    readonly property int maxBoardSize: 25
+    readonly property int maxBoardSize: 1001
+    readonly property int maxCachedLegalPoints: 40000
+    readonly property int currentSettingsVersion: 1
+    property int loadedSettingsVersion: 0
+    property bool settingsMigrated: false
     readonly property int defaultBoardSize: 19
     property int boardSizeX: defaultBoardSize
     property int boardSizeY: defaultBoardSize
@@ -100,6 +104,7 @@ ApplicationWindow {
     property int hoverX: -1
     property int hoverY: -1
     property bool selectedPointLocked: false
+    property bool selectedPointFromCandidateList: false
     property var legalPointMap: ({})
     property string statusMode: "turn"
     property string statusMessage: ""
@@ -141,11 +146,15 @@ ApplicationWindow {
     readonly property int moveNumberModeHidden: 2
     readonly property int defaultMoveNumberDisplayMode: moveNumberModeAll
     property int moveNumberDisplayMode: defaultMoveNumberDisplayMode
+    readonly property int coordinateDisplayGoNoI: 0
+    readonly property int coordinateDisplayGomokuWithI: 1
+    readonly property int coordinateDisplayNumeric: 2
+    property int coordinateDisplayMode: coordinateDisplayGoNoI
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
     readonly property int packageModeSix: 2
     property int packageMode: packageModeUniversal
-    property string defaultGo7EngineCommand: "D:\\katago\\engine2024\\go.exe gtp -config \"C:\\lizzie\\engine2024.cfg\" -model \"I:\\Downloads\\model (4).bin.gz\""
+    property string defaultGo7EngineCommand: "D:\\katago\\engine2024\\go.exe gtp -config ./engine2024.cfg -model \"D:\\Downloads\\model (68).bin.gz\" -override-config useUncertainty=false"
     property string go5EngineCommand: defaultGo7EngineCommand
     property string go7EngineCommand: defaultGo7EngineCommand
     property string six11EngineCommand: defaultGo7EngineCommand
@@ -176,24 +185,29 @@ ApplicationWindow {
     property int analysisRevision: 0
     property int analysisIntervalCentiseconds: 10
     property int maxAnalysisSeconds: 0
-    property int candidateDisplayCount: 5
-    property real candidateMinVisitRatio: 0.10
+    property int candidateDisplayCount: 10
+    property real candidateMinVisitRatio: 0.001
     property bool candidateWinrateLabelVisible: true
-    property bool candidateVisitsLabelVisible: false
-    property bool candidateScoreLabelVisible: false
-    property int candidateWinrateFontSize: 68
-    property int candidateVisitsFontSize: 36
+    property bool candidateVisitsLabelVisible: true
+    property bool candidateScoreLabelVisible: true
+    property int candidateWinrateFontSize: 57
+    property int candidateVisitsFontSize: 42
     property int candidateScoreFontSize: 36
-    property int candidateWinrateOffsetY: 0
-    property int candidateVisitsOffsetY: 0
-    property int candidateScoreOffsetY: 0
-    property int candidateWinrateDecimals: 0
-    property int candidateScoreDecimals: 0
-    property bool candidateWinrateShowPercent: true
+    property bool candidateWinrateBold: true
+    property bool candidateVisitsBold: false
+    property bool candidateScoreBold: true
+    property int candidateWinrateOffsetY: -10
+    property int candidateVisitsOffsetY: -5
+    property int candidateScoreOffsetY: -5
+    property int candidateWinrateDecimals: 1
+    property int candidateScoreDecimals: 1
+    property bool candidateWinrateShowPercent: false
     property bool candidateScoreShowPercent: false
     property bool candidateRingVisible: true
     property int candidateRingLineWidth: 12
+    property string candidateFirstLabelTextColor: "#ff0000"
     property string candidateLabelTextColor: "#000000"
+    readonly property string firstCandidateRingColor: "#003b8e"
 
     property int engineCommunicationLogLimit: 1000
     property bool showEngineCommunicationStdin: true
@@ -204,16 +218,18 @@ ApplicationWindow {
     readonly property string defaultBoardWoodColor: "#d9a75f"
     property string backgroundColor: defaultBackgroundColor
     property string boardWoodColor: defaultBoardWoodColor
-    readonly property real minStoneScale: 0.58
-    readonly property real defaultStoneScale: 0.92
+    readonly property real minStoneScale: 0.50
+    readonly property real defaultStoneScale: 0.95
     readonly property real defaultGridOpacity: 0.92
     readonly property real defaultGridLineWidth: 1.2
-    readonly property real defaultSelectedPointScale: 0.90
+    readonly property real defaultSelectedPointScale: 1.00
+    readonly property real defaultMoveNumberLabelScale: 1.00
     readonly property real defaultMouseHitRadiusScale: 0.38
     property real stoneScale: defaultStoneScale
     property real gridOpacity: defaultGridOpacity
     property real gridLineWidth: defaultGridLineWidth
     property real selectedPointScale: defaultSelectedPointScale
+    property real moveNumberLabelScale: defaultMoveNumberLabelScale
     property real mouseHitRadiusScale: defaultMouseHitRadiusScale
 
     FontLoader {
@@ -228,6 +244,8 @@ ApplicationWindow {
             unsavedSgfDialog.open()
         }
     }
+
+    onCoordinateDisplayModeChanged: refreshCoordinateDisplayText()
 
     menuBar: MenuBar {
         font.pixelSize: root.compactLayout ? 15 : 17
@@ -439,20 +457,41 @@ ApplicationWindow {
         return CoordinateUtils.boardPointCount(boardSizeX, boardSizeY)
     }
 
+    function effectiveCoordinateDisplayMode() {
+        return CoordinateUtils.effectiveCoordinateFormat(boardSizeX, boardSizeY, coordinateDisplayMode)
+    }
+
+    function coordinateDisplayForcedNumeric() {
+        return effectiveCoordinateDisplayMode() === coordinateDisplayNumeric
+               && coordinateDisplayMode !== coordinateDisplayNumeric
+    }
+
     function xCoordinateText(x) {
-        return CoordinateUtils.xCoordinateText(x)
+        return CoordinateUtils.xCoordinateText(x, boardSizeX, boardSizeY, coordinateDisplayMode)
     }
 
     function yCoordinateText(y) {
-        return CoordinateUtils.yCoordinateText(y)
+        return CoordinateUtils.yCoordinateText(y, boardSizeX, boardSizeY, coordinateDisplayMode)
     }
 
     function coordinateText(x, y) {
-        return CoordinateUtils.coordinateText(x, y, boardSizeX, boardSizeY)
+        return CoordinateUtils.coordinateText(x, y, boardSizeX, boardSizeY, coordinateDisplayMode)
     }
 
     function parseCoordinateText(text) {
-        return CoordinateUtils.parseCoordinateText(text, boardSizeX, boardSizeY)
+        return CoordinateUtils.parseCoordinateText(text, boardSizeX, boardSizeY, coordinateDisplayMode)
+    }
+
+    function setCoordinateDisplayMode(mode) {
+        var nextMode = Math.round(clamp(mode, coordinateDisplayGoNoI, coordinateDisplayNumeric))
+        if (coordinateDisplayMode === nextMode)
+            return
+        coordinateDisplayMode = nextMode
+    }
+
+    function refreshCoordinateDisplayText() {
+        rebuildTreeLayout()
+        rebuildEngineCandidateItems()
     }
 
     function gtpCoordinateName(x, y, width, height) {
@@ -552,8 +591,14 @@ ApplicationWindow {
         return GameRules.buildPointLegalityMap(map, boardDims(), player, activeKoLocKey, gameRuleMode)
     }
 
+    function shouldCachePointLegality() {
+        return boardPointCount() <= maxCachedLegalPoints
+    }
+
     function rebuildPointLegality() {
-        legalPointMap = buildPointLegalityMap(stones, currentPlayer, koLocKey)
+        legalPointMap = shouldCachePointLegality()
+                        ? buildPointLegalityMap(stones, currentPlayer, koLocKey)
+                        : ({})
         legalityRevision += 1
     }
 
@@ -561,6 +606,8 @@ ApplicationWindow {
         legalityRevision
         if (!pointInBoard(x, y))
             return false
+        if (!shouldCachePointLegality())
+            return pointLegalInMap(stones, x, y, currentPlayer, koLocKey)
         return legalPointMap[keyFor(x, y)] === true
     }
 
@@ -580,6 +627,16 @@ ApplicationWindow {
         return selectedPointLegal() ? "#2fb97f" : "#e3342f"
     }
 
+    function pointIsEngineCandidateKey(key) {
+        if (!key || key.length <= 0)
+            return false
+        for (var i = 0; i < engineCandidateItems.length; ++i) {
+            if (engineCandidateItems[i] && engineCandidateItems[i].key === key)
+                return true
+        }
+        return false
+    }
+
     function clampCoordinateInput(text, size) {
         var value = parseInt(String(text), 10)
         if (isNaN(value))
@@ -594,11 +651,15 @@ ApplicationWindow {
         return Math.round(clamp(value, 1, size))
     }
 
-    function setSelectedPoint(x, y, locked) {
+    function setSelectedPoint(x, y, locked, fromCandidateList) {
         var nextX = Math.round(clamp(x, 0, boardSizeX - 1))
         var nextY = Math.round(clamp(y, 0, boardSizeY - 1))
-        if (locked !== undefined)
+        if (locked !== undefined) {
             selectedPointLocked = locked
+            selectedPointFromCandidateList = locked === true && fromCandidateList === true
+        } else if (!selectedPointLocked) {
+            selectedPointFromCandidateList = false
+        }
         hoverX = nextX
         hoverY = nextY
         hoverKey = keyFor(nextX, nextY)
@@ -811,6 +872,7 @@ ApplicationWindow {
         }
 
         selectedPointLocked = false
+        selectedPointFromCandidateList = false
         var node = addMoveNode(player, x, y, false, captured, ko)
         if (!node)
             return false
@@ -823,6 +885,7 @@ ApplicationWindow {
     function passMove() {
         var player = currentPlayer
         selectedPointLocked = false
+        selectedPointFromCandidateList = false
         var node = addMoveNode(player, -1, -1, true, [], GameRules.emptyKoLoc())
         if (!node)
             return
@@ -833,6 +896,8 @@ ApplicationWindow {
 
     function checkGameOverAfterMove(node) {
         if (!node)
+            return
+        if (analysisModeActive())
             return
         if (gameRuleMode === gameRuleGo && node.isPass) {
             var parent = nodeById(node.parent)
@@ -859,6 +924,7 @@ ApplicationWindow {
             return
         currentNodeId = id
         selectedPointLocked = false
+        selectedPointFromCandidateList = false
         rebuildPositionFromNode(id)
         rebuildTreeLayout()
         scheduleAutoAnalysis()
@@ -1732,17 +1798,21 @@ ApplicationWindow {
 
     function candidateScoreValue(candidate) {
         if (!candidate || candidate.scoreMean === undefined)
-            return 0
+            return NaN
         var value = Number(candidate.scoreMean)
-        return isNaN(value) ? 0 : value
+        return isNaN(value) ? NaN : value
     }
 
-    function formatCandidateNumber(value, decimals, showPercent, suffix) {
-        var text = Number(value).toFixed(decimals)
+    function formatCandidateNumber(value, decimals, showPercent, normalizePercent) {
+        var number = Number(value)
+        if (isNaN(number))
+            return ""
+        var displayValue = number
+        if (showPercent && normalizePercent && Math.abs(displayValue) <= 1)
+            displayValue *= 100
+        var text = displayValue.toFixed(Math.round(clamp(decimals, 0, 2)))
         if (showPercent)
             text += "%"
-        if (suffix)
-            text += suffix
         return text
     }
 
@@ -1752,33 +1822,258 @@ ApplicationWindow {
         return formatCandidateNumber(candidateWinrateValue(candidate),
                                      candidateWinrateDecimals,
                                      candidateWinrateShowPercent,
-                                     "")
+                                     false)
+    }
+
+    function candidateScoreDisplayEnabled() {
+        return candidateScoreLabelVisible && packageMode !== packageModeGo
+    }
+
+    function candidateScoreTitle() {
+        return gameRuleMode === gameRuleGo ? trText("candidateScoreMean") : trText("candidateDrawRate")
     }
 
     function candidateScoreText(candidate) {
-        if (!candidate || candidate.scoreMean === undefined)
+        if (!candidate || candidate.scoreMean === undefined || !candidateScoreDisplayEnabled())
             return ""
         return formatCandidateNumber(candidateScoreValue(candidate),
                                      candidateScoreDecimals,
                                      candidateScoreShowPercent,
-                                     "")
+                                     false)
     }
 
     function candidateLabelLines(candidate) {
         var lines = []
-        if (candidateWinrateLabelVisible) {
-            var winrate = candidateWinrateText(candidate)
-            if (winrate.length > 0)
-                lines.push(winrate)
+        var winrateLabel = candidateWinrateText(candidate)
+        if (candidateWinrateLabelVisible && winrateLabel.length > 0) {
+            lines.push({
+                "kind": 0,
+                "text": winrateLabel,
+                "fontSize": candidateWinrateFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateWinrateBold
+            })
         }
-        if (candidateVisitsLabelVisible)
-            lines.push(String(candidateVisitCount(candidate)))
-        if (candidateScoreLabelVisible) {
-            var score = candidateScoreText(candidate)
-            if (score.length > 0)
-                lines.push(score)
+        if (candidateVisitsLabelVisible) {
+            var visitsLabel = formatVisitCount(candidateVisitCount(candidate))
+            if (visitsLabel.length > 0) {
+                lines.push({
+                    "kind": 1,
+                    "text": visitsLabel,
+                    "fontSize": candidateVisitsFontSize,
+                    "color": String(candidateLabelTextColor),
+                    "bold": candidateVisitsBold
+                })
+            }
+        }
+        var scoreLabel = candidateScoreText(candidate)
+        if (scoreLabel.length > 0) {
+            lines.push({
+                "kind": 2,
+                "text": scoreLabel,
+                "fontSize": candidateScoreFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateScoreBold
+            })
+        }
+        if (lines.length <= 0 && winrateLabel.length > 0) {
+            lines.push({
+                "kind": 0,
+                "text": winrateLabel,
+                "fontSize": candidateWinrateFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateWinrateBold
+            })
         }
         return lines
+    }
+
+    function candidateLabelLineOffset(kind) {
+        if (kind === 0)
+            return candidateWinrateOffsetY
+        if (kind === 1)
+            return candidateVisitsOffsetY
+        return candidateScoreOffsetY
+    }
+
+    function candidateLabelLineHeight(line) {
+        return Math.max(16, Number(line.fontSize) * 0.88)
+    }
+
+    function candidateLabelScale(markerRadius) {
+        return Math.max(0.12, markerRadius * 2 / 151)
+    }
+
+    function candidateLabelGap(markerRadius) {
+        return 2 * candidateLabelScale(markerRadius)
+    }
+
+    function candidateRingRadius(markerRadius) {
+        return markerRadius * 1.02
+    }
+
+    function candidateRingLineWidthForRadius(markerRadius) {
+        return Math.max(1, candidateRingLineWidth * candidateLabelScale(markerRadius))
+    }
+
+    function candidateLabelTotalHeight(lines) {
+        if (!lines || lines.length <= 0)
+            return 0
+        var totalHeight = 0
+        for (var i = 0; i < lines.length; ++i)
+            totalHeight += candidateLabelLineHeight(lines[i])
+        return totalHeight + 2 * Math.max(0, lines.length - 1)
+    }
+
+    function candidateLabelLineCenterY(lines, lineIndex, height) {
+        if (!lines || lineIndex < 0 || lineIndex >= lines.length)
+            return height * 0.5
+        var gap = 2
+        var y = (height - candidateLabelTotalHeight(lines)) * 0.5
+        for (var i = 0; i < lineIndex; ++i)
+            y += candidateLabelLineHeight(lines[i]) + gap
+        return y + candidateLabelLineHeight(lines[lineIndex]) * 0.5
+    }
+
+    function candidateLabelScaledTotalHeight(lines, markerRadius) {
+        if (!lines || lines.length <= 0)
+            return 0
+        var scale = candidateLabelScale(markerRadius)
+        var totalHeight = 0
+        for (var i = 0; i < lines.length; ++i)
+            totalHeight += candidateLabelLineHeight(lines[i]) * scale
+        return totalHeight + candidateLabelGap(markerRadius) * Math.max(0, lines.length - 1)
+    }
+
+    function drawCandidateLabelLines(ctx, lines, centerX, centerY, markerRadius, overrideColor) {
+        if (!lines || lines.length <= 0)
+            return
+
+        var scale = candidateLabelScale(markerRadius)
+        var y = centerY - candidateLabelScaledTotalHeight(lines, markerRadius) * 0.5
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        for (var lineIndex = 0; lineIndex < lines.length; ++lineIndex) {
+            var line = lines[lineIndex]
+            var lineHeight = candidateLabelLineHeight(line) * scale
+            var fontSize = Math.max(7, Number(line.fontSize) * scale)
+            ctx.font = (line.bold ? "700 " : "400 ") + Math.round(fontSize) + "px sans-serif"
+            ctx.fillStyle = overrideColor || line.color || String(candidateLabelTextColor)
+            ctx.fillText(line.text || "",
+                         centerX,
+                         y + lineHeight * 0.5 - candidateLabelLineOffset(line.kind) * scale,
+                         Math.max(8, markerRadius * 2 - 4))
+            y += lineHeight + candidateLabelGap(markerRadius)
+        }
+    }
+
+    function drawCandidateMarker(ctx, centerX, centerY, markerRadius, lines, options) {
+        options = options || ({})
+
+        var drawBackground = options.drawBackground === undefined ? true : !!options.drawBackground
+        var drawRing = !!options.drawRing && candidateRingVisible
+        var fillOpacity = options.fillOpacity === undefined ? 1 : Number(options.fillOpacity)
+        var ringOpacity = options.ringOpacity === undefined ? 1 : Number(options.ringOpacity)
+
+        ctx.save()
+        if (drawBackground) {
+            ctx.globalAlpha = ctx.globalAlpha * fillOpacity
+            ctx.fillStyle = String(options.fillColor || "#00c8ff")
+            ctx.beginPath()
+            ctx.arc(centerX, centerY, markerRadius, 0, Math.PI * 2)
+            ctx.fill()
+        }
+        ctx.restore()
+
+        ctx.save()
+        if (drawRing) {
+            ctx.globalAlpha = ctx.globalAlpha * ringOpacity
+            ctx.strokeStyle = String(options.ringColor || "#f01818")
+            ctx.lineWidth = candidateRingLineWidthForRadius(markerRadius)
+            ctx.beginPath()
+            ctx.arc(centerX, centerY, candidateRingRadius(markerRadius), 0, Math.PI * 2)
+            ctx.stroke()
+        }
+        ctx.restore()
+
+        if (lines && lines.length > 0) {
+            drawCandidateLabelLines(ctx, lines, centerX, centerY, markerRadius, options.textColor)
+        } else if (options.fallbackText !== undefined) {
+            ctx.save()
+            ctx.fillStyle = String(options.fallbackColor || candidateLabelTextColor)
+            ctx.font = "700 " + Math.round(options.fallbackFontSize || Math.max(8, markerRadius * 0.8)) + "px sans-serif"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText(String(options.fallbackText), centerX, centerY, Math.max(8, markerRadius * 2 - 4))
+            ctx.restore()
+        }
+    }
+
+    function candidateMarkerRadius(width, height) {
+        var side = Math.min(width, height)
+        var markerRadius = side * 0.48
+        var ringSafeRadius = (side * 0.5 - 1) / (1.02 + candidateRingLineWidth / 151)
+        return Math.max(1, Math.min(markerRadius, ringSafeRadius))
+    }
+
+    function candidatePreviewLabelLines(digitText) {
+        var lines = []
+        var decimals = Math.round(clamp(candidateWinrateDecimals, 0, 2))
+        var digit = digitText === undefined ? "6" : String(digitText)
+        var winrateText = decimals === 0 ? digit + digit
+                         : decimals === 1 ? digit + digit + "." + digit
+                         : digit + digit + "." + digit + digit
+        if (candidateWinrateShowPercent)
+            winrateText += "%"
+
+        if (candidateWinrateLabelVisible) {
+            lines.push({
+                "kind": 0,
+                "text": winrateText,
+                "fontSize": candidateWinrateFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateWinrateBold
+            })
+        }
+        if (candidateVisitsLabelVisible) {
+            lines.push({
+                "kind": 1,
+                "text": digit + digit + "K",
+                "fontSize": candidateVisitsFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateVisitsBold
+            })
+        }
+        if (candidateScoreDisplayEnabled()) {
+            lines.push({
+                "kind": 2,
+                "text": candidateScoreText({ "scoreMean": Number(digit + "." + digit) }),
+                "fontSize": candidateScoreFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateScoreBold
+            })
+        }
+        if (lines.length <= 0) {
+            lines.push({
+                "kind": 0,
+                "text": winrateText,
+                "fontSize": candidateWinrateFontSize,
+                "color": String(candidateLabelTextColor),
+                "bold": candidateWinrateBold
+            })
+        }
+        return lines
+    }
+
+    function formatVisitCount(value) {
+        var visits = Number(value)
+        if (isNaN(visits) || visits <= 0)
+            return "0"
+        if (visits >= 1000000)
+            return (visits / 1000000).toFixed(visits >= 10000000 ? 0 : 1) + "M"
+        if (visits >= 1000)
+            return (visits / 1000).toFixed(visits >= 10000 ? 0 : 1) + "K"
+        return String(Math.round(visits))
     }
 
     function rebuildEngineCandidateItems() {
@@ -1827,7 +2122,7 @@ ApplicationWindow {
                     "displayIndex": c + 1,
                     "visits": visits,
                     "visitRatio": visitRatio,
-                    "opacity": c === 0 ? 0.74 : clamp(visitRatio, 0.14, 0.88),
+                    "opacity": c === 0 ? 1.0 : clamp(visitRatio, 0.14, 0.88),
                     "color": c === 0 ? "#00ffff" : "#00ff36",
                     "winrate": rawWinrate,
                     "winrateText": candidateWinrateText(candidate),
@@ -1900,7 +2195,7 @@ ApplicationWindow {
         if (index < 0 || index >= engineCandidateItems.length)
             return
         var candidate = engineCandidateItems[index]
-        setSelectedPoint(candidate.x, candidate.y, true)
+        setSelectedPoint(candidate.x, candidate.y, true, true)
         focusBoardInput()
     }
 
@@ -2065,8 +2360,6 @@ ApplicationWindow {
     }
 
     function stoneNumberColor(player, lastMove) {
-        if (lastMove)
-            return "#ffffff"
         return player === 1 ? "#f5f7f8" : "#1a252d"
     }
 
@@ -2099,13 +2392,14 @@ ApplicationWindow {
         if (selectedPointLocked && force !== true)
             return
         selectedPointLocked = false
+        selectedPointFromCandidateList = false
         hoverX = -1
         hoverY = -1
         hoverKey = ""
     }
 
-    function cancelSelectedPoint() {
-        if (!selectedPointLocked)
+    function cancelCandidateListSelection() {
+        if (!selectedPointLocked || !selectedPointFromCandidateList)
             return false
         clearHover(true)
         return true
@@ -2129,17 +2423,10 @@ ApplicationWindow {
         }
 
         selectedPointLocked = false
+        selectedPointFromCandidateList = false
         setSelectedPoint(point.x, point.y, false)
         placeStone(point.x, point.y)
         return true
-    }
-
-    function hoverLabelPoint() {
-        if (hoverKey === "" || !boardScene)
-            return Qt.point(-1000, -1000)
-        var point = boardScene.boardPointLocal(hoverX, hoverY)
-        var mapped = boardScene.mapToItem(root.contentItem, point.x, point.y)
-        return Qt.point(mapped.x, mapped.y)
     }
 
     function cycleMoveNumberDisplayMode() {
@@ -2147,21 +2434,48 @@ ApplicationWindow {
         boardRevision += 1
     }
 
-    function resetVisualSettings() {
+    function resetBoardVisualSettings() {
         backgroundColor = defaultBackgroundColor
         boardWoodColor = defaultBoardWoodColor
         stoneScale = defaultStoneScale
         gridOpacity = defaultGridOpacity
         gridLineWidth = defaultGridLineWidth
         selectedPointScale = defaultSelectedPointScale
+        moveNumberLabelScale = defaultMoveNumberLabelScale
         mouseHitRadiusScale = defaultMouseHitRadiusScale
+        coordinateDisplayMode = coordinateDisplayGoNoI
+        boardRevision += 1
+    }
+
+    function resetCandidateVisualSettings() {
+        candidateDisplayCount = 10
+        candidateMinVisitRatio = 0.001
         candidateWinrateLabelVisible = true
-        candidateVisitsLabelVisible = false
-        candidateScoreLabelVisible = false
+        candidateVisitsLabelVisible = true
+        candidateScoreLabelVisible = true
+        candidateWinrateFontSize = 57
+        candidateVisitsFontSize = 42
+        candidateScoreFontSize = 36
+        candidateWinrateBold = true
+        candidateVisitsBold = false
+        candidateScoreBold = true
+        candidateWinrateOffsetY = -10
+        candidateVisitsOffsetY = -5
+        candidateScoreOffsetY = -5
+        candidateWinrateDecimals = 1
+        candidateScoreDecimals = 1
+        candidateWinrateShowPercent = false
+        candidateScoreShowPercent = false
         candidateRingVisible = true
         candidateRingLineWidth = 12
+        candidateFirstLabelTextColor = "#ff0000"
         candidateLabelTextColor = "#000000"
         boardRevision += 1
+    }
+
+    function resetVisualSettings() {
+        resetBoardVisualSettings()
+        resetCandidateVisualSettings()
     }
 
     function openBoardSizeDialog() {
@@ -2313,19 +2627,31 @@ ApplicationWindow {
             stoneColorMode = stoneColorModeAuto
         if (moveNumberDisplayMode < moveNumberModeAll || moveNumberDisplayMode > moveNumberModeHidden)
             moveNumberDisplayMode = defaultMoveNumberDisplayMode
+        if (coordinateDisplayMode < coordinateDisplayGoNoI || coordinateDisplayMode > coordinateDisplayNumeric)
+            coordinateDisplayMode = coordinateDisplayGoNoI
         packageMode = Math.round(clamp(packageMode, packageModeUniversal, packageModeSix))
-        candidateDisplayCount = Math.round(clamp(candidateDisplayCount, 0, 50))
+        candidateDisplayCount = Math.round(clamp(candidateDisplayCount, 0, 65536))
         candidateMinVisitRatio = clamp(candidateMinVisitRatio, 0, 1)
+        candidateWinrateFontSize = Math.round(clamp(candidateWinrateFontSize, 12, 120))
+        candidateVisitsFontSize = Math.round(clamp(candidateVisitsFontSize, 12, 120))
+        candidateScoreFontSize = Math.round(clamp(candidateScoreFontSize, 12, 120))
+        candidateWinrateOffsetY = Math.round(clamp(candidateWinrateOffsetY, -64, 64))
+        candidateVisitsOffsetY = Math.round(clamp(candidateVisitsOffsetY, -64, 64))
+        candidateScoreOffsetY = Math.round(clamp(candidateScoreOffsetY, -64, 64))
+        candidateWinrateDecimals = Math.round(clamp(candidateWinrateDecimals, 0, 2))
+        candidateScoreDecimals = Math.round(clamp(candidateScoreDecimals, 0, 2))
         candidateRingLineWidth = Math.round(clamp(candidateRingLineWidth, 1, 64))
+        candidateFirstLabelTextColor = normalizeColorHex(candidateFirstLabelTextColor, "#ff0000")
         candidateLabelTextColor = normalizeColorHex(candidateLabelTextColor, "#000000")
         backgroundColor = normalizeColorHex(backgroundColor, defaultBackgroundColor)
         boardWoodColor = normalizeColorHex(boardWoodColor, defaultBoardWoodColor)
         analysisIntervalCentiseconds = Math.max(1, Math.round(Number(analysisIntervalCentiseconds)))
         maxAnalysisSeconds = Math.max(0, Math.round(Number(maxAnalysisSeconds)))
-        stoneScale = clamp(stoneScale, minStoneScale, 1.05)
+        stoneScale = clamp(stoneScale, minStoneScale, 1.0)
         gridOpacity = clamp(gridOpacity, 0.25, 1)
         gridLineWidth = clamp(Number(gridLineWidth), 0.5, 4)
-        selectedPointScale = clamp(Number(selectedPointScale), 0.45, 1.25)
+        selectedPointScale = clamp(Number(selectedPointScale), 0.5, 1.0)
+        moveNumberLabelScale = clamp(Number(moveNumberLabelScale), 0.5, 2.0)
         mouseHitRadiusScale = clamp(Number(mouseHitRadiusScale), 0.1, 1.0)
         secondsPerMove = Math.max(0.1, Number(secondsPerMove))
         resignMinMove = Math.max(1, Math.round(Number(resignMinMove)))
@@ -2347,7 +2673,16 @@ ApplicationWindow {
         return text === "true" || text === "1" || text === "yes"
     }
 
+    function settingNumberEquals(value, expected) {
+        return Math.abs(Number(value) - Number(expected)) < 0.000001
+    }
+
+    function migratePersistentSettings() {
+        loadedSettingsVersion = currentSettingsVersion
+    }
+
     function loadPersistentSettings() {
+        loadedSettingsVersion = Number(settingValue("settingsVersion", loadedSettingsVersion))
         language = String(settingValue("language", language))
         firstLaunchCompleted = settingBool("firstLaunchCompleted", firstLaunchCompleted)
         boardSizeX = Number(settingValue("boardSizeX", boardSizeX))
@@ -2357,6 +2692,7 @@ ApplicationWindow {
         stoneColorMode = Number(settingValue("stoneColorMode", stoneColorMode))
         komi = Number(settingValue("komi", komi))
         moveNumberDisplayMode = Number(settingValue("moveNumberDisplayMode", moveNumberDisplayMode))
+        coordinateDisplayMode = Number(settingValue("coordinateDisplayMode", coordinateDisplayMode))
         packageMode = Number(settingValue("packageMode", packageMode))
         persistedEngineCommand = String(settingValue("engineCommand", persistedEngineCommand))
         go5EngineCommand = String(settingValue("go5EngineCommand", go5EngineCommand))
@@ -2369,7 +2705,23 @@ ApplicationWindow {
         candidateMinVisitRatio = Number(settingValue("candidateMinVisitRatio", candidateMinVisitRatio))
         candidateWinrateLabelVisible = settingBool("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         candidateVisitsLabelVisible = settingBool("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
+        candidateScoreLabelVisible = settingBool("candidateScoreLabelVisible", candidateScoreLabelVisible)
+        candidateWinrateFontSize = Number(settingValue("candidateWinrateFontSize", candidateWinrateFontSize))
+        candidateVisitsFontSize = Number(settingValue("candidateVisitsFontSize", candidateVisitsFontSize))
+        candidateScoreFontSize = Number(settingValue("candidateScoreFontSize", candidateScoreFontSize))
+        candidateWinrateBold = settingBool("candidateWinrateBold", candidateWinrateBold)
+        candidateVisitsBold = settingBool("candidateVisitsBold", candidateVisitsBold)
+        candidateScoreBold = settingBool("candidateScoreBold", candidateScoreBold)
+        candidateWinrateOffsetY = Number(settingValue("candidateWinrateOffsetY", candidateWinrateOffsetY))
+        candidateVisitsOffsetY = Number(settingValue("candidateVisitsOffsetY", candidateVisitsOffsetY))
+        candidateScoreOffsetY = Number(settingValue("candidateScoreOffsetY", candidateScoreOffsetY))
+        candidateWinrateDecimals = Number(settingValue("candidateWinrateDecimals", candidateWinrateDecimals))
+        candidateScoreDecimals = Number(settingValue("candidateScoreDecimals", candidateScoreDecimals))
+        candidateWinrateShowPercent = settingBool("candidateWinrateShowPercent", candidateWinrateShowPercent)
+        candidateScoreShowPercent = settingBool("candidateScoreShowPercent", candidateScoreShowPercent)
         candidateRingVisible = settingBool("candidateRingVisible", candidateRingVisible)
+        candidateRingLineWidth = Number(settingValue("candidateRingLineWidth", candidateRingLineWidth))
+        candidateFirstLabelTextColor = String(settingValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor))
         candidateLabelTextColor = String(settingValue("candidateLabelTextColor", candidateLabelTextColor))
         backgroundColor = String(settingValue("backgroundColor", backgroundColor))
         boardWoodColor = String(settingValue("boardWoodColor", boardWoodColor))
@@ -2377,15 +2729,18 @@ ApplicationWindow {
         gridOpacity = Number(settingValue("gridOpacity", gridOpacity))
         gridLineWidth = Number(settingValue("gridLineWidth", gridLineWidth))
         selectedPointScale = Number(settingValue("selectedPointScale", selectedPointScale))
+        moveNumberLabelScale = Number(settingValue("moveNumberLabelScale", moveNumberLabelScale))
         secondsPerMove = Number(settingValue("secondsPerMove", secondsPerMove))
         resignMinMove = Number(settingValue("resignMinMove", resignMinMove))
         resignConsecutiveMoves = Number(settingValue("resignConsecutiveMoves", resignConsecutiveMoves))
         resignWinrateThreshold = Number(settingValue("resignWinrateThreshold", resignWinrateThreshold))
+        migratePersistentSettings()
     }
 
     function savePersistentSettings() {
         if (!appSettings)
             return
+        appSettings.setValue("settingsVersion", currentSettingsVersion)
         appSettings.setValue("language", language)
         appSettings.setValue("firstLaunchCompleted", firstLaunchCompleted)
         appSettings.setValue("boardSizeX", boardSizeX)
@@ -2395,6 +2750,7 @@ ApplicationWindow {
         appSettings.setValue("stoneColorMode", stoneColorMode)
         appSettings.setValue("komi", komi)
         appSettings.setValue("moveNumberDisplayMode", moveNumberDisplayMode)
+        appSettings.setValue("coordinateDisplayMode", coordinateDisplayMode)
         appSettings.setValue("packageMode", packageMode)
         appSettings.setValue("engineCommand", engineController ? engineController.command : persistedEngineCommand)
         appSettings.setValue("go5EngineCommand", go5EngineCommand)
@@ -2407,7 +2763,23 @@ ApplicationWindow {
         appSettings.setValue("candidateMinVisitRatio", candidateMinVisitRatio)
         appSettings.setValue("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         appSettings.setValue("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
+        appSettings.setValue("candidateScoreLabelVisible", candidateScoreLabelVisible)
+        appSettings.setValue("candidateWinrateFontSize", candidateWinrateFontSize)
+        appSettings.setValue("candidateVisitsFontSize", candidateVisitsFontSize)
+        appSettings.setValue("candidateScoreFontSize", candidateScoreFontSize)
+        appSettings.setValue("candidateWinrateBold", candidateWinrateBold)
+        appSettings.setValue("candidateVisitsBold", candidateVisitsBold)
+        appSettings.setValue("candidateScoreBold", candidateScoreBold)
+        appSettings.setValue("candidateWinrateOffsetY", candidateWinrateOffsetY)
+        appSettings.setValue("candidateVisitsOffsetY", candidateVisitsOffsetY)
+        appSettings.setValue("candidateScoreOffsetY", candidateScoreOffsetY)
+        appSettings.setValue("candidateWinrateDecimals", candidateWinrateDecimals)
+        appSettings.setValue("candidateScoreDecimals", candidateScoreDecimals)
+        appSettings.setValue("candidateWinrateShowPercent", candidateWinrateShowPercent)
+        appSettings.setValue("candidateScoreShowPercent", candidateScoreShowPercent)
         appSettings.setValue("candidateRingVisible", candidateRingVisible)
+        appSettings.setValue("candidateRingLineWidth", candidateRingLineWidth)
+        appSettings.setValue("candidateFirstLabelTextColor", candidateFirstLabelTextColor)
         appSettings.setValue("candidateLabelTextColor", candidateLabelTextColor)
         appSettings.setValue("backgroundColor", backgroundColor)
         appSettings.setValue("boardWoodColor", boardWoodColor)
@@ -2415,6 +2787,7 @@ ApplicationWindow {
         appSettings.setValue("gridOpacity", gridOpacity)
         appSettings.setValue("gridLineWidth", gridLineWidth)
         appSettings.setValue("selectedPointScale", selectedPointScale)
+        appSettings.setValue("moveNumberLabelScale", moveNumberLabelScale)
         appSettings.setValue("secondsPerMove", secondsPerMove)
         appSettings.setValue("resignMinMove", resignMinMove)
         appSettings.setValue("resignConsecutiveMoves", resignConsecutiveMoves)
@@ -2588,6 +2961,8 @@ ApplicationWindow {
         else
             applyEngineCommandForCurrentPackageMode(false)
         persistentSettingsLoaded = true
+        if (settingsMigrated)
+            savePersistentSettings()
         resetGameTree()
         setSelectedPoint(0, 0)
         appReady = true
@@ -2600,7 +2975,6 @@ ApplicationWindow {
     AnalysisToolbar { id: analysisToolbar; app: root }
     CommandToolbar { id: commandToolbar; app: root }
     BoardScene { id: boardScene; app: root }
-    HoverCoordinateBadge { id: hoverCoordinateBadge; app: root }
     BoardInputLayer { id: inputLayer; app: root; anchors.fill: boardScene }
     InfoPanel { id: infoPanel; app: root }
 

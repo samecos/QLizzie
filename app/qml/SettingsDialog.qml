@@ -31,6 +31,7 @@ Basic.Dialog {
         boardYSpin.value = app.boardSizeY
         backgroundColorField.text = colorToText(app.backgroundColor)
         boardColorField.text = colorToText(app.boardWoodColor)
+        candidateFirstTextColorField.text = colorToText(app.candidateFirstLabelTextColor)
         candidateTextColorField.text = colorToText(app.candidateLabelTextColor)
         syncingEngineCommand = true
         engineCommandEdit.text = controller ? controller.command : ""
@@ -119,7 +120,7 @@ Basic.Dialog {
         spacing: 14
 
         Rectangle {
-            Layout.preferredWidth: 156
+            Layout.preferredWidth: 136
             Layout.fillHeight: true
             radius: 6
             color: "#e7eef3"
@@ -433,10 +434,41 @@ Basic.Dialog {
                                                                     function() { return app.boardWoodColor })
                         }
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("coordinateDisplay")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            ComboBox {
+                                model: [
+                                    app.trText("coordinateDisplayGoNoI"),
+                                    app.trText("coordinateDisplayGomokuWithI"),
+                                    app.trText("coordinateDisplayNumeric")
+                                ]
+                                currentIndex: app.effectiveCoordinateDisplayMode()
+                                enabled: !app.coordinateDisplayForcedNumeric()
+                                Layout.preferredWidth: 210
+                                onActivated: function(index) { app.setCoordinateDisplayMode(index) }
+                            }
+
+                            Label {
+                                text: app.coordinateDisplayForcedNumeric() ? app.trText("coordinateDisplayForcedNumeric") : ""
+                                color: "#6a7a84"
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+
                         SliderRow {
                             label: app.trText("stoneSize")
                             from: app.minStoneScale
-                            to: 1.05
+                            to: 1.0
                             value: app.stoneScale
                             decimals: 2
                             onMoved: function(v) { app.stoneScale = v }
@@ -460,20 +492,34 @@ Basic.Dialog {
                             onMoved: function(v) { app.gridLineWidth = v }
                         }
 
+                        SelectionPreview {
+                            Layout.fillWidth: true
+                        }
+
                         SliderRow {
                             label: app.trText("selectedPointSize")
-                            from: 0.45
-                            to: 1.25
+                            from: 0.5
+                            to: 1.0
                             value: app.selectedPointScale
                             decimals: 2
                             onMoved: function(v) { app.selectedPointScale = v }
+                        }
+
+                        SliderRow {
+                            label: app.trText("moveNumberLabelScale")
+                            from: 0.5
+                            to: 2.0
+                            value: app.moveNumberLabelScale
+                            decimals: 2
+                            percent: true
+                            onMoved: function(v) { app.moveNumberLabelScale = v }
                         }
 
                         SavePromptButton {
                             text: app.trText("reset")
                             Layout.preferredWidth: 120
                             onClicked: {
-                                app.resetVisualSettings()
+                                app.resetBoardVisualSettings()
                                 settingsDialog.syncFields()
                             }
                         }
@@ -486,56 +532,199 @@ Basic.Dialog {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        spacing: 10
+                        spacing: 12
 
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 12
 
-                            CheckBox {
-                                text: app.trText("candidateWinrate")
-                                checked: app.candidateWinrateLabelVisible
-                                onToggled: app.candidateWinrateLabelVisible = checked
+                            Item {
+                                Layout.preferredWidth: 88
+                                Layout.preferredHeight: 178
+
+                                CandidateMarkerView {
+                                    x: 4
+                                    y: 0
+                                    width: 80
+                                    height: 80
+                                    app: settingsDialog.app
+                                    labelLines: app.candidatePreviewLabelLines("6")
+                                    drawBackground: true
+                                    drawRing: true
+                                    backgroundColor: "#00ffff"
+                                    backgroundOpacity: 1.0
+                                }
+
+                                CandidateMarkerView {
+                                    x: 4
+                                    y: 92
+                                    width: 80
+                                    height: 80
+                                    app: settingsDialog.app
+                                    labelLines: app.candidatePreviewLabelLines("5")
+                                    drawBackground: true
+                                    drawRing: false
+                                    backgroundColor: "#2ed36f"
+                                    backgroundOpacity: 0.88
+                                }
                             }
 
-                            CheckBox {
-                                text: app.trText("candidateVisits")
-                                checked: app.candidateVisitsLabelVisible
-                                onToggled: app.candidateVisitsLabelVisible = checked
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                CandidateLabelControl {
+                                    lineKind: 0
+                                    title: app.trText("candidateWinrate")
+                                }
+
+                                CandidateLabelControl {
+                                    lineKind: 1
+                                    title: app.trText("candidateVisits")
+                                }
+
+                                CandidateLabelControl {
+                                    lineKind: 2
+                                    title: app.candidateScoreTitle()
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 44
+                                    radius: 6
+                                    color: "#ffffff"
+                                    border.color: "#c7d4db"
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        spacing: 8
+
+                                        CheckBox {
+                                            text: app.trText("candidateRingVisible")
+                                            checked: app.candidateRingVisible
+                                            onToggled: app.candidateRingVisible = checked
+                                        }
+
+                                        Label {
+                                            text: app.trText("candidateRingWidth")
+                                            color: "#53656f"
+                                            font.pixelSize: 12
+                                        }
+
+                                        SpinBox {
+                                            enabled: app.candidateRingVisible
+                                            from: 1
+                                            to: 64
+                                            editable: true
+                                            value: app.candidateRingLineWidth
+                                            Layout.preferredWidth: 78
+                                            onValueModified: app.candidateRingLineWidth = value
+                                        }
+
+                                        Item { Layout.fillWidth: true }
+                                    }
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    ColorRow {
+                                        label: app.trText("candidateFirstLabelTextColor")
+                                        field: candidateFirstTextColorField
+                                        compact: true
+                                        onApply: settingsDialog.applyColorText(candidateFirstTextColorField,
+                                                                                function(value) { app.candidateFirstLabelTextColor = value },
+                                                                                function() { return app.candidateFirstLabelTextColor })
+                                    }
+
+                                    ColorRow {
+                                        label: app.trText("candidateSecondLabelTextColor")
+                                        field: candidateTextColorField
+                                        compact: true
+                                        onApply: settingsDialog.applyColorText(candidateTextColorField,
+                                                                                function(value) { app.candidateLabelTextColor = value },
+                                                                                function() { return app.candidateLabelTextColor })
+                                    }
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateDisplayCount")
+                                color: "#24313a"
+                                Layout.preferredWidth: 190
                             }
 
-                            CheckBox {
-                                text: app.trText("candidateRingVisible")
-                                checked: app.candidateRingVisible
-                                onToggled: app.candidateRingVisible = checked
+                            SpinBox {
+                                from: 0
+                                to: 65536
+                                editable: true
+                                value: app.candidateDisplayCount
+                                Layout.preferredWidth: 116
+                                onValueModified: app.candidateDisplayCount = value
+                            }
+
+                            Label {
+                                text: app.trText("candidateCountUnlimitedTip")
+                                color: "#52636d"
+                                font.pixelSize: 12
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
                             }
                         }
 
-                        SliderRow {
-                            label: app.trText("candidateDisplayCount")
-                            from: 0
-                            to: 20
-                            value: app.candidateDisplayCount
-                            decimals: 0
-                            onMoved: function(v) { app.candidateDisplayCount = Math.round(v) }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateMinVisitRatio")
+                                color: "#24313a"
+                                Layout.preferredWidth: 190
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: 1000
+                                editable: true
+                                value: Math.round(app.candidateMinVisitRatio * 1000)
+                                Layout.preferredWidth: 96
+                                textFromValue: function(value) {
+                                    var percent = value / 10
+                                    return value % 10 === 0 ? percent.toFixed(0) : percent.toFixed(1)
+                                }
+                                valueFromText: function(text) {
+                                    var parsed = Number(String(text).replace("%", ""))
+                                    return isNaN(parsed) ? 0 : Math.round(parsed * 10)
+                                }
+                                onValueModified: app.candidateMinVisitRatio = value / 1000
+                            }
+
+                            Label {
+                                text: "%"
+                                color: "#52636d"
+                                font.pixelSize: 14
+                            }
+
+                            Item { Layout.fillWidth: true }
                         }
 
-                        SliderRow {
-                            label: app.trText("candidateMinVisitRatio")
-                            from: 0
-                            to: 1
-                            value: app.candidateMinVisitRatio
-                            decimals: 2
-                            onMoved: function(v) { app.candidateMinVisitRatio = v }
+                        SavePromptButton {
+                            text: app.trText("reset")
+                            Layout.preferredWidth: 120
+                            onClicked: {
+                                app.resetCandidateVisualSettings()
+                                settingsDialog.syncFields()
+                            }
                         }
 
-                        ColorRow {
-                            label: app.trText("candidateLabelTextColor")
-                            field: candidateTextColorField
-                            onApply: settingsDialog.applyColorText(candidateTextColorField,
-                                                                    function(value) { app.candidateLabelTextColor = value },
-                                                                    function() { return app.candidateLabelTextColor })
-                        }
                     }
                 }
 
@@ -765,6 +954,228 @@ Basic.Dialog {
         }
     }
 
+    component CandidateLabelControl: Rectangle {
+        id: labelControl
+
+        required property int lineKind
+        required property string title
+        property bool controlsEnabled: lineKind !== 2 || app.packageMode !== app.packageModeGo
+
+        function lineVisible() {
+            if (lineKind === 0)
+                return app.candidateWinrateLabelVisible
+            if (lineKind === 1)
+                return app.candidateVisitsLabelVisible
+            return app.candidateScoreLabelVisible
+        }
+
+        function setLineVisible(value) {
+            if (lineKind === 0)
+                app.candidateWinrateLabelVisible = value
+            else if (lineKind === 1)
+                app.candidateVisitsLabelVisible = value
+            else
+                app.candidateScoreLabelVisible = value
+        }
+
+        function lineFontSize() {
+            if (lineKind === 0)
+                return app.candidateWinrateFontSize
+            if (lineKind === 1)
+                return app.candidateVisitsFontSize
+            return app.candidateScoreFontSize
+        }
+
+        function setLineFontSize(value) {
+            if (lineKind === 0)
+                app.candidateWinrateFontSize = value
+            else if (lineKind === 1)
+                app.candidateVisitsFontSize = value
+            else
+                app.candidateScoreFontSize = value
+        }
+
+        function lineBold() {
+            if (lineKind === 0)
+                return app.candidateWinrateBold
+            if (lineKind === 1)
+                return app.candidateVisitsBold
+            return app.candidateScoreBold
+        }
+
+        function setLineBold(value) {
+            if (lineKind === 0)
+                app.candidateWinrateBold = value
+            else if (lineKind === 1)
+                app.candidateVisitsBold = value
+            else
+                app.candidateScoreBold = value
+        }
+
+        function lineOffsetY() {
+            if (lineKind === 0)
+                return app.candidateWinrateOffsetY
+            if (lineKind === 1)
+                return app.candidateVisitsOffsetY
+            return app.candidateScoreOffsetY
+        }
+
+        function setLineOffsetY(value) {
+            if (lineKind === 0)
+                app.candidateWinrateOffsetY = value
+            else if (lineKind === 1)
+                app.candidateVisitsOffsetY = value
+            else
+                app.candidateScoreOffsetY = value
+        }
+
+        function lineDecimals() {
+            return lineKind === 0 ? app.candidateWinrateDecimals : app.candidateScoreDecimals
+        }
+
+        function setLineDecimals(value) {
+            if (lineKind === 0)
+                app.candidateWinrateDecimals = value
+            else if (lineKind === 2)
+                app.candidateScoreDecimals = value
+        }
+
+        function lineShowPercent() {
+            return lineKind === 0 ? app.candidateWinrateShowPercent : app.candidateScoreShowPercent
+        }
+
+        function setLineShowPercent(value) {
+            if (lineKind === 0)
+                app.candidateWinrateShowPercent = value
+            else if (lineKind === 2)
+                app.candidateScoreShowPercent = value
+        }
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: 44
+        radius: 6
+        color: "#ffffff"
+        border.color: "#c7d4db"
+        opacity: controlsEnabled ? 1 : 0.52
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 6
+            anchors.rightMargin: 6
+            spacing: 3
+
+            Label {
+                text: "<"
+                color: "#58717e"
+                font.pixelSize: 14
+                font.bold: true
+                Layout.preferredWidth: 10
+            }
+
+            CheckBox {
+                enabled: labelControl.controlsEnabled
+                checked: labelControl.lineVisible()
+                Layout.preferredWidth: 28
+                onToggled: labelControl.setLineVisible(checked)
+            }
+
+            Label {
+                text: labelControl.title
+                color: "#17212a"
+                font.pixelSize: 13
+                font.bold: true
+                Layout.preferredWidth: 40
+                elide: Text.ElideRight
+            }
+
+            CheckBox {
+                enabled: labelControl.controlsEnabled
+                text: app.trText("candidateLabelBold")
+                checked: labelControl.lineBold()
+                Layout.preferredWidth: 34
+                onToggled: labelControl.setLineBold(checked)
+            }
+
+            Label {
+                text: app.trText("candidateLabelFontSize")
+                color: "#53656f"
+                font.pixelSize: 11
+                Layout.preferredWidth: 22
+                elide: Text.ElideRight
+            }
+
+            SpinBox {
+                enabled: labelControl.controlsEnabled
+                from: 12
+                to: 120
+                editable: true
+                value: labelControl.lineFontSize()
+                Layout.preferredWidth: 54
+                onValueModified: labelControl.setLineFontSize(value)
+            }
+
+            Label {
+                text: app.trText("candidateLabelOffsetY")
+                color: "#53656f"
+                font.pixelSize: 11
+                Layout.preferredWidth: 22
+                elide: Text.ElideRight
+            }
+
+            SpinBox {
+                enabled: labelControl.controlsEnabled
+                from: -64
+                to: 64
+                editable: true
+                value: labelControl.lineOffsetY()
+                Layout.preferredWidth: 54
+                onValueModified: labelControl.setLineOffsetY(value)
+            }
+
+            Label {
+                visible: labelControl.lineKind !== 1
+                text: app.trText("candidateLabelDecimals")
+                color: "#53656f"
+                font.pixelSize: 11
+                Layout.preferredWidth: 24
+                elide: Text.ElideRight
+            }
+
+            ComboBox {
+                visible: labelControl.lineKind !== 1
+                enabled: labelControl.controlsEnabled
+                model: [ "0", "1", "2" ]
+                currentIndex: labelControl.lineDecimals()
+                Layout.preferredWidth: 42
+                onActivated: function(index) { labelControl.setLineDecimals(index) }
+            }
+
+            CheckBox {
+                visible: labelControl.lineKind === 0
+                         || (labelControl.lineKind === 2 && app.gameRuleMode !== app.gameRuleGo)
+                enabled: labelControl.controlsEnabled
+                text: "%"
+                checked: labelControl.lineShowPercent()
+                Layout.preferredWidth: 38
+                onToggled: labelControl.setLineShowPercent(checked)
+            }
+
+            Label {
+                visible: labelControl.lineKind === 2 && app.packageMode === app.packageModeGo
+                text: app.trText("candidateScoreUnsupported")
+                color: "#7f3f38"
+                font.pixelSize: 12
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+
+            Item {
+                visible: !(labelControl.lineKind === 2 && app.packageMode === app.packageModeGo)
+                Layout.fillWidth: true
+            }
+        }
+    }
+
     component SliderRow: RowLayout {
         id: sliderRow
         property string label: ""
@@ -772,10 +1183,11 @@ Basic.Dialog {
         property real to: 1
         property real value: 0
         property int decimals: 2
+        property bool percent: false
         signal moved(real value)
 
         Layout.fillWidth: true
-        spacing: 10
+        spacing: colorRow.compact ? 6 : 10
 
         Label {
             text: sliderRow.label
@@ -784,18 +1196,102 @@ Basic.Dialog {
         }
 
         Slider {
+            id: rowSlider
             from: sliderRow.from
             to: sliderRow.to
             value: sliderRow.value
+            live: true
             Layout.fillWidth: true
             onMoved: sliderRow.moved(value)
         }
 
         Label {
-            text: Number(sliderRow.value).toFixed(sliderRow.decimals)
+            text: sliderRow.percent ? Math.round(Number(rowSlider.value) * 100) + "%"
+                                    : Number(rowSlider.value).toFixed(sliderRow.decimals)
             color: "#52636d"
             horizontalAlignment: Text.AlignRight
             Layout.preferredWidth: 56
+        }
+    }
+
+    component SelectionPreview: RowLayout {
+        id: selectionPreview
+        spacing: 10
+
+        Label {
+            text: app.trText("selectedPointPreview")
+            color: "#24313a"
+            Layout.preferredWidth: 190
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 88
+            radius: 5
+            color: "#ffffff"
+            border.color: "#c4d0d7"
+
+            Canvas {
+                id: selectionPreviewCanvas
+                anchors.fill: parent
+                anchors.margins: 8
+
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.clearRect(0, 0, width, height)
+
+                    var centerX = Math.round(width * 0.38)
+                    var centerY = Math.round(height * 0.5)
+                    var stoneRadius = Math.min(28, Math.max(18, height * 0.34))
+                    var selectionRadius = stoneRadius * app.selectedPointScale
+
+                    ctx.fillStyle = app.boardWoodColor
+                    ctx.fillRect(8, 8, width - 16, height - 16)
+                    ctx.strokeStyle = "#6b4b29"
+                    ctx.lineWidth = 1
+                    ctx.beginPath()
+                    ctx.moveTo(centerX - stoneRadius * 1.45, centerY)
+                    ctx.lineTo(centerX + stoneRadius * 1.45, centerY)
+                    ctx.moveTo(centerX, centerY - stoneRadius * 1.45)
+                    ctx.lineTo(centerX, centerY + stoneRadius * 1.45)
+                    ctx.stroke()
+
+                    ctx.strokeStyle = "#1b252c"
+                    ctx.globalAlpha = 0.36
+                    ctx.lineWidth = 2
+                    ctx.beginPath()
+                    ctx.arc(centerX, centerY, stoneRadius, 0, Math.PI * 2)
+                    ctx.stroke()
+
+                    ctx.globalAlpha = 0.30
+                    ctx.fillStyle = "#2fb97f"
+                    ctx.beginPath()
+                    ctx.arc(centerX, centerY, selectionRadius, 0, Math.PI * 2)
+                    ctx.fill()
+                    ctx.globalAlpha = 1
+
+                    ctx.strokeStyle = "#2fb97f"
+                    ctx.lineWidth = 2
+                    ctx.beginPath()
+                    ctx.arc(centerX, centerY, selectionRadius, 0, Math.PI * 2)
+                    ctx.stroke()
+
+                    ctx.fillStyle = "#52636d"
+                    ctx.font = "13px \"" + String(app.coordinateFontFamily).replace(/"/g, "") + "\", sans-serif"
+                    ctx.textAlign = "left"
+                    ctx.textBaseline = "middle"
+                    ctx.fillText(Math.round(app.selectedPointScale * 100) + "%", centerX + stoneRadius * 1.8, centerY)
+                }
+
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+
+                Connections {
+                    target: app
+                    function onSelectedPointScaleChanged() { selectionPreviewCanvas.requestPaint() }
+                    function onBoardWoodColorChanged() { selectionPreviewCanvas.requestPaint() }
+                }
+            }
         }
     }
 
@@ -803,6 +1299,7 @@ Basic.Dialog {
         id: colorRow
         property string label: ""
         property var field
+        property bool compact: false
         signal apply()
 
         Layout.fillWidth: true
@@ -811,26 +1308,28 @@ Basic.Dialog {
         Label {
             text: colorRow.label
             color: "#24313a"
-            Layout.preferredWidth: 190
+            Layout.preferredWidth: colorRow.compact ? 70 : 190
+            elide: Text.ElideRight
         }
 
         Basic.TextField {
             id: colorField
             text: colorRow.field ? colorRow.field.text : ""
             selectByMouse: true
-            Layout.preferredWidth: 120
+            Layout.preferredWidth: colorRow.compact ? 88 : 120
             onTextChanged: if (colorRow.field) colorRow.field.text = text
             onEditingFinished: colorRow.apply()
         }
 
         SavePromptButton {
             text: app.trText("apply")
-            Layout.preferredWidth: 88
+            Layout.preferredWidth: colorRow.compact ? 58 : 88
             onClicked: colorRow.apply()
         }
     }
 
     QtObject { id: backgroundColorField; property string text: "" }
     QtObject { id: boardColorField; property string text: "" }
+    QtObject { id: candidateFirstTextColorField; property string text: "" }
     QtObject { id: candidateTextColorField; property string text: "" }
 }

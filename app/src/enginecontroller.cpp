@@ -15,7 +15,7 @@
 
 namespace {
 constexpr auto kDefaultEngineCommand =
-    "D:\\katago\\engine2024\\go.exe gtp -config \"C:\\lizzie\\engine2024.cfg\" -model \"I:\\Downloads\\model (4).bin.gz\"";
+    "D:\\katago\\engine2024\\go.exe gtp -config ./engine2024.cfg -model \"D:\\Downloads\\model (68).bin.gz\" -override-config useUncertainty=false";
 
 QString portableRootPath()
 {
@@ -499,13 +499,14 @@ void EngineController::consumeLines(QByteArray &buffer, bool stderrStream)
 
 void EngineController::handleStdoutLine(const QString &line)
 {
+    emit engineOutput(line);
+
     if (line.startsWith(QStringLiteral("info "))) {
         if (m_acceptCandidateInfo)
             parseInfoLine(line);
         return;
     }
 
-    emit engineOutput(line);
     setStatusText(line);
     if (m_nameResponsePending
             && (line.startsWith(QLatin1Char('=')) || line.startsWith(QLatin1Char('?')))) {
