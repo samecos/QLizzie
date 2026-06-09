@@ -52,6 +52,11 @@ For KataGo-style analysis, use an engine command that starts GTP mode and points
 
 QLizzie is not LizzieYZY and is not affiliated with the LizzieYZY project. LizzieYZY is used as a reference for the expected analysis workflow, candidate display behavior, and overall interface feel.
 
+## Friendly Links
+
+- [LizzieYZY](https://github.com/yzyray/lizzieyzy)
+- [Lizzie3D](https://github.com/hzyhhzy/Lizzie3D)
+
 ## License
 
 QLizzie is released under the GNU General Public License v3.0. See [LICENSE](LICENSE).

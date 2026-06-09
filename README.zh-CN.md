@@ -52,6 +52,11 @@ QLizzie 通过 GTP 协议和 AI 引擎通信。默认启动命令可以在引擎
 
 QLizzie 不是 LizzieYZY，也不隶属于 LizzieYZY 项目。LizzieYZY 是本项目在分析工作流、选点显示行为和整体界面感觉上的参考项目。
 
+## 友情链接
+
+- [LizzieYZY](https://github.com/yzyray/lizzieyzy)
+- [Lizzie3D](https://github.com/hzyhhzy/Lizzie3D)
+
 ## 开源协议
 
 QLizzie 使用 GNU General Public License v3.0 开源。详见 [LICENSE](LICENSE)。
