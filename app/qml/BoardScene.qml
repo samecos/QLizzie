@@ -48,6 +48,7 @@ Item {
     readonly property real boardTop: Math.round((height - gridHeight) / 2)
     readonly property real boardRight: boardLeft + gridWidth
     readonly property real boardBottom: boardTop + gridHeight
+    readonly property bool variationPreviewActive: app.activeCandidateVariationPreviewActive()
 
     function boardPointLocal(x, y) {
         return Qt.point(boardLeft + x * cellSize, boardTop + y * cellSize)
@@ -131,32 +132,6 @@ Item {
             ctx.restore()
         }
 
-        function fittedStoneNumberFontSize(ctx, text, radius) {
-            var digits = Math.max(1, String(text).length)
-            var digitFactor = digits <= 1 ? 1.18
-                            : digits === 2 ? 1.02
-                            : digits === 3 ? 0.86
-                            : Math.max(0.58, 0.86 - (digits - 3) * 0.12)
-            var maxWidth = radius * 1.78
-            var maxHeight = radius * 1.42
-            var targetSize = radius * digitFactor * app.moveNumberLabelScale
-            ctx.save()
-            ctx.font = canvasFont(targetSize, true)
-            var measuredWidth = Math.max(1, ctx.measureText(String(text)).width)
-            ctx.restore()
-            if (measuredWidth > maxWidth)
-                targetSize *= maxWidth / measuredWidth
-            return Math.max(8, Math.min(targetSize, maxHeight))
-        }
-
-        function stoneNumberMaxWidth(radius) {
-            return radius * 1.86
-        }
-
-        function stoneNumberOffsetY(fontSize) {
-            return Math.max(1, fontSize * 0.08)
-        }
-
         function starPoints(size) {
             if (size >= 19)
                 return [3, Math.floor(size / 2), size - 4]
@@ -235,37 +210,38 @@ Item {
 
             var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
             var candidateRadius = stoneRadius
-            for (var c = app.engineCandidateItems.length - 1; c >= 0; --c) {
-                var candidate = app.engineCandidateItems[c]
-                if (app.stoneAt(candidate.x, candidate.y) !== 0)
-                    continue
-                var highlightedCandidate = app.hoverKey === candidate.key
-                if (!candidate.boardVisible && !highlightedCandidate)
-                    continue
-                var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
-                var showCandidateText = candidate.qualified || highlightedCandidate
-                var candidateLines = showCandidateText ? app.candidateLabelLines(candidate) : []
-                var isFirstCandidate = candidate.displayIndex === 1
-                var isBestCandidate = app.bestCandidateRingVisible
-                                      && app.candidateRingVisible
-                                      && candidate.key === app.bestCandidateRingKey
-                var markerOptions = {
-                    "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
-                                                                              candidate.visitRatio),
-                    "fillOpacity": candidate.opacity,
-                    "drawOutline": !isFirstCandidate,
-                    "outlineOpacity": candidate.outlineOpacity,
-                    "drawRing": isBestCandidate,
-                    "ringColor": app.firstCandidateRingColor,
-                    "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
-                    "rankText": app.candidateRankLabelText(candidate.displayIndex)
+            if (!boardScene.variationPreviewActive) {
+                for (var c = app.engineCandidateItems.length - 1; c >= 0; --c) {
+                    var candidate = app.engineCandidateItems[c]
+                    if (app.stoneAt(candidate.x, candidate.y) !== 0)
+                        continue
+                    if (!candidate.boardVisible)
+                        continue
+                    var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
+                    var showCandidateText = candidate.qualified
+                    var candidateLines = showCandidateText ? (candidate.labelLines || []) : []
+                    var isFirstCandidate = candidate.displayIndex === 1
+                    var isBestCandidate = app.bestCandidateRingVisible
+                                          && app.candidateRingVisible
+                                          && candidate.key === app.bestCandidateRingKey
+                    var markerOptions = {
+                        "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
+                                                                                  candidate.visitRatio),
+                        "fillOpacity": candidate.opacity,
+                        "drawOutline": !isFirstCandidate,
+                        "outlineOpacity": candidate.outlineOpacity,
+                        "drawRing": isBestCandidate,
+                        "ringColor": app.firstCandidateRingColor,
+                        "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
+                        "rankText": app.candidateRankLabelText(candidate.displayIndex)
+                    }
+                    if (showCandidateText) {
+                        markerOptions.fallbackText = String(candidate.displayIndex)
+                        markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
+                        markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
+                    }
+                    app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, markerOptions)
                 }
-                if (showCandidateText) {
-                    markerOptions.fallbackText = String(candidate.displayIndex)
-                    markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
-                    markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
-                }
-                app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, markerOptions)
             }
 
             for (var s = 0; s < app.stoneItems.length; ++s) {
@@ -286,31 +262,33 @@ Item {
                 ctx.stroke()
             }
 
-            for (var o = 0; o < app.stoneItems.length; ++o) {
-                var overlayStone = app.stoneItems[o]
-                var last = app.isLastMoveAt(overlayStone.x, overlayStone.y)
-                if (!app.stoneOverlayVisible(overlayStone.moveNumber, last))
-                    continue
-                var op = boardScene.boardPointLocal(overlayStone.x, overlayStone.y)
-                if (last) {
-                    var markerSize = stoneRadius * 0.62
-                    var markerCornerX = op.x - stoneRadius
-                    var markerCornerY = op.y - stoneRadius
-                    ctx.fillStyle = "#e3342f"
-                    ctx.beginPath()
-                    ctx.moveTo(markerCornerX, markerCornerY)
-                    ctx.lineTo(markerCornerX + markerSize, markerCornerY)
-                    ctx.lineTo(markerCornerX, markerCornerY + markerSize)
-                    ctx.closePath()
-                    ctx.fill()
-                }
-                if (app.stoneNumberVisible(overlayStone.moveNumber, last)) {
-                    var moveNumberText = String(overlayStone.moveNumber)
-                    var moveNumberFontSize = fittedStoneNumberFontSize(ctx, moveNumberText, stoneRadius)
-                    drawCenteredText(ctx, moveNumberText, op.x, op.y + stoneNumberOffsetY(moveNumberFontSize),
-                                     app.stoneNumberColor(overlayStone.player, last),
-                                     moveNumberFontSize, true,
-                                     stoneNumberMaxWidth(stoneRadius))
+            if (!boardScene.variationPreviewActive) {
+                for (var o = 0; o < app.stoneItems.length; ++o) {
+                    var overlayStone = app.stoneItems[o]
+                    var last = app.isLastMoveAt(overlayStone.x, overlayStone.y)
+                    if (!app.stoneOverlayVisible(overlayStone.moveNumber, last))
+                        continue
+                    var op = boardScene.boardPointLocal(overlayStone.x, overlayStone.y)
+                    if (last) {
+                        var markerSize = stoneRadius * 0.62
+                        var markerCornerX = op.x - stoneRadius
+                        var markerCornerY = op.y - stoneRadius
+                        ctx.fillStyle = "#e3342f"
+                        ctx.beginPath()
+                        ctx.moveTo(markerCornerX, markerCornerY)
+                        ctx.lineTo(markerCornerX + markerSize, markerCornerY)
+                        ctx.lineTo(markerCornerX, markerCornerY + markerSize)
+                        ctx.closePath()
+                        ctx.fill()
+                    }
+                    if (app.stoneNumberVisible(overlayStone.moveNumber, last)) {
+                        var moveNumberText = String(overlayStone.moveNumber)
+                        var moveNumberFontSize = app.stoneNumberFontSize(ctx, moveNumberText, stoneRadius)
+                        drawCenteredText(ctx, moveNumberText, op.x, op.y + app.stoneNumberOffsetY(moveNumberFontSize),
+                                         app.stoneNumberColor(overlayStone.player, last),
+                                         moveNumberFontSize, true,
+                                         app.stoneNumberMaxWidth(stoneRadius))
+                    }
                 }
             }
 
@@ -327,17 +305,6 @@ Item {
                 ctx.stroke()
             }
 
-            if (app.hoverKey !== "" && app.pointIsEngineCandidateKey(app.hoverKey)) {
-                var hp = boardScene.boardPointLocal(app.hoverX, app.hoverY)
-                ctx.save()
-                ctx.globalAlpha = 1
-                ctx.strokeStyle = "#ff1010"
-                ctx.lineWidth = app.candidateRingLineWidthForRadius(stoneRadius)
-                ctx.beginPath()
-                ctx.arc(hp.x, hp.y, app.candidateRingRadius(stoneRadius), 0, Math.PI * 2)
-                ctx.stroke()
-                ctx.restore()
-            }
         }
 
         onWidthChanged: requestPaint()
@@ -348,9 +315,6 @@ Item {
             function onBoardRevisionChanged() { boardCanvas.requestPaint() }
             function onBoardSizeXChanged() { boardCanvas.requestPaint() }
             function onBoardSizeYChanged() { boardCanvas.requestPaint() }
-            function onHoverKeyChanged() { boardCanvas.requestPaint() }
-            function onSelectedPointLockedChanged() { boardCanvas.requestPaint() }
-            function onSelectedPointFromCandidateListChanged() { boardCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { boardCanvas.requestPaint() }
             function onBestCandidateRingVisibleChanged() { boardCanvas.requestPaint() }
             function onGomokuWinLineItemsChanged() { boardCanvas.requestPaint() }
@@ -384,6 +348,153 @@ Item {
             function onCandidateRankLabelVisibleChanged() { boardCanvas.requestPaint() }
             function onCandidateFirstLabelTextColorChanged() { boardCanvas.requestPaint() }
             function onCandidateLabelTextColorChanged() { boardCanvas.requestPaint() }
+        }
+    }
+
+    onVariationPreviewActiveChanged: boardCanvas.requestPaint()
+
+    Canvas {
+        id: variationPreviewCanvas
+        anchors.fill: parent
+
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+
+            var activeCandidate = app.activeCandidateForVariationPreview()
+            var variation = app.activeCandidateVariationItems()
+            if (!variation || variation.length <= 0)
+                return
+
+            var cell = boardScene.cellSize
+            var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
+            var previewRadius = stoneRadius * 0.92
+
+            for (var i = 0; i < variation.length; ++i) {
+                var move = variation[i]
+                var point = boardScene.boardPointLocal(move.x, move.y)
+                var previewOpacity = Number(app.candidateVariationPreviewOpacity)
+                if (isNaN(previewOpacity))
+                    previewOpacity = app.defaultCandidateVariationPreviewOpacity
+                ctx.save()
+                ctx.globalAlpha = Math.max(0, Math.min(1, previewOpacity))
+                boardCanvas.drawStone(ctx, move.x, move.y, move.player, previewRadius)
+                ctx.restore()
+
+                if (i === 0 && activeCandidate) {
+                    ctx.save()
+                    app.drawCandidateLabelLines(ctx,
+                                                activeCandidate.labelLines || [],
+                                                point.x,
+                                                point.y,
+                                                previewRadius,
+                                                move.player === 1 ? "#ffffff" : "#000000")
+                    ctx.restore()
+                    continue
+                }
+
+                var text = String(move.moveNumber)
+                var size = app.stoneNumberFontSize(ctx, text, previewRadius)
+                boardCanvas.drawCenteredText(ctx,
+                                             text,
+                                             point.x,
+                                             point.y + app.stoneNumberOffsetY(size),
+                                             app.stoneNumberColor(move.player, false),
+                                             size,
+                                             true,
+                                             app.stoneNumberMaxWidth(previewRadius))
+            }
+        }
+
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        Connections {
+            target: app
+            function onCandidateVariationPreviewVisibleChanged() { variationPreviewCanvas.requestPaint() }
+            function onCandidateVariationPreviewMaxMovesChanged() { variationPreviewCanvas.requestPaint() }
+            function onCandidateVariationPreviewOpacityChanged() { variationPreviewCanvas.requestPaint() }
+            function onHoverKeyChanged() { variationPreviewCanvas.requestPaint() }
+            function onSelectedPointLockedChanged() { variationPreviewCanvas.requestPaint() }
+            function onSelectedPointFromCandidateListChanged() { variationPreviewCanvas.requestPaint() }
+            function onEngineCandidateItemsChanged() { variationPreviewCanvas.requestPaint() }
+            function onBoardRevisionChanged() { variationPreviewCanvas.requestPaint() }
+            function onBoardSizeXChanged() { variationPreviewCanvas.requestPaint() }
+            function onBoardSizeYChanged() { variationPreviewCanvas.requestPaint() }
+            function onStoneScaleChanged() { variationPreviewCanvas.requestPaint() }
+            function onMoveNumberDisplayModeChanged() { variationPreviewCanvas.requestPaint() }
+            function onMoveNumberLabelScaleChanged() { variationPreviewCanvas.requestPaint() }
+        }
+    }
+
+    Canvas {
+        id: hoverOverlayCanvas
+        anchors.fill: parent
+
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+
+            if (app.hoverKey === "" || !app.pointIsEngineCandidateKey(app.hoverKey))
+                return
+
+            var candidate = app.engineCandidateItemMap[app.hoverKey]
+            if (!candidate || app.stoneAt(candidate.x, candidate.y) !== 0)
+                return
+
+            var cell = boardScene.cellSize
+            var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
+            var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
+            var isFirstCandidate = candidate.displayIndex === 1
+
+            if (!boardScene.variationPreviewActive && (!candidate.qualified || !candidate.boardVisible)) {
+                var markerOptions = {
+                    "drawBackground": !candidate.boardVisible,
+                    "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
+                                                                              candidate.visitRatio),
+                    "fillOpacity": candidate.opacity,
+                    "drawOutline": !candidate.boardVisible && !isFirstCandidate,
+                    "outlineOpacity": candidate.outlineOpacity,
+                    "drawRing": false,
+                    "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
+                    "rankText": !candidate.boardVisible ? app.candidateRankLabelText(candidate.displayIndex) : ""
+                }
+                if (!candidate.labelLines || candidate.labelLines.length <= 0) {
+                    markerOptions.fallbackText = String(candidate.displayIndex)
+                    markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
+                    markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
+                }
+                app.drawCandidateMarker(ctx, cp.x, cp.y, stoneRadius, candidate.labelLines || [], markerOptions)
+            }
+
+            ctx.save()
+            ctx.globalAlpha = 1
+            ctx.strokeStyle = "#ff1010"
+            ctx.lineWidth = app.candidateRingLineWidthForRadius(stoneRadius)
+            ctx.beginPath()
+            ctx.arc(cp.x, cp.y, app.candidateRingRadius(stoneRadius), 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.restore()
+        }
+
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        Connections {
+            target: app
+            function onHoverKeyChanged() { hoverOverlayCanvas.requestPaint() }
+            function onSelectedPointLockedChanged() { hoverOverlayCanvas.requestPaint() }
+            function onSelectedPointFromCandidateListChanged() { hoverOverlayCanvas.requestPaint() }
+            function onEngineCandidateItemsChanged() { hoverOverlayCanvas.requestPaint() }
+            function onBoardRevisionChanged() { hoverOverlayCanvas.requestPaint() }
+            function onBoardSizeXChanged() { hoverOverlayCanvas.requestPaint() }
+            function onBoardSizeYChanged() { hoverOverlayCanvas.requestPaint() }
+            function onStoneScaleChanged() { hoverOverlayCanvas.requestPaint() }
+            function onCandidateWinrateOffsetYChanged() { hoverOverlayCanvas.requestPaint() }
+            function onCandidateVisitsOffsetYChanged() { hoverOverlayCanvas.requestPaint() }
+            function onCandidateScoreOffsetYChanged() { hoverOverlayCanvas.requestPaint() }
+            function onCandidateRingLineWidthChanged() { hoverOverlayCanvas.requestPaint() }
+            function onCandidateRankLabelVisibleChanged() { hoverOverlayCanvas.requestPaint() }
         }
     }
 }

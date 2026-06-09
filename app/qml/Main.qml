@@ -174,6 +174,7 @@ ApplicationWindow {
     property bool applyingGeneratedMove: false
     property var engineCandidates: []
     property var engineCandidateItems: []
+    property var engineCandidateItemMap: ({})
     property var engineCandidateTableItems: []
     property int engineCandidateRevision: 0
     property bool bestCandidateRingVisible: false
@@ -182,13 +183,19 @@ ApplicationWindow {
     property int bestCandidateRingY: -1
     property var engineSyncedNodeIds: []
     property string engineSyncedBoardSignature: ""
+    property string engineSyncedKomiSignature: ""
     property bool engineNeedsFullSync: true
     property int analysisRevision: 0
     property int analysisIntervalCentiseconds: 10
     property int maxAnalysisSeconds: 0
+    readonly property int maxLargeIntegerSetting: 1073741824
     property int candidateDisplayCount: 10
     property real candidateMinVisitRatio: 0.001
     property bool candidateShowFilteredMarkers: true
+    property bool candidateVariationPreviewVisible: true
+    property int candidateVariationPreviewMaxMoves: 10
+    readonly property real defaultCandidateVariationPreviewOpacity: 0.40
+    property real candidateVariationPreviewOpacity: defaultCandidateVariationPreviewOpacity
     property bool candidateWinrateLabelVisible: true
     property bool candidateVisitsLabelVisible: true
     property bool candidateScoreLabelVisible: true
@@ -259,10 +266,20 @@ ApplicationWindow {
     onCandidateDisplayCountChanged: rebuildEngineCandidateItems()
     onCandidateMinVisitRatioChanged: rebuildEngineCandidateItems()
     onCandidateShowFilteredMarkersChanged: rebuildEngineCandidateItems()
+    onCandidateWinrateLabelVisibleChanged: rebuildEngineCandidateItems()
+    onCandidateVisitsLabelVisibleChanged: rebuildEngineCandidateItems()
+    onCandidateScoreLabelVisibleChanged: rebuildEngineCandidateItems()
+    onCandidateWinrateFontSizeChanged: rebuildEngineCandidateItems()
+    onCandidateVisitsFontSizeChanged: rebuildEngineCandidateItems()
+    onCandidateScoreFontSizeChanged: rebuildEngineCandidateItems()
+    onCandidateWinrateBoldChanged: rebuildEngineCandidateItems()
+    onCandidateVisitsBoldChanged: rebuildEngineCandidateItems()
+    onCandidateScoreBoldChanged: rebuildEngineCandidateItems()
     onCandidateWinrateDecimalsChanged: rebuildEngineCandidateItems()
     onCandidateScoreDecimalsChanged: rebuildEngineCandidateItems()
     onCandidateWinrateShowPercentChanged: rebuildEngineCandidateItems()
     onCandidateScoreShowPercentChanged: rebuildEngineCandidateItems()
+    onCandidateLabelTextColorChanged: rebuildEngineCandidateItems()
     onPackageModeChanged: rebuildEngineCandidateItems()
     onGameRuleModeChanged: rebuildEngineCandidateItems()
 
@@ -408,6 +425,13 @@ ApplicationWindow {
         interval: Math.max(1, root.maxAnalysisSeconds) * 1000
         repeat: false
         onTriggered: root.pauseEngineAnalysisByLimit()
+    }
+
+    Timer {
+        id: treeLayoutTimer
+        interval: 1
+        repeat: false
+        onTriggered: root.rebuildTreeLayout()
     }
 
     Timer {
@@ -612,7 +636,7 @@ ApplicationWindow {
     }
 
     function shouldCachePointLegality() {
-        return boardPointCount() <= maxCachedLegalPoints
+        return false
     }
 
     function rebuildPointLegality() {
@@ -650,11 +674,7 @@ ApplicationWindow {
     function pointIsEngineCandidateKey(key) {
         if (!key || key.length <= 0)
             return false
-        for (var i = 0; i < engineCandidateItems.length; ++i) {
-            if (engineCandidateItems[i] && engineCandidateItems[i].key === key)
-                return true
-        }
-        return false
+        return engineCandidateItemMap[key] !== undefined
     }
 
     function clampCoordinateInput(text, size) {
@@ -671,6 +691,14 @@ ApplicationWindow {
         return Math.round(clamp(value, 1, size))
     }
 
+    function setHoverPoint(x, y) {
+        var nextX = Math.round(clamp(x, 0, boardSizeX - 1))
+        var nextY = Math.round(clamp(y, 0, boardSizeY - 1))
+        hoverX = nextX
+        hoverY = nextY
+        hoverKey = keyFor(nextX, nextY)
+    }
+
     function setSelectedPoint(x, y, locked, fromCandidateList) {
         var nextX = Math.round(clamp(x, 0, boardSizeX - 1))
         var nextY = Math.round(clamp(y, 0, boardSizeY - 1))
@@ -680,9 +708,7 @@ ApplicationWindow {
         } else if (!selectedPointLocked) {
             selectedPointFromCandidateList = false
         }
-        hoverX = nextX
-        hoverY = nextY
-        hoverKey = keyFor(nextX, nextY)
+        setHoverPoint(nextX, nextY)
         if (!pointIsLegal(nextX, nextY)) {
             statusMode = stoneAt(nextX, nextY) !== 0 ? "occupied" : "message"
             statusMessage = illegalPointMessage(nextX, nextY, "")
@@ -695,12 +721,6 @@ ApplicationWindow {
             statusMode = "turn"
         }
         return true
-    }
-
-    function nudgeSelectedPoint(dx, dy) {
-        var baseX = hoverKey !== "" ? hoverX : 0
-        var baseY = hoverKey !== "" ? hoverY : 0
-        setSelectedPoint(baseX + dx, baseY + dy, true)
     }
 
     function illegalPointMessage(x, y, fallback) {
@@ -815,7 +835,7 @@ ApplicationWindow {
         return null
     }
 
-    function addMoveNode(player, x, y, isPass, capturedStones, koLoc) {
+    function addMoveNode(player, x, y, isPass, capturedStones, koLoc, skipPositionRebuild, deferTreeLayoutRebuild) {
         var parent = currentNode()
         if (!parent)
             return null
@@ -851,37 +871,58 @@ ApplicationWindow {
         gameNodes = gameNodes.slice()
         currentNodeId = id
         gameDirty = true
-        resetEngineSyncState()
-        rebuildPositionFromNode(currentNodeId)
-        rebuildTreeLayout()
+        if (!skipPositionRebuild)
+            rebuildPositionFromNode(currentNodeId)
+        if (deferTreeLayoutRebuild)
+            scheduleTreeLayoutRebuild()
+        else
+            rebuildTreeLayout()
         clearEngineCandidates()
-        scheduleAutoAnalysis()
-        requestAiMoveIfNeeded()
+        if (!skipPositionRebuild) {
+            scheduleAutoAnalysis()
+            requestAiMoveIfNeeded()
+        }
         return node
     }
 
     function placeStone(x, y) {
         if (!pointInBoard(x, y))
             return false
-        if (!pointIsLegal(x, y)) {
-            statusMode = stoneAt(x, y) !== 0 ? "occupied" : "message"
+
+        if (stoneAt(x, y) !== 0) {
+            statusMode = "occupied"
             statusMessage = illegalPointMessage(x, y, "")
             return false
         }
 
+        var pointKey = keyFor(x, y)
+        if (gameRuleMode === gameRuleGo && koLocKey !== "" && pointKey === koLocKey) {
+            statusMode = "message"
+            statusMessage = illegalPointMessage(x, y, "ko")
+            return false
+        }
+
         var player = currentPlayer
+        var existingChild = branchChildMatching(currentNode(), pointKey, player, false)
+        if (existingChild) {
+            selectedPointLocked = false
+            selectedPointFromCandidateList = false
+            gotoNode(existingChild.id)
+            return true
+        }
+
         var item = {
             "x": x,
             "y": y,
-            "key": keyFor(x, y),
+            "key": pointKey,
             "player": player,
             "moveNumber": currentMoveNumberValue() + 1,
             "nodeId": -1
         }
         var captured = []
         var ko = GameRules.emptyKoLoc()
+        var working = GameRules.cloneStoneMap(stones)
         if (gameRuleMode === gameRuleGo) {
-            var working = GameRules.cloneStoneMap(stones)
             var result = GameRules.simulateGoMoveOnMap(working, boardDims(), item, true)
             if (!result.ok) {
                 statusMode = "message"
@@ -890,17 +931,53 @@ ApplicationWindow {
             }
             captured = result.capturedStones
             ko = GameRules.koLocFromGoMoveResult(gameRuleMode, result)
+        } else {
+            working[item.key] = item
         }
 
         selectedPointLocked = false
         selectedPointFromCandidateList = false
-        var node = addMoveNode(player, x, y, false, captured, ko)
+        var node = addMoveNode(player, x, y, false, captured, ko, true, true)
         if (!node)
             return false
+        applyIncrementalMovePosition(node, working, captured.length, ko)
         statusMode = "turn"
         statusMessage = captured.length > 0 ? trText("captureMessage") + ": " + captured.length : ""
         checkGameOverAfterMove(node)
+        scheduleAutoAnalysis()
+        requestAiMoveIfNeeded()
         return true
+    }
+
+    function applyIncrementalMovePosition(node, nextMap, capturedCount, ko) {
+        if (!node || !nextMap)
+            return
+
+        if (!node.isPass && nextMap[node.key]) {
+            nextMap[node.key].nodeId = node.id
+            nextMap[node.key].moveNumber = node.moveNumber
+        }
+
+        stones = nextMap
+        stoneItems = mapStoneItems(nextMap)
+        stoneCount = stoneItems.length
+        if (node.player === 1)
+            blackCaptures += capturedCount
+        else if (node.player === 2)
+            whiteCaptures += capturedCount
+        ko = ko || GameRules.emptyKoLoc()
+        koLocKey = ko.key
+        koLocX = ko.x
+        koLocY = ko.y
+        node.blackCaptures = blackCaptures
+        node.whiteCaptures = whiteCaptures
+        node.koLocKey = koLocKey
+        node.koLocX = koLocX
+        node.koLocY = koLocY
+        currentPlayer = nextPlayerFromMode()
+        rebuildPointLegality()
+        gomokuWinLineItems = buildGomokuWinLineItems(nextMap)
+        boardRevision += 1
     }
 
     function passMove() {
@@ -1051,7 +1128,6 @@ ApplicationWindow {
         currentNodeId = parent ? parent.id : 0
         gameNodes = gameNodes.slice()
         gameDirty = true
-        resetEngineSyncState()
         rebuildPositionFromNode(currentNodeId)
         rebuildTreeLayout()
         scheduleAutoAnalysis()
@@ -1156,6 +1232,13 @@ ApplicationWindow {
                 return node.id
         }
         return -1
+    }
+
+    function scheduleTreeLayoutRebuild() {
+        if (treeLayoutTimer)
+            treeLayoutTimer.restart()
+        else
+            rebuildTreeLayout()
     }
 
     function rebuildTreeLayout() {
@@ -1597,20 +1680,52 @@ ApplicationWindow {
         return "komi " + Number(effectiveKomi()).toFixed(1)
     }
 
+    function engineKomiSignature() {
+        return Number(effectiveKomi()).toFixed(1)
+    }
+
     function engineSyncCommands() {
         var path = nodePath(currentNodeId)
         var commands = [ "stop" ]
-        commands = commands.concat(engineBoardSizeCommands())
-        commands.push(engineKomiCommand())
-        var ruleCommand = engineRuleCommand()
-        if (ruleCommand.length > 0)
-            commands.push(ruleCommand)
-        commands.push("clear_board")
-        for (var i = 0; i < path.length; ++i)
-            commands.push(enginePlayCommandForNode(path[i]))
-        engineSyncedNodeIds = []
+
+        if (engineNeedsFullSync || engineSyncedBoardSignature !== engineBoardSignature()) {
+            commands = commands.concat(engineBoardSizeCommands())
+            commands.push(engineKomiCommand())
+            var fullRuleCommand = engineRuleCommand()
+            if (fullRuleCommand.length > 0)
+                commands.push(fullRuleCommand)
+            commands.push("clear_board")
+            for (var fullIndex = 0; fullIndex < path.length; ++fullIndex)
+                commands.push(enginePlayCommandForNode(path[fullIndex]))
+            engineSyncedNodeIds = []
+            for (var fullPathIndex = 0; fullPathIndex < path.length; ++fullPathIndex)
+                engineSyncedNodeIds.push(path[fullPathIndex].id)
+            engineSyncedBoardSignature = engineBoardSignature()
+            engineSyncedKomiSignature = engineKomiSignature()
+            engineNeedsFullSync = false
+            return commands
+        }
+
+        if (engineSyncedKomiSignature !== engineKomiSignature()) {
+            commands.push(engineKomiCommand())
+            engineSyncedKomiSignature = engineKomiSignature()
+        }
+        var pathIds = []
         for (var p = 0; p < path.length; ++p)
-            engineSyncedNodeIds.push(path[p].id)
+            pathIds.push(path[p].id)
+
+        var commonLength = 0
+        var maxCommonLength = Math.min(engineSyncedNodeIds.length, pathIds.length)
+        while (commonLength < maxCommonLength
+               && engineSyncedNodeIds[commonLength] === pathIds[commonLength])
+            commonLength += 1
+
+        for (var undoIndex = engineSyncedNodeIds.length - 1; undoIndex >= commonLength; --undoIndex)
+            commands.push("undo")
+        for (var playIndex = commonLength; playIndex < path.length; ++playIndex)
+            commands.push(enginePlayCommandForNode(path[playIndex]))
+
+        engineSyncedNodeIds = pathIds
         engineSyncedBoardSignature = engineBoardSignature()
         engineNeedsFullSync = false
         return commands
@@ -1636,6 +1751,7 @@ ApplicationWindow {
         stopAnalysisLimitTimer()
         engineSyncedNodeIds = []
         engineSyncedBoardSignature = ""
+        engineSyncedKomiSignature = ""
         engineNeedsFullSync = true
     }
 
@@ -2010,28 +2126,38 @@ ApplicationWindow {
         if (!candidateRankLabelVisible || rankText === undefined || String(rankText).length <= 0)
             return
 
-        var badgeRadius = Math.max(5, markerRadius * 0.22)
-        var badgeX = centerX + markerRadius * 0.58
-        var badgeY = centerY - markerRadius * 0.58
+        var text = String(rankText)
+        var squareWidth = markerRadius * 2 / Math.max(0.1, Number(stoneScale))
+        var anchorX = centerX + squareWidth * 0.43 + (text === "1" ? 1 : 0)
+        var anchorY = centerY - squareWidth * 0.358 - (text === "1" ? 1 : 0)
+        var maxFontHeight = squareWidth * 0.36
+        var maxFontWidth = squareWidth * 0.39
         var fontFamily = String(coordinateFontFamily).replace(/"/g, "")
 
         ctx.save()
-        ctx.globalAlpha = 0.96
-        ctx.fillStyle = "#f8fbfd"
-        ctx.strokeStyle = "#15191c"
-        ctx.lineWidth = Math.max(1, markerRadius * 0.035)
-        ctx.beginPath()
-        ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.stroke()
+        var fontSize = Math.max(1, maxFontHeight)
+        ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
+        var measured = ctx.measureText(text)
+        if (measured.width > maxFontWidth && measured.width > 0) {
+            fontSize *= maxFontWidth / measured.width
+            ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
+            measured = ctx.measureText(text)
+        }
+
+        var textWidth = Math.max(1, measured.width)
+        var ascent = measured.actualBoundingBoxAscent || fontSize * 0.72
+        var descent = measured.actualBoundingBoxDescent || fontSize * 0.12
+        var textHeight = Math.max(1, ascent - descent)
+        var x1 = anchorX - textWidth * 0.5
+        var y1 = anchorY
 
         ctx.globalAlpha = 1
+        ctx.fillStyle = "#ffa500"
+        ctx.fillRect(x1, y1 - textHeight, textWidth, textHeight + Math.max(1, textHeight / 12))
         ctx.fillStyle = "#15191c"
-        ctx.font = "700 " + Math.round(Math.max(8, badgeRadius * 1.35))
-                 + "px \"" + fontFamily + "\", sans-serif"
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        ctx.fillText(String(rankText), badgeX, badgeY, badgeRadius * 1.5)
+        ctx.textAlign = "left"
+        ctx.textBaseline = "alphabetic"
+        ctx.fillText(text, x1, y1)
         ctx.restore()
     }
 
@@ -2246,6 +2372,7 @@ ApplicationWindow {
         var threshold = maxVisits > 0 ? maxVisits * candidateMinVisitRatio : 0
 
         var items = []
+        var itemMap = ({})
         var table = []
         for (var c = 0; c < sorted.length; ++c) {
             var candidate = sorted[c]
@@ -2273,9 +2400,11 @@ ApplicationWindow {
                     "winrateText": candidateWinrateText(candidate),
                     "scoreMean": candidateScoreValue(candidate),
                     "scoreText": candidateScoreText(candidate),
+                    "pv": candidatePvMoves(candidate),
                     "labelLines": candidateLabelLines(candidate)
                 }
                 items.push(item)
+                itemMap[item.key] = item
                 table.push({
                     "row": c + 1,
                     "key": item.key,
@@ -2287,8 +2416,115 @@ ApplicationWindow {
             }
         }
         engineCandidateItems = items
+        engineCandidateItemMap = itemMap
         engineCandidateTableItems = table
         updateBestCandidateRing(items)
+    }
+
+    function candidatePvMoves(candidate) {
+        if (!candidate)
+            return []
+
+        var moves = []
+        var pv = candidate.pv || []
+        for (var i = 0; i < pv.length; ++i) {
+            var pvMove = String(pv[i]).trim()
+            if (pvMove.length > 0)
+                moves.push(pvMove)
+        }
+        return moves
+    }
+
+    function activeCandidateForVariationPreview() {
+        if (!candidateVariationPreviewVisible || hoverKey === "" || !pointIsEngineCandidateKey(hoverKey))
+            return null
+        var candidate = engineCandidateItemMap[hoverKey]
+        if (!candidate || stoneAt(candidate.x, candidate.y) !== 0)
+            return null
+        return candidate
+    }
+
+    function activeCandidateVariationPreviewActive() {
+        var candidate = activeCandidateForVariationPreview()
+        return !!candidate && candidate.pv && candidate.pv.length > 0
+    }
+
+    function activeCandidateVariationItems(respectMaxMoves) {
+        var candidate = activeCandidateForVariationPreview()
+        if (!candidate || !candidate.pv || candidate.pv.length <= 0)
+            return []
+
+        var items = []
+        var player = currentPlayer
+        var moveNumber = 1
+        var useMaxMoves = respectMaxMoves !== false
+        var maxMoves = useMaxMoves ? Math.round(Number(candidateVariationPreviewMaxMoves)) : 0
+        if (isNaN(maxMoves))
+            maxMoves = 0
+        maxMoves = Math.max(0, maxMoves)
+
+        for (var i = 0; i < candidate.pv.length; ++i) {
+            if (maxMoves > 0 && moveNumber > maxMoves)
+                break
+            var moveText = String(candidate.pv[i])
+            var point = parseEngineCoordinate(moveText)
+            if (!point) {
+                if (moveText.trim().toLowerCase() === "pass") {
+                    player = player === 1 ? 2 : 1
+                    moveNumber += 1
+                }
+                continue
+            }
+            if (!pointInBoard(point.x, point.y))
+                continue
+
+            var key = keyFor(point.x, point.y)
+            items.push({
+                "x": point.x,
+                "y": point.y,
+                "key": key,
+                "player": player,
+                "moveNumber": moveNumber,
+                "nodeId": -1
+            })
+            player = player === 1 ? 2 : 1
+            moveNumber += 1
+        }
+        return items
+    }
+
+    function playActiveCandidateVariation() {
+        if (!activeCandidateVariationPreviewActive())
+            return false
+
+        var candidate = activeCandidateForVariationPreview()
+        if (!candidate || !candidate.pv || candidate.pv.length <= 0)
+            return false
+
+        var moves = candidate.pv.slice()
+        var played = false
+        for (var i = 0; i < moves.length; ++i) {
+            var moveText = String(moves[i]).trim()
+            if (moveText.length <= 0)
+                continue
+            if (moveText.toLowerCase() === "pass") {
+                passMove()
+                played = true
+                continue
+            }
+
+            var point = parseEngineCoordinate(moveText)
+            if (!point || !pointInBoard(point.x, point.y))
+                continue
+            if (!placeStone(point.x, point.y))
+                break
+            played = true
+        }
+        if (played) {
+            clearHover(true)
+            focusBoardInput()
+        }
+        return played
     }
 
     function updateBestCandidateRing(items) {
@@ -2312,6 +2548,7 @@ ApplicationWindow {
     function clearEngineCandidates() {
         engineCandidates = []
         engineCandidateItems = []
+        engineCandidateItemMap = ({})
         engineCandidateTableItems = []
         bestCandidateRingVisible = false
         bestCandidateRingKey = ""
@@ -2477,7 +2714,6 @@ ApplicationWindow {
         if (gameRuleMode !== gameRuleGo)
             return
         komi = Math.round((komi + delta) * 10) / 10
-        resetEngineSyncState()
         scheduleAutoAnalysis()
     }
 
@@ -2515,6 +2751,44 @@ ApplicationWindow {
 
     function stoneNumberColor(player, lastMove) {
         return player === 1 ? "#f5f7f8" : "#1a252d"
+    }
+
+    function stoneNumberCanvasFont(size, bold) {
+        var family = String(coordinateFontFamily).replace(/"/g, "")
+        return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size))
+             + "px \"" + family + "\", sans-serif"
+    }
+
+    function stoneNumberBaseFontSize(ctx, text, radius) {
+        var label = String(text)
+        var digits = Math.max(1, label.length)
+        var digitFactor = digits <= 1 ? 1.18
+                        : digits === 2 ? 1.02
+                        : digits === 3 ? 0.86
+                        : Math.max(0.58, 0.86 - (digits - 3) * 0.12)
+        var baseSize = Math.min(radius * digitFactor, radius * 1.42)
+        var maxWidth = radius * 1.78
+        if (ctx) {
+            ctx.save()
+            ctx.font = stoneNumberCanvasFont(baseSize, true)
+            var measuredWidth = Math.max(1, ctx.measureText(label).width)
+            ctx.restore()
+            if (measuredWidth > maxWidth)
+                baseSize *= maxWidth / measuredWidth
+        }
+        return Math.max(1, baseSize)
+    }
+
+    function stoneNumberFontSize(ctx, text, radius) {
+        return Math.max(1, stoneNumberBaseFontSize(ctx, text, radius) * Number(moveNumberLabelScale))
+    }
+
+    function stoneNumberMaxWidth(radius) {
+        return radius * 1.86 * Math.max(1, Number(moveNumberLabelScale))
+    }
+
+    function stoneNumberOffsetY(fontSize) {
+        return Math.max(1, Number(fontSize) * 0.08)
     }
 
     function focusBoardInput() {
@@ -2563,10 +2837,15 @@ ApplicationWindow {
         if (selectedPointLocked)
             return
         var point = pointFromMouse(x, y)
-        if (point)
-            setSelectedPoint(point.x, point.y)
-        else
+        if (point) {
+            var nextKey = keyFor(point.x, point.y)
+            if (hoverKey === nextKey)
+                return
+            selectedPointFromCandidateList = false
+            setHoverPoint(point.x, point.y)
+        } else {
             clearHover()
+        }
     }
 
     function handleBoardClickFromMouse(x, y) {
@@ -2578,7 +2857,7 @@ ApplicationWindow {
 
         selectedPointLocked = false
         selectedPointFromCandidateList = false
-        setSelectedPoint(point.x, point.y, false)
+        setHoverPoint(point.x, point.y)
         placeStone(point.x, point.y)
         return true
     }
@@ -2605,6 +2884,9 @@ ApplicationWindow {
         candidateDisplayCount = 10
         candidateMinVisitRatio = 0.001
         candidateShowFilteredMarkers = true
+        candidateVariationPreviewVisible = true
+        candidateVariationPreviewMaxMoves = 10
+        candidateVariationPreviewOpacity = defaultCandidateVariationPreviewOpacity
         candidateWinrateLabelVisible = true
         candidateVisitsLabelVisible = true
         candidateScoreLabelVisible = true
@@ -2789,6 +3071,14 @@ ApplicationWindow {
         packageMode = Math.round(clamp(packageMode, packageModeUniversal, packageModeSix))
         candidateDisplayCount = Math.round(clamp(candidateDisplayCount, 0, 65536))
         candidateMinVisitRatio = clamp(candidateMinVisitRatio, 0, 1)
+        var previewMaxMoves = Number(candidateVariationPreviewMaxMoves)
+        if (isNaN(previewMaxMoves))
+            previewMaxMoves = 0
+        candidateVariationPreviewMaxMoves = Math.round(clamp(previewMaxMoves, 0, maxLargeIntegerSetting))
+        var previewOpacity = Number(candidateVariationPreviewOpacity)
+        if (isNaN(previewOpacity))
+            previewOpacity = defaultCandidateVariationPreviewOpacity
+        candidateVariationPreviewOpacity = clamp(previewOpacity, 0, 1)
         candidateWinrateFontSize = Math.round(clamp(candidateWinrateFontSize, 12, 120))
         candidateVisitsFontSize = Math.round(clamp(candidateVisitsFontSize, 12, 120))
         candidateScoreFontSize = Math.round(clamp(candidateScoreFontSize, 12, 120))
@@ -2805,8 +3095,8 @@ ApplicationWindow {
         candidateLabelTextColor = normalizeColorHex(candidateLabelTextColor, "#000000")
         backgroundColor = normalizeColorHex(backgroundColor, defaultBackgroundColor)
         boardWoodColor = normalizeColorHex(boardWoodColor, defaultBoardWoodColor)
-        analysisIntervalCentiseconds = Math.max(1, Math.round(Number(analysisIntervalCentiseconds)))
-        maxAnalysisSeconds = Math.max(0, Math.round(Number(maxAnalysisSeconds)))
+        analysisIntervalCentiseconds = Math.round(clamp(Number(analysisIntervalCentiseconds), 0, maxLargeIntegerSetting))
+        maxAnalysisSeconds = Math.round(clamp(Number(maxAnalysisSeconds), 0, maxLargeIntegerSetting))
         stoneScale = clamp(stoneScale, minStoneScale, 1.0)
         gridOpacity = clamp(gridOpacity, 0.25, 1)
         gridLineWidth = clamp(Number(gridLineWidth), 0.5, 4)
@@ -2872,6 +3162,9 @@ ApplicationWindow {
         candidateDisplayCount = Number(settingValue("candidateDisplayCount", candidateDisplayCount))
         candidateMinVisitRatio = Number(settingValue("candidateMinVisitRatio", candidateMinVisitRatio))
         candidateShowFilteredMarkers = settingBool("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
+        candidateVariationPreviewVisible = settingBool("candidateVariationPreviewVisible", candidateVariationPreviewVisible)
+        candidateVariationPreviewMaxMoves = Number(settingValue("candidateVariationPreviewMaxMoves", candidateVariationPreviewMaxMoves))
+        candidateVariationPreviewOpacity = Number(settingValue("candidateVariationPreviewOpacity", candidateVariationPreviewOpacity))
         candidateWinrateLabelVisible = settingBool("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         candidateVisitsLabelVisible = settingBool("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
         candidateScoreLabelVisible = settingBool("candidateScoreLabelVisible", candidateScoreLabelVisible)
@@ -2933,6 +3226,9 @@ ApplicationWindow {
         appSettings.setValue("candidateDisplayCount", candidateDisplayCount)
         appSettings.setValue("candidateMinVisitRatio", candidateMinVisitRatio)
         appSettings.setValue("candidateShowFilteredMarkers", candidateShowFilteredMarkers)
+        appSettings.setValue("candidateVariationPreviewVisible", candidateVariationPreviewVisible)
+        appSettings.setValue("candidateVariationPreviewMaxMoves", candidateVariationPreviewMaxMoves)
+        appSettings.setValue("candidateVariationPreviewOpacity", candidateVariationPreviewOpacity)
         appSettings.setValue("candidateWinrateLabelVisible", candidateWinrateLabelVisible)
         appSettings.setValue("candidateVisitsLabelVisible", candidateVisitsLabelVisible)
         appSettings.setValue("candidateScoreLabelVisible", candidateScoreLabelVisible)
@@ -3058,10 +3354,10 @@ ApplicationWindow {
 
     function engineCommunicationColor(stream) {
         if (stream === "stdin")
-            return "#0c6b3d"
+            return "#7ee2a8"
         if (stream === "stderr")
-            return "#a1261d"
-        return "#1c2c35"
+            return "#ff8b7f"
+        return "#d9e6ee"
     }
 
     Connections {

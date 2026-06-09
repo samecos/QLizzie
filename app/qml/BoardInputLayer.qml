@@ -15,22 +15,9 @@ Item {
         if (event.modifiers & Qt.ControlModifier)
             return
 
-        if (event.key === Qt.Key_Left || event.key === Qt.Key_A) {
-            if (!event.isAutoRepeat)
-                app.nudgeSelectedPoint(-1, 0)
-            event.accepted = true
-        } else if (event.key === Qt.Key_Right || event.key === Qt.Key_D) {
-            if (!event.isAutoRepeat)
-                app.nudgeSelectedPoint(1, 0)
-            event.accepted = true
-        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_W) {
-            if (!event.isAutoRepeat)
-                app.nudgeSelectedPoint(0, -1)
-            event.accepted = true
-        } else if (event.key === Qt.Key_Down || event.key === Qt.Key_S) {
-            if (!event.isAutoRepeat)
-                app.nudgeSelectedPoint(0, 1)
-            event.accepted = true
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (!event.isAutoRepeat && app.playActiveCandidateVariation())
+                event.accepted = true
         } else if (event.key === Qt.Key_Space) {
             if (!event.isAutoRepeat)
                 app.toggleEnginePause()

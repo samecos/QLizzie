@@ -320,6 +320,116 @@ Basic.Dialog {
                             }
                         }
 
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("analysisIntervalCentiseconds")
+                                color: "#24313a"
+                                Layout.preferredWidth: 240
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: app.maxLargeIntegerSetting
+                                editable: true
+                                value: app.analysisIntervalCentiseconds
+                                Layout.preferredWidth: 130
+                                onValueModified: app.analysisIntervalCentiseconds = value
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("maxAnalysisSeconds")
+                                color: "#24313a"
+                                Layout.preferredWidth: 240
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: app.maxLargeIntegerSetting
+                                editable: true
+                                value: app.maxAnalysisSeconds
+                                Layout.preferredWidth: 130
+                                onValueModified: app.maxAnalysisSeconds = value
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                id: variationPreviewVisibleLabel
+                                text: app.trText("candidateVariationPreviewVisible")
+                                color: "#24313a"
+                                Layout.preferredWidth: variationPreviewVisibleLabel.implicitWidth
+                                elide: Text.ElideRight
+                            }
+
+                            CheckBox {
+                                checked: app.candidateVariationPreviewVisible
+                                onToggled: app.candidateVariationPreviewVisible = checked
+                            }
+
+                            Label {
+                                text: app.trText("candidateVariationPreviewMaxMoves")
+                                color: "#52636d"
+                                font.pixelSize: 12
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: app.maxLargeIntegerSetting
+                                editable: true
+                                value: app.candidateVariationPreviewMaxMoves
+                                Layout.preferredWidth: 104
+                                onValueModified: app.candidateVariationPreviewMaxMoves = value
+                            }
+
+                            Label {
+                                text: app.trText("candidateCountUnlimitedTip")
+                                color: "#52636d"
+                                font.pixelSize: 12
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                id: variationPreviewOpacityLabel
+                                text: app.trText("candidateVariationPreviewOpacity")
+                                color: "#24313a"
+                                Layout.preferredWidth: variationPreviewOpacityLabel.implicitWidth + 8
+                                elide: Text.ElideRight
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: 100
+                                editable: true
+                                value: Math.round(app.candidateVariationPreviewOpacity * 100)
+                                Layout.preferredWidth: 104
+                                onValueModified: app.candidateVariationPreviewOpacity = value / 100
+                            }
+
+                            Label {
+                                text: "%"
+                                color: "#52636d"
+                                font.pixelSize: 14
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
                     }
                 }
 
@@ -400,17 +510,27 @@ Basic.Dialog {
                         ColorRow {
                             label: app.trText("backgroundColor")
                             field: backgroundColorField
+                            resettable: true
                             onApply: settingsDialog.applyColorText(backgroundColorField,
                                                                     function(value) { app.backgroundColor = value },
                                                                     function() { return app.backgroundColor })
+                            onReset: {
+                                app.backgroundColor = app.defaultBackgroundColor
+                                settingsDialog.syncFields()
+                            }
                         }
 
                         ColorRow {
                             label: app.trText("boardColor")
                             field: boardColorField
+                            resettable: true
                             onApply: settingsDialog.applyColorText(boardColorField,
                                                                     function(value) { app.boardWoodColor = value },
                                                                     function() { return app.boardWoodColor })
+                            onReset: {
+                                app.boardWoodColor = app.defaultBoardWoodColor
+                                settingsDialog.syncFields()
+                            }
                         }
 
                         RowLayout {
@@ -450,7 +570,9 @@ Basic.Dialog {
                             to: 1.0
                             value: app.stoneScale
                             decimals: 2
+                            resettable: true
                             onMoved: function(v) { app.stoneScale = v }
+                            onReset: app.stoneScale = app.defaultStoneScale
                         }
 
                         SliderRow {
@@ -459,7 +581,9 @@ Basic.Dialog {
                             to: 1.0
                             value: app.gridOpacity
                             decimals: 2
+                            resettable: true
                             onMoved: function(v) { app.gridOpacity = v }
+                            onReset: app.gridOpacity = app.defaultGridOpacity
                         }
 
                         SliderRow {
@@ -468,7 +592,9 @@ Basic.Dialog {
                             to: 4.0
                             value: app.gridLineWidth
                             decimals: 1
+                            resettable: true
                             onMoved: function(v) { app.gridLineWidth = v }
+                            onReset: app.gridLineWidth = app.defaultGridLineWidth
                         }
 
                         RowLayout {
@@ -505,7 +631,9 @@ Basic.Dialog {
                             to: 1.0
                             value: app.selectedPointScale
                             decimals: 2
+                            resettable: true
                             onMoved: function(v) { app.selectedPointScale = v }
+                            onReset: app.selectedPointScale = app.defaultSelectedPointScale
                         }
 
                         SliderRow {
@@ -515,11 +643,13 @@ Basic.Dialog {
                             value: app.moveNumberLabelScale
                             decimals: 2
                             percent: true
+                            resettable: true
                             onMoved: function(v) { app.moveNumberLabelScale = v }
+                            onReset: app.moveNumberLabelScale = app.defaultMoveNumberLabelScale
                         }
 
                         SavePromptButton {
-                            text: app.trText("reset")
+                            text: app.trText("resetAll")
                             Layout.preferredWidth: 120
                             onClicked: {
                                 app.resetBoardVisualSettings()
@@ -711,7 +841,7 @@ Basic.Dialog {
                             Label {
                                 text: app.trText("candidateDisplayCount")
                                 color: "#24313a"
-                                Layout.preferredWidth: 190
+                                Layout.preferredWidth: 150
                             }
 
                             SpinBox {
@@ -739,7 +869,7 @@ Basic.Dialog {
                             Label {
                                 text: app.trText("candidateMinVisitRatio")
                                 color: "#24313a"
-                                Layout.preferredWidth: 190
+                                Layout.preferredWidth: 150
                             }
 
                             SpinBox {
@@ -775,7 +905,7 @@ Basic.Dialog {
                             Label {
                                 text: app.trText("candidateShowFilteredMarkers")
                                 color: "#24313a"
-                                Layout.preferredWidth: 190
+                                Layout.preferredWidth: 230
                                 elide: Text.ElideRight
                             }
 
@@ -783,14 +913,7 @@ Basic.Dialog {
                                 checked: app.candidateShowFilteredMarkers
                                 onToggled: app.candidateShowFilteredMarkers = checked
                             }
-
-                            Label {
-                                text: app.trText("candidateShowFilteredMarkersTip")
-                                color: "#52636d"
-                                font.pixelSize: 12
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
+                            Item { Layout.fillWidth: true }
                         }
 
                         SavePromptButton {
@@ -864,43 +987,6 @@ Basic.Dialog {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("analysisIntervalCentiseconds")
-                                color: "#24313a"
-                                Layout.preferredWidth: 240
-                            }
-
-                            SpinBox {
-                                from: 1
-                                to: 1000
-                                value: app.analysisIntervalCentiseconds
-                                Layout.preferredWidth: 100
-                                onValueModified: app.analysisIntervalCentiseconds = value
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("maxAnalysisSeconds")
-                                color: "#24313a"
-                                Layout.preferredWidth: 240
-                            }
-
-                            SpinBox {
-                                from: 0
-                                to: 3600
-                                value: app.maxAnalysisSeconds
-                                Layout.preferredWidth: 100
-                                onValueModified: app.maxAnalysisSeconds = value
-                            }
-                        }
                     }
                 }
             }
@@ -1250,15 +1336,17 @@ Basic.Dialog {
         property real value: 0
         property int decimals: 2
         property bool percent: false
+        property bool resettable: false
         signal moved(real value)
+        signal reset()
 
         Layout.fillWidth: true
-        spacing: colorRow.compact ? 6 : 10
+        spacing: 8
 
         Label {
             text: sliderRow.label
             color: "#24313a"
-            Layout.preferredWidth: 190
+            Layout.preferredWidth: 150
         }
 
         Slider {
@@ -1277,6 +1365,13 @@ Basic.Dialog {
             color: "#52636d"
             horizontalAlignment: Text.AlignRight
             Layout.preferredWidth: 56
+        }
+
+        SavePromptButton {
+            visible: sliderRow.resettable
+            text: app.trText("reset")
+            Layout.preferredWidth: 62
+            onClicked: sliderRow.reset()
         }
     }
 
@@ -1313,7 +1408,6 @@ Basic.Dialog {
                     var top = centerY - cell * 0.7
                     var bottom = centerY + cell * 0.7
                     var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
-                    var fontFamily = String(app.coordinateFontFamily).replace(/"/g, "")
 
                     function drawStone(cx, cy, player) {
                         ctx.save()
@@ -1340,29 +1434,18 @@ Basic.Dialog {
                         ctx.restore()
                     }
 
-                    function fittedMoveNumberSize(text) {
-                        var size = Math.max(8, stoneRadius * 0.76 * app.moveNumberLabelScale)
-                        var maxWidth = stoneRadius * 1.62
-                        while (size > 6) {
-                            ctx.font = "700 " + Math.round(size) + "px \"" + fontFamily + "\", sans-serif"
-                            if (ctx.measureText(text).width <= maxWidth)
-                                break
-                            size -= 1
-                        }
-                        return Math.round(size)
-                    }
-
                     function drawMoveNumber(cx, cy, player, moveNumber, last) {
                         if (!app.stoneNumberVisible(moveNumber, last))
                             return
                         var text = String(moveNumber)
-                        var size = fittedMoveNumberSize(text)
+                        var size = app.stoneNumberFontSize(ctx, text, stoneRadius)
                         ctx.save()
                         ctx.fillStyle = app.stoneNumberColor(player, last)
-                        ctx.font = "700 " + size + "px \"" + fontFamily + "\", sans-serif"
+                        ctx.font = app.stoneNumberCanvasFont(size, true)
                         ctx.textAlign = "center"
                         ctx.textBaseline = "middle"
-                        ctx.fillText(text, cx, cy + size * 0.04, stoneRadius * 1.62)
+                        ctx.fillText(text, cx, cy + app.stoneNumberOffsetY(size),
+                                     app.stoneNumberMaxWidth(stoneRadius))
                         ctx.restore()
                     }
 
@@ -1430,15 +1513,18 @@ Basic.Dialog {
         property string label: ""
         property var field
         property bool compact: false
+        property bool resettable: false
         signal apply()
+        signal reset()
 
         Layout.fillWidth: true
-        spacing: 10
+        spacing: colorRow.compact ? 6 : 8
 
         Label {
+            id: colorLabel
             text: colorRow.label
             color: "#24313a"
-            Layout.preferredWidth: colorRow.compact ? 70 : 190
+            Layout.preferredWidth: colorRow.compact ? Math.max(64, colorLabel.implicitWidth) : 150
             elide: Text.ElideRight
         }
 
@@ -1455,6 +1541,13 @@ Basic.Dialog {
             text: app.trText("apply")
             Layout.preferredWidth: colorRow.compact ? 58 : 88
             onClicked: colorRow.apply()
+        }
+
+        SavePromptButton {
+            visible: colorRow.resettable
+            text: app.trText("reset")
+            Layout.preferredWidth: 62
+            onClicked: colorRow.reset()
         }
     }
 

@@ -3,9 +3,10 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
-#include <QRegularExpression>
+#include <QStringView>
 #include <QTimer>
 #include <QVariantMap>
+#include <QVector>
 
 #include <algorithm>
 
@@ -82,6 +83,43 @@ double normalizedWinrate(double value)
     if (value > 100.0)
         return value / 100.0;
     return value;
+}
+
+struct ParsedCandidateInfo {
+    int order = 0;
+    QVariantMap item;
+};
+
+QStringView trimmedView(QStringView text)
+{
+    qsizetype first = 0;
+    qsizetype last = text.size();
+    while (first < last && text.at(first).isSpace())
+        ++first;
+    while (last > first && text.at(last - 1).isSpace())
+        --last;
+    return text.sliced(first, last - first);
+}
+
+QStringView nextToken(QStringView text, qsizetype &position)
+{
+    while (position < text.size() && text.at(position).isSpace())
+        ++position;
+    const qsizetype start = position;
+    while (position < text.size() && !text.at(position).isSpace())
+        ++position;
+    return text.sliced(start, position - start);
+}
+
+qsizetype nextInfoSeparator(QStringView text, qsizetype from)
+{
+    for (qsizetype i = from; i + 5 < text.size(); ++i) {
+        if (!text.at(i).isSpace())
+            continue;
+        if (text.sliced(i + 1, 4) == QLatin1StringView("info") && text.at(i + 5).isSpace())
+            return i;
+    }
+    return -1;
 }
 }
 
@@ -593,74 +631,108 @@ bool EngineController::handleMoveResponseLine(const QString &line)
 
 void EngineController::parseInfoLine(const QString &line)
 {
-    QString payload = line;
-    if (payload.startsWith(QStringLiteral("info ")))
-        payload = payload.mid(5);
+    QStringView payload(line);
+    if (payload.startsWith(QLatin1StringView("info ")))
+        payload = payload.sliced(5);
+    payload = trimmedView(payload);
 
-    const QStringList segments =
-        payload.split(QRegularExpression(QStringLiteral("\\s+info\\s+")), Qt::SkipEmptyParts);
-    QVariantList parsedCandidates;
+    QVector<ParsedCandidateInfo> parsedCandidates;
     int segmentIndex = 0;
+    qsizetype segmentStart = 0;
 
-    for (const QString &segment : segments) {
-        const QStringList tokens =
-            segment.trimmed().split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-        if (tokens.isEmpty())
+    while (segmentStart < payload.size()) {
+        const qsizetype separator = nextInfoSeparator(payload, segmentStart);
+        const QStringView segment = trimmedView(separator >= 0
+                                                ? payload.sliced(segmentStart, separator - segmentStart)
+                                                : payload.sliced(segmentStart));
+        if (segment.isEmpty()) {
+            if (separator < 0)
+                break;
+            segmentStart = separator + 5;
+            ++segmentIndex;
             continue;
+        }
 
         QVariantMap item;
-        item.insert(QStringLiteral("order"), segmentIndex);
+        int order = segmentIndex;
+        qsizetype tokenPosition = 0;
 
-        for (int i = 0; i < tokens.size();) {
-            const QString key = tokens.at(i);
-            if (key == QStringLiteral("pv"))
+        while (tokenPosition < segment.size()) {
+            const QStringView key = nextToken(segment, tokenPosition);
+            if (key.isEmpty())
                 break;
-            if (i + 1 >= tokens.size())
+            if (key == QLatin1StringView("pv")) {
+                QVariantList pv;
+                while (tokenPosition < segment.size()) {
+                    const QStringView pvMove = nextToken(segment, tokenPosition);
+                    if (pvMove.isEmpty())
+                        break;
+                    pv.append(pvMove.toString());
+                }
+                if (!pv.isEmpty())
+                    item.insert(QStringLiteral("pv"), pv);
                 break;
-            const QString value = tokens.at(i + 1);
-            i += 2;
+            }
+
+            const QStringView value = nextToken(segment, tokenPosition);
+            if (value.isEmpty())
+                break;
+
             bool ok = false;
 
-            if (key == QStringLiteral("move")) {
-                item.insert(QStringLiteral("move"), value);
-            } else if (key == QStringLiteral("order")) {
-                const int order = value.toInt(&ok);
+            if (key == QLatin1StringView("move")) {
+                item.insert(QStringLiteral("move"), value.toString());
+            } else if (key == QLatin1StringView("order")) {
+                const int parsedOrder = value.toInt(&ok);
                 if (ok)
-                    item.insert(QStringLiteral("order"), order);
-            } else if (key == QStringLiteral("visits")) {
+                    item.insert(QStringLiteral("order"), parsedOrder);
+            } else if (key == QLatin1StringView("visits")) {
                 const int visits = value.toInt(&ok);
                 if (ok)
                     item.insert(QStringLiteral("visits"), visits);
-            } else if (key == QStringLiteral("winrate")) {
+            } else if (key == QLatin1StringView("winrate")) {
                 const double winrate = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("winrate"), normalizedWinrate(winrate));
-            } else if (key == QStringLiteral("scoreMean") || key == QStringLiteral("scoreLead")) {
+            } else if (key == QLatin1StringView("scoreMean") || key == QLatin1StringView("scoreLead")) {
                 const double scoreMean = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("scoreMean"), scoreMean);
-            } else if (key == QStringLiteral("scoreStdev")) {
+            } else if (key == QLatin1StringView("scoreStdev")) {
                 const double scoreStdev = value.toDouble(&ok);
                 if (ok)
                     item.insert(QStringLiteral("scoreStdev"), scoreStdev);
             }
         }
 
-        if (item.contains(QStringLiteral("move")))
-            parsedCandidates.append(item);
+        if (item.contains(QStringLiteral("move"))) {
+            if (item.contains(QStringLiteral("order")))
+                order = item.value(QStringLiteral("order")).toInt();
+            item.insert(QStringLiteral("order"), order);
+            parsedCandidates.append({ order, item });
+        }
         ++segmentIndex;
+
+        if (separator < 0)
+            break;
+        segmentStart = separator + 5;
+        while (segmentStart < payload.size() && payload.at(segmentStart).isSpace())
+            ++segmentStart;
     }
 
     if (parsedCandidates.isEmpty())
         return;
 
-    std::sort(parsedCandidates.begin(), parsedCandidates.end(), [](const QVariant &a, const QVariant &b) {
-        const QVariantMap left = a.toMap();
-        const QVariantMap right = b.toMap();
-        return left.value(QStringLiteral("order")).toInt() < right.value(QStringLiteral("order")).toInt();
+    std::sort(parsedCandidates.begin(), parsedCandidates.end(), [](const ParsedCandidateInfo &a, const ParsedCandidateInfo &b) {
+        return a.order < b.order;
     });
 
-    m_candidates = parsedCandidates;
+    QVariantList candidateItems;
+    candidateItems.reserve(parsedCandidates.size());
+    for (const ParsedCandidateInfo &candidate : parsedCandidates)
+        candidateItems.append(candidate.item);
+
+    m_candidates = candidateItems;
     ++m_candidateRevision;
     emit candidatesChanged();
 }

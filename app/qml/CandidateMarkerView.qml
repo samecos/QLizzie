@@ -12,7 +12,9 @@ Item {
     property color backgroundColor: "#00ffff"
     property real backgroundOpacity: 0.72
     property real outlineOpacity: 0.3
-    readonly property real markerRadius: app.candidateMarkerRadius(width, height)
+    readonly property real markerRadius: app.candidateMarkerRadius(width * 0.78, height * 0.78)
+    readonly property real markerCenterX: width * 0.45
+    readonly property real markerCenterY: height * 0.61
 
     Canvas {
         id: markerCanvas
@@ -22,8 +24,8 @@ Item {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
             marker.app.drawCandidateMarker(ctx,
-                                           width * 0.5,
-                                           height * 0.5,
+                                           marker.markerCenterX,
+                                           marker.markerCenterY,
                                            marker.markerRadius,
                                            marker.labelLines,
                                            {

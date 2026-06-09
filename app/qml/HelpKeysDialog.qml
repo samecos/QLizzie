@@ -18,8 +18,6 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     property var helpRows: [
-        { "keys": "WASD", "textKey": "helpKeyMoveLateralDesc" },
-        { "keys": "Arrows", "textKey": "helpKeyMoveLateralDesc" },
         { "keys": "Space", "textKey": "helpKeyPauseEngineDesc" },
         { "keys": ",", "textKey": "helpKeyPlayBestDesc" },
         { "keys": "P", "textKey": "helpKeyPassDesc" },
