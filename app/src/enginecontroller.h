@@ -1,0 +1,100 @@
+#pragma once
+
+#include <QObject>
+#include <QProcess>
+#include <QStringList>
+#include <QVariantList>
+
+class EngineController : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString command READ command WRITE setCommand NOTIFY commandChanged)
+    Q_PROPERTY(bool running READ running NOTIFY runningChanged)
+    Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
+    Q_PROPERTY(bool failed READ failed NOTIFY failedChanged)
+    Q_PROPERTY(QString failureMessage READ failureMessage NOTIFY failureMessageChanged)
+    Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
+    Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
+    Q_PROPERTY(QVariantList candidates READ candidates NOTIFY candidatesChanged)
+    Q_PROPERTY(int candidateRevision READ candidateRevision NOTIFY candidatesChanged)
+
+public:
+    explicit EngineController(QObject *parent = nullptr);
+    ~EngineController() override;
+
+    QString command() const;
+    void setCommand(const QString &command);
+
+    bool running() const;
+    bool ready() const;
+    bool failed() const;
+    QString failureMessage() const;
+    QString statusText() const;
+    QString lastError() const;
+    QVariantList candidates() const;
+    int candidateRevision() const;
+
+    Q_INVOKABLE void ensureStarted();
+    Q_INVOKABLE void restart();
+    Q_INVOKABLE void stop();
+    Q_INVOKABLE void sendCommand(const QString &command);
+    Q_INVOKABLE void requestAnalysis(const QStringList &syncCommands, const QString &analyzeCommand);
+    Q_INVOKABLE void requestMove(const QStringList &syncCommands,
+                                 const QString &timeSettingsCommand,
+                                 const QString &genmoveCommand,
+                                 int requestId);
+    Q_INVOKABLE void clearCandidates();
+
+signals:
+    void commandChanged();
+    void runningChanged();
+    void readyChanged();
+    void failedChanged();
+    void failureMessageChanged();
+    void statusTextChanged();
+    void lastErrorChanged();
+    void candidatesChanged();
+    void engineInput(const QString &line);
+    void engineOutput(const QString &line);
+    void engineErrorOutput(const QString &line);
+    void moveGenerated(int requestId, const QString &move, bool ok, const QString &rawLine);
+
+private:
+    static QStringList splitCommandLine(const QString &commandLine);
+    void startProcess();
+    void sendPendingCommands();
+    void readStandardOutput();
+    void readStandardError();
+    void consumeLines(QByteArray &buffer, bool stderrStream);
+    void handleStdoutLine(const QString &line);
+    void handleStderrLine(const QString &line);
+    bool handleMoveResponseLine(const QString &line);
+    void parseInfoLine(const QString &line);
+    void setRunning(bool running);
+    void setReady(bool ready);
+    void setFailed(bool failed, const QString &message = QString());
+    void setStatusText(const QString &text);
+    void setLastError(const QString &text);
+
+    QProcess m_process;
+    QString m_command;
+    bool m_running = false;
+    bool m_ready = false;
+    bool m_failed = false;
+    bool m_stopping = false;
+    bool m_restartPending = false;
+    bool m_nameResponsePending = false;
+    QString m_failureMessage;
+    QString m_statusText;
+    QString m_lastError;
+    QVariantList m_candidates;
+    int m_candidateRevision = 0;
+    QStringList m_pendingCommands;
+    int m_syncResponsesPending = 0;
+    bool m_acceptCandidateInfo = false;
+    bool m_moveRequestActive = false;
+    int m_moveResponsesPending = 0;
+    int m_moveRequestId = 0;
+    QByteArray m_stdoutBuffer;
+    QByteArray m_stderrBuffer;
+};
