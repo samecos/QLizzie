@@ -1,5 +1,6 @@
 /build/
 /ref_lizzie3d/
+/gtp_logs/
 /handoff*
 /HANDOFF*
 /app_backup_*/

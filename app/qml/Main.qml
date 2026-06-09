@@ -90,6 +90,7 @@ ApplicationWindow {
     property int treeCanvasHeight: 260
     property int currentNodeId: 0
     property int nextNodeId: 1
+    property int gameTreeGeneration: 0
     property int boardRevision: 0
     property int treeRevision: 0
     property int legalityRevision: 0
@@ -177,6 +178,7 @@ ApplicationWindow {
     property var engineCandidateItemMap: ({})
     property var engineCandidateTableItems: []
     property int engineCandidateRevision: 0
+    property bool engineCandidatesFromCache: false
     property bool bestCandidateRingVisible: false
     property string bestCandidateRingKey: ""
     property int bestCandidateRingX: -1
@@ -185,6 +187,10 @@ ApplicationWindow {
     property string engineSyncedBoardSignature: ""
     property string engineSyncedKomiSignature: ""
     property bool engineNeedsFullSync: true
+    property int engineAnalysisRequestNodeId: -1
+    property int engineAnalysisRequestGeneration: -1
+    property string engineAnalysisRequestBoardSignature: ""
+    property string engineAnalysisRequestKomiSignature: ""
     property int analysisRevision: 0
     property int analysisIntervalCentiseconds: 10
     property int maxAnalysisSeconds: 0
@@ -599,7 +605,10 @@ ApplicationWindow {
             "koLocKey": "",
             "koLocX": -1,
             "koLocY": -1,
-            "analysisBlackWinrate": -1
+            "analysisBlackWinrate": -1,
+            "analysisCandidates": [],
+            "analysisCandidateBoardSignature": "",
+            "analysisCandidateKomiSignature": ""
         }
     }
 
@@ -613,18 +622,21 @@ ApplicationWindow {
         return path
     }
 
-    function nextPlayerFromMode() {
+    function playerToMoveAfterNode(node) {
         if (stoneColorMode === stoneColorModeBlack)
             return 1
         if (stoneColorMode === stoneColorModeWhite)
             return 2
 
-        var node = currentNode()
         if (node && node.player === 1)
             return 2
         if (node && node.player === 2)
             return 1
         return 1
+    }
+
+    function nextPlayerFromMode() {
+        return playerToMoveAfterNode(currentNode())
     }
 
     function pointLegalInMap(map, x, y, player, activeKoLocKey) {
@@ -800,10 +812,12 @@ ApplicationWindow {
         rebuildPointLegality()
         gomokuWinLineItems = buildGomokuWinLineItems(map)
         boardRevision += 1
+        showCachedAnalysisForCurrentNode()
     }
 
     function resetGameTree() {
         stopAnalysisLimitTimer()
+        gameTreeGeneration += 1
         gameNodes = [rootNode()]
         currentNodeId = 0
         nextNodeId = 1
@@ -863,7 +877,10 @@ ApplicationWindow {
             "koLocKey": koLoc ? koLoc.key : "",
             "koLocX": koLoc ? koLoc.x : -1,
             "koLocY": koLoc ? koLoc.y : -1,
-            "analysisBlackWinrate": -1
+            "analysisBlackWinrate": -1,
+            "analysisCandidates": [],
+            "analysisCandidateBoardSignature": "",
+            "analysisCandidateKomiSignature": ""
         }
         gameNodes[id] = node
         parent.children = (parent.children || []).slice()
@@ -1760,6 +1777,10 @@ ApplicationWindow {
             return
         engineLoading = !engineController.ready
         engineNoticeDismissed = false
+        engineAnalysisRequestNodeId = currentNodeId
+        engineAnalysisRequestGeneration = gameTreeGeneration
+        engineAnalysisRequestBoardSignature = engineBoardSignature()
+        engineAnalysisRequestKomiSignature = engineKomiSignature()
         engineController.requestAnalysis(engineSyncCommands(), analyzeCommand())
         statusMode = "message"
         statusMessage = trText("engineAnalyzeRequested")
@@ -1789,6 +1810,7 @@ ApplicationWindow {
         engineLoading = false
         stopAnalysisLimitTimer()
         clearEngineCandidates()
+        showCachedAnalysisForCurrentNode()
     }
 
     function restartEngine() {
@@ -2354,6 +2376,148 @@ ApplicationWindow {
         return String(Math.round(visits))
     }
 
+    function cloneEngineCandidate(candidate) {
+        var copy = ({})
+        if (!candidate)
+            return copy
+
+        for (var key in candidate) {
+            var value = candidate[key]
+            if (Array.isArray(value)) {
+                copy[key] = value.slice()
+            } else if (value && typeof value === "object" && value.length !== undefined
+                       && typeof value.slice === "function") {
+                copy[key] = value.slice()
+            } else {
+                copy[key] = value
+            }
+        }
+        return copy
+    }
+
+    function cloneEngineCandidateList(candidates) {
+        var copy = []
+        if (!candidates)
+            return copy
+        for (var i = 0; i < candidates.length; ++i)
+            copy.push(cloneEngineCandidate(candidates[i]))
+        return copy
+    }
+
+    function resetEngineCandidateDisplay() {
+        engineCandidates = []
+        engineCandidatesFromCache = false
+        engineCandidateItems = []
+        engineCandidateItemMap = ({})
+        engineCandidateTableItems = []
+        bestCandidateRingVisible = false
+        bestCandidateRingKey = ""
+        engineCandidateRevision += 1
+    }
+
+    function setEngineCandidateDisplay(candidates, fromCache, revision) {
+        engineCandidates = cloneEngineCandidateList(candidates)
+        engineCandidatesFromCache = fromCache === true
+        if (revision === undefined)
+            engineCandidateRevision += 1
+        else
+            engineCandidateRevision = revision
+        rebuildEngineCandidateItems()
+    }
+
+    function nodeAnalysisCacheUsable(node) {
+        return !!node
+               && node.analysisCandidates !== undefined
+               && node.analysisCandidates.length > 0
+               && node.analysisCandidateBoardSignature === engineBoardSignature()
+               && node.analysisCandidateKomiSignature === engineKomiSignature()
+    }
+
+    function recordAnalysisWinrateForNode(node, candidates, playerToMove) {
+        if (!node || !candidates || candidates.length <= 0)
+            return false
+        var best = candidates[0]
+        if (!best || best.winrate === undefined)
+            return false
+
+        var blackWinrate = playerToMove === 1 ? candidateWinrateValue(best)
+                                              : 100 - candidateWinrateValue(best)
+        blackWinrate = clamp(blackWinrate, 0, 100)
+        if (node.analysisBlackWinrate !== undefined
+                && Math.abs(Number(node.analysisBlackWinrate) - blackWinrate) < 0.0001)
+            return false
+        node.analysisBlackWinrate = blackWinrate
+        analysisRevision += 1
+        return true
+    }
+
+    function cacheAnalysisCandidatesForNode(node, candidates, boardSignature, komiSignature) {
+        if (!node || !candidates || candidates.length <= 0)
+            return false
+
+        node.analysisCandidates = cloneEngineCandidateList(candidates)
+        node.analysisCandidateBoardSignature = boardSignature || engineBoardSignature()
+        node.analysisCandidateKomiSignature = komiSignature || engineKomiSignature()
+        recordAnalysisWinrateForNode(node, node.analysisCandidates, playerToMoveAfterNode(node))
+        gameNodes = gameNodes.slice()
+        return true
+    }
+
+    function showCachedAnalysisForCurrentNode() {
+        var node = currentNode()
+        if (!nodeAnalysisCacheUsable(node))
+            return false
+        setEngineCandidateDisplay(node.analysisCandidates, true)
+        return engineCandidateItems.length > 0
+    }
+
+    function applyEngineCandidateUpdate(candidates, revision) {
+        if (!analysisModeActive()) {
+            resetEngineCandidateDisplay()
+            return
+        }
+
+        var incoming = cloneEngineCandidateList(candidates)
+        if (incoming.length <= 0) {
+            if (!showCachedAnalysisForCurrentNode())
+                resetEngineCandidateDisplay()
+            return
+        }
+
+        engineLoading = false
+        var targetId = engineAnalysisRequestNodeId >= 0 ? engineAnalysisRequestNodeId : currentNodeId
+        var targetGeneration = engineAnalysisRequestGeneration >= 0 ? engineAnalysisRequestGeneration
+                                                                     : gameTreeGeneration
+        if (targetGeneration !== gameTreeGeneration) {
+            if (!showCachedAnalysisForCurrentNode())
+                resetEngineCandidateDisplay()
+            return
+        }
+        var targetNode = nodeById(targetId)
+        var targetBoardSignature = engineAnalysisRequestBoardSignature.length > 0
+                                 ? engineAnalysisRequestBoardSignature
+                                 : engineBoardSignature()
+        var targetKomiSignature = engineAnalysisRequestKomiSignature.length > 0
+                                ? engineAnalysisRequestKomiSignature
+                                : engineKomiSignature()
+
+        if (targetNode)
+            cacheAnalysisCandidatesForNode(targetNode, incoming, targetBoardSignature, targetKomiSignature)
+
+        if (targetId !== currentNodeId || targetBoardSignature !== engineBoardSignature()
+                || targetKomiSignature !== engineKomiSignature()) {
+            if (!showCachedAnalysisForCurrentNode())
+                resetEngineCandidateDisplay()
+            return
+        }
+
+        setEngineCandidateDisplay(incoming, false, revision)
+        if (engineCandidateItems.length > 0) {
+            statusMode = "message"
+            statusMessage = engineCandidateSummaryText()
+        }
+    }
+
     function rebuildEngineCandidateItems() {
         var sorted = []
         for (var s = 0; s < engineCandidates.length; ++s)
@@ -2546,13 +2710,7 @@ ApplicationWindow {
     }
 
     function clearEngineCandidates() {
-        engineCandidates = []
-        engineCandidateItems = []
-        engineCandidateItemMap = ({})
-        engineCandidateTableItems = []
-        bestCandidateRingVisible = false
-        bestCandidateRingKey = ""
-        engineCandidateRevision += 1
+        resetEngineCandidateDisplay()
         if (engineController)
             engineController.clearCandidates()
     }
@@ -2568,6 +2726,7 @@ ApplicationWindow {
             playMode = playModeAnalysis
         stopAnalysisLimitTimer()
         clearEngineCandidates()
+        showCachedAnalysisForCurrentNode()
         statusMode = "message"
         statusMessage = message && message.length > 0 ? message + " - " + trText("engineNoEngineMode")
                                                        : trText("engineNoEngineMode")
@@ -2598,16 +2757,13 @@ ApplicationWindow {
     }
 
     function recordCurrentAnalysisFromCandidates() {
-        if (engineCandidateItems.length <= 0)
+        if (engineCandidates.length <= 0)
             return
-        var best = engineCandidateItems[0]
         var node = currentNode()
-        if (!node || best.winrate === undefined)
+        if (!node)
             return
-        var blackWinrate = currentPlayer === 1 ? best.winrate : 100 - best.winrate
-        node.analysisBlackWinrate = clamp(blackWinrate, 0, 100)
-        gameNodes = gameNodes.slice()
-        analysisRevision += 1
+        if (recordAnalysisWinrateForNode(node, engineCandidates, currentPlayer))
+            gameNodes = gameNodes.slice()
     }
 
     function currentAnalysisHasWinrate() {
@@ -2998,6 +3154,7 @@ ApplicationWindow {
         gameRuleMode = parsedRuleMode
         boardSizeX = parsed.boardSizeX
         boardSizeY = parsed.boardSizeY
+        gameTreeGeneration += 1
         gameNodes = parsed.nodes
         nextNodeId = parsed.nextNodeId
         currentNodeId = 0
@@ -3384,21 +3541,8 @@ ApplicationWindow {
         }
 
         function onCandidatesChanged() {
-            if (!root.analysisModeActive()) {
-                root.engineCandidates = []
-                root.engineCandidateRevision = engineController.candidateRevision
-                root.rebuildEngineCandidateItems()
-                return
-            }
-            root.engineLoading = false
-            root.engineCandidates = engineController.candidates
-            root.engineCandidateRevision = engineController.candidateRevision
-            root.rebuildEngineCandidateItems()
-            root.recordCurrentAnalysisFromCandidates()
-            if (root.engineCandidateItems.length > 0) {
-                root.statusMode = "message"
-                root.statusMessage = root.engineCandidateSummaryText()
-            }
+            root.applyEngineCandidateUpdate(engineController.candidates,
+                                            engineController.candidateRevision)
         }
 
         function onReadyChanged() {

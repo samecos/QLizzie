@@ -124,7 +124,11 @@ function parseSgf(text, options) {
         "id": 0, "parent": -1, "children": [], "x": -1, "y": -1,
         "key": "", "player": 0, "moveNumber": 0, "isPass": false,
         "koLocKey": "", "koLocX": -1, "koLocY": -1,
-        "blackCaptures": 0, "whiteCaptures": 0
+        "blackCaptures": 0, "whiteCaptures": 0,
+        "analysisBlackWinrate": -1,
+        "analysisCandidates": [],
+        "analysisCandidateBoardSignature": "",
+        "analysisCandidateKomiSignature": ""
     }]
     var nextId = 1
 
@@ -306,7 +310,11 @@ function parseSgf(text, options) {
                     "koLocX": -1,
                     "koLocY": -1,
                     "blackCaptures": 0,
-                    "whiteCaptures": 0
+                    "whiteCaptures": 0,
+                    "analysisBlackWinrate": -1,
+                    "analysisCandidates": [],
+                    "analysisCandidateBoardSignature": "",
+                    "analysisCandidateKomiSignature": ""
                 }
                 if (nodes[currentParent])
                     nodes[currentParent].children.push(id)
