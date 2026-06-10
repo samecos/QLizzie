@@ -59,6 +59,50 @@ function gameRuleOptions(app) {
     ]
 }
 
+function ruleVisibilityKey(app, mode) {
+    return String(mode)
+}
+
+function normalizedRuleVisibilityMap(app, source) {
+    var map = source || {}
+    var options = gameRuleOptions(app)
+    var next = {}
+    for (var i = 0; i < options.length; ++i) {
+        var key = ruleVisibilityKey(app, options[i].value)
+        next[key] = map[key] !== false
+    }
+    return next
+}
+
+function ruleModeVisible(app, mode) {
+    if (mode === app.gameRuleMode)
+        return true
+    var key = ruleVisibilityKey(app, mode)
+    var map = normalizedRuleVisibilityMap(app, app.ruleVisibilityMap)
+    return map[key] !== false
+}
+
+function setRuleModeVisible(app, mode, visible) {
+    var key = ruleVisibilityKey(app, mode)
+    var map = normalizedRuleVisibilityMap(app, app.ruleVisibilityMap)
+    map[key] = visible === true
+    if (mode === app.gameRuleMode)
+        map[key] = true
+    app.ruleVisibilityMap = map
+    if (app.persistentSettingsLoaded)
+        app.savePersistentSettings()
+}
+
+function visibleGameRuleOptions(app) {
+    var options = gameRuleOptions(app)
+    var visible = []
+    for (var i = 0; i < options.length; ++i) {
+        if (ruleModeVisible(app, options[i].value))
+            visible.push(options[i])
+    }
+    return visible.length > 0 ? visible : options
+}
+
 function gameRuleCurrentIndex(app) {
     var options = gameRuleOptions(app)
     for (var i = 0; i < options.length; ++i) {
@@ -70,6 +114,22 @@ function gameRuleCurrentIndex(app) {
 
 function setGameRuleFromIndex(app, index) {
     var options = gameRuleOptions(app)
+    if (index < 0 || index >= options.length)
+        return
+    app.requestRuleModeChange(options[index].value)
+}
+
+function visibleGameRuleCurrentIndex(app) {
+    var options = visibleGameRuleOptions(app)
+    for (var i = 0; i < options.length; ++i) {
+        if (options[i].value === app.gameRuleMode)
+            return i
+    }
+    return 0
+}
+
+function setVisibleGameRuleFromIndex(app, index) {
+    var options = visibleGameRuleOptions(app)
     if (index < 0 || index >= options.length)
         return
     app.requestRuleModeChange(options[index].value)

@@ -149,6 +149,60 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
+
+                Label {
+                    text: app.trText("ruleVisibility")
+                    color: "#24313a"
+                    Layout.preferredWidth: 110
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: ruleVisibilityColumn.implicitHeight + 12
+                    radius: 6
+                    color: "#ffffff"
+                    border.color: "#c7d4dc"
+
+                    ColumnLayout {
+                        id: ruleVisibilityColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        anchors.topMargin: 6
+                        spacing: 4
+
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 12
+
+                            Repeater {
+                                model: app.gameRuleOptions()
+
+                                delegate: CheckBox {
+                                    text: modelData.label
+                                    checked: app.ruleModeVisible(modelData.value)
+                                    enabled: modelData.value !== app.gameRuleMode
+                                    onClicked: app.setRuleModeVisible(modelData.value, checked)
+                                }
+                            }
+                        }
+
+                        Label {
+                            text: app.trText("ruleVisibilityTip")
+                            color: "#61727c"
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
                 visible: app.gameRuleMode !== app.gameRuleHex
 
                 Label {

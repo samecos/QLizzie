@@ -130,6 +130,7 @@ ApplicationWindow {
     readonly property int gameRuleGomoku: 1
     readonly property int gameRuleHex: 2
     property int gameRuleMode: gameRuleGo
+    property var ruleVisibilityMap: ({})
     readonly property int gomokuRuleCon5: 0
     readonly property int gomokuRuleStdCon5: 1
     readonly property int gomokuRuleFreestyle: 2
@@ -403,37 +404,33 @@ ApplicationWindow {
             }
 
             Menu {
+                id: ruleSettingsMenu
                 title: root.trText("settingsPageRules")
 
-                Action {
+                MenuItem {
                     text: root.trText("settingsPageRules") + "..."
                     onTriggered: settingsDialog.openPage(1)
                 }
 
                 MenuSeparator {}
 
-                Action {
-                    text: root.trText("gameRuleGo")
-                    checkable: true
-                    checked: root.gameRuleMode === root.gameRuleGo
-                    enabled: root.ruleModeAllowedForPackage(root.gameRuleGo)
-                    onTriggered: root.requestRuleModeChange(root.gameRuleGo)
-                }
+                Instantiator {
+                    model: root.visibleGameRuleOptions()
 
-                Action {
-                    text: root.trText("gameRuleGomoku")
-                    checkable: true
-                    checked: root.gameRuleMode === root.gameRuleGomoku
-                    enabled: root.ruleModeAllowedForPackage(root.gameRuleGomoku)
-                    onTriggered: root.requestRuleModeChange(root.gameRuleGomoku)
-                }
+                    delegate: MenuItem {
+                        text: modelData.label
+                        checkable: true
+                        checked: root.gameRuleMode === modelData.value
+                        enabled: root.ruleModeAllowedForPackage(modelData.value)
+                        onTriggered: root.requestRuleModeChange(modelData.value)
+                    }
 
-                Action {
-                    text: root.trText("gameRuleHex")
-                    checkable: true
-                    checked: root.gameRuleMode === root.gameRuleHex
-                    enabled: root.ruleModeAllowedForPackage(root.gameRuleHex)
-                    onTriggered: root.requestRuleModeChange(root.gameRuleHex)
+                    onObjectAdded: function(index, object) {
+                        ruleSettingsMenu.insertItem(index + 2, object)
+                    }
+                    onObjectRemoved: function(index, object) {
+                        ruleSettingsMenu.removeItem(object)
+                    }
                 }
             }
 
@@ -1444,12 +1441,32 @@ ApplicationWindow {
         return RuleSupport.gameRuleOptions(root)
     }
 
+    function visibleGameRuleOptions() {
+        return RuleSupport.visibleGameRuleOptions(root)
+    }
+
     function gameRuleCurrentIndex() {
         return RuleSupport.gameRuleCurrentIndex(root)
     }
 
+    function visibleGameRuleCurrentIndex() {
+        return RuleSupport.visibleGameRuleCurrentIndex(root)
+    }
+
     function setGameRuleFromIndex(index) {
         RuleSupport.setGameRuleFromIndex(root, index)
+    }
+
+    function setVisibleGameRuleFromIndex(index) {
+        RuleSupport.setVisibleGameRuleFromIndex(root, index)
+    }
+
+    function ruleModeVisible(mode) {
+        return RuleSupport.ruleModeVisible(root, mode)
+    }
+
+    function setRuleModeVisible(mode, visible) {
+        RuleSupport.setRuleModeVisible(root, mode, visible)
     }
 
     function goRuleOptions() {

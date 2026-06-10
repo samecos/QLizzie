@@ -16,6 +16,7 @@ function normalizePersistentSettings(app) {
             && app.gameRuleMode !== app.gameRuleGomoku
             && app.gameRuleMode !== app.gameRuleHex)
         app.gameRuleMode = app.gameRuleGo
+    app.ruleVisibilityMap = normalizeRuleVisibilityMap(app, app.ruleVisibilityMap)
     app.gomokuRuleMode = Math.round(app.clamp(app.gomokuRuleMode, app.gomokuRuleCon5, app.gomokuRuleDirectCon5))
     if (app.stoneColorMode !== app.stoneColorModeAuto
             && app.stoneColorMode !== app.stoneColorModeBlack
@@ -112,6 +113,33 @@ function settingBool(settings, key, fallback) {
     return text === "true" || text === "1" || text === "yes"
 }
 
+function parseJsonObject(text, fallback) {
+    try {
+        var parsed = JSON.parse(String(text))
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
+            return parsed
+    } catch (error) {
+    }
+    return fallback
+}
+
+function normalizeRuleVisibilityMap(app, source) {
+    var map = source || {}
+    var next = {}
+    var options = app && app.gameRuleOptions ? app.gameRuleOptions() : []
+    for (var i = 0; i < options.length; ++i) {
+        var key = String(options[i].value)
+        next[key] = map[key] !== false
+    }
+    if (options.length <= 0) {
+        for (var existingKey in map) {
+            if (typeof map[existingKey] === "boolean")
+                next[existingKey] = map[existingKey]
+        }
+    }
+    return next
+}
+
 function settingNumberEquals(value, expected) {
     return Math.abs(Number(value) - Number(expected)) < 0.000001
 }
@@ -127,6 +155,8 @@ function loadPersistentSettings(app, settings) {
     app.boardSizeX = Number(settingValue(settings, "boardSizeX", app.boardSizeX))
     app.boardSizeY = Number(settingValue(settings, "boardSizeY", app.boardSizeY))
     app.gameRuleMode = Number(settingValue(settings, "gameRuleMode", app.gameRuleMode))
+    app.ruleVisibilityMap = normalizeRuleVisibilityMap(app,
+                parseJsonObject(settingValue(settings, "ruleVisibilityJson", "{}"), app.ruleVisibilityMap))
     app.gomokuRuleMode = Number(settingValue(settings, "gomokuRuleMode", app.gomokuRuleMode))
     app.stoneColorMode = Number(settingValue(settings, "stoneColorMode", app.stoneColorMode))
     app.komi = Number(settingValue(settings, "komi", app.komi))
@@ -196,6 +226,7 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("boardSizeX", app.boardSizeX)
     settings.setValue("boardSizeY", app.boardSizeY)
     settings.setValue("gameRuleMode", app.gameRuleMode)
+    settings.setValue("ruleVisibilityJson", JSON.stringify(normalizeRuleVisibilityMap(app, app.ruleVisibilityMap)))
     settings.setValue("gomokuRuleMode", app.gomokuRuleMode)
     settings.setValue("stoneColorMode", app.stoneColorMode)
     settings.setValue("komi", app.komi)

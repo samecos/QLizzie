@@ -12,13 +12,13 @@ Basic.ComboBox {
     property real tipX: 0
     property real tipY: 0
 
-    model: app.gameRuleOptions()
+    model: app.visibleGameRuleOptions()
     textRole: "label"
-    currentIndex: app.gameRuleCurrentIndex()
+    currentIndex: app.visibleGameRuleCurrentIndex()
     leftPadding: 10
     rightPadding: 30
     onActivated: function(index) {
-        app.setGameRuleFromIndex(index)
+        app.setVisibleGameRuleFromIndex(index)
         hideTip()
     }
 
