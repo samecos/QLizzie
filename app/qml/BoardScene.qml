@@ -17,7 +17,19 @@ Item {
     readonly property real coordinateOuterGapRatio: 0.10
     readonly property real stoneRadiusRatio: app.stoneScale * 0.5
     readonly property bool hexBoard: app.gameRuleMode === app.gameRuleHex
+    readonly property bool squareCellBoard: app.gameRuleMode === app.gameRuleGomoku
+                                            && app.boardPresentationMode === app.boardPresentationCells
+    readonly property bool hexCellStyle: hexBoard && app.hexBoardStyle === app.hexBoardStyleCells
+    readonly property bool hexTransposed: app.hexBoardRotation === app.hexRotationTranspose
+                                          || app.hexBoardRotation === app.hexRotationFlipXTranspose
+    readonly property bool hexFlippedX: app.hexBoardRotation === app.hexRotationFlipX
+                                        || app.hexBoardRotation === app.hexRotationFlipXTranspose
     readonly property real hexRowHeightRatio: 0.8660254037844386
+    readonly property real hexCellRadiusRatio: 0.5773502691896258
+    readonly property real horizontalPointRadiusRatio: hexCellStyle ? 0.5 : stoneRadiusRatio
+    readonly property real verticalPointRadiusRatio: hexCellStyle ? hexCellRadiusRatio : stoneRadiusRatio
+    readonly property int hexDisplaySizeX: hexTransposed ? app.boardSizeY : app.boardSizeX
+    readonly property int hexDisplaySizeY: hexTransposed ? app.boardSizeX : app.boardSizeY
     readonly property int maxXCoordinateChars: coordinatesVisible
                                                 ? Math.max(String(app.xCoordinateText(0)).length,
                                                            String(app.xCoordinateText(Math.max(0, app.boardSizeX - 1))).length)
@@ -29,28 +41,30 @@ Item {
     readonly property real xCoordinateTextWidthRatio: maxXCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     readonly property real yCoordinateTextWidthRatio: maxYCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     readonly property real horizontalPaddingRatio: coordinatesVisible
-                                                    ? stoneRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio + coordinateOuterGapRatio
-                                                    : stoneRadiusRatio + coordinateOuterGapRatio
+                                                    ? horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio + coordinateOuterGapRatio
+                                                    : horizontalPointRadiusRatio + coordinateOuterGapRatio
     readonly property real verticalPaddingRatio: coordinatesVisible
-                                                  ? stoneRadiusRatio + coordinateGapRatio + coordinateFontRatio + coordinateOuterGapRatio
-                                                  : stoneRadiusRatio + coordinateOuterGapRatio
+                                                  ? verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio + coordinateOuterGapRatio
+                                                  : verticalPointRadiusRatio + coordinateOuterGapRatio
     readonly property real availableWidth: Math.max(1, width - boardOuterMargin * 2)
     readonly property real availableHeight: Math.max(1, height - boardOuterMargin * 2)
     readonly property real gridUnitWidth: hexBoard
-                                           ? Math.max(1, Math.max(0, app.boardSizeX - 1)
-                                                         + Math.max(0, app.boardSizeY - 1) * 0.5)
-                                           : Math.max(1, app.boardSizeX - 1)
+                                           ? Math.max(1, Math.max(0, hexDisplaySizeX - 1)
+                                                         + Math.max(0, hexDisplaySizeY - 1) * 0.5)
+                                           : squareCellBoard ? Math.max(1, app.boardSizeX)
+                                                             : Math.max(1, app.boardSizeX - 1)
     readonly property real gridUnitHeight: hexBoard
-                                            ? Math.max(1, Math.max(0, app.boardSizeY - 1) * hexRowHeightRatio)
-                                            : Math.max(1, app.boardSizeY - 1)
+                                            ? Math.max(1, Math.max(0, hexDisplaySizeY - 1) * hexRowHeightRatio)
+                                            : squareCellBoard ? Math.max(1, app.boardSizeY)
+                                                              : Math.max(1, app.boardSizeY - 1)
     readonly property real cellSize: Math.max(0.1, Math.min(
         availableWidth / (gridUnitWidth + horizontalPaddingRatio * 2),
         availableHeight / (gridUnitHeight + verticalPaddingRatio * 2)))
     readonly property real boardPaddingX: horizontalPaddingRatio * cellSize
     readonly property real boardPaddingY: verticalPaddingRatio * cellSize
     readonly property real coordinateFontSize: coordinateFontRatio * cellSize
-    readonly property real xCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize
-    readonly property real yCoordinateLabelOffset: (stoneRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize
+    readonly property real xCoordinateLabelOffset: (verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize
+    readonly property real yCoordinateLabelOffset: (horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize
     readonly property real gridWidth: cellSize * gridUnitWidth
     readonly property real gridHeight: cellSize * gridUnitHeight
     readonly property real boardLeft: Math.round((width - gridWidth) / 2)
@@ -59,10 +73,30 @@ Item {
     readonly property real boardBottom: boardTop + gridHeight
     readonly property bool variationPreviewActive: app.activeCandidateVariationPreviewActive()
 
+    function hexDisplayCoordForBoard(x, y) {
+        return hexTransposed ? Qt.point(y, x) : Qt.point(x, y)
+    }
+
+    function boardCoordForHexDisplay(x, y) {
+        return hexTransposed ? Qt.point(y, x) : Qt.point(x, y)
+    }
+
+    function hexDisplayPointLocal(x, y) {
+        var unitX = x + y * 0.5
+        if (hexFlippedX)
+            unitX = gridUnitWidth - unitX
+        return Qt.point(boardLeft + unitX * cellSize,
+                        boardTop + y * hexRowHeightRatio * cellSize)
+    }
+
     function boardPointLocal(x, y) {
-        if (hexBoard)
-            return Qt.point(boardLeft + (x + y * 0.5) * cellSize,
-                            boardTop + y * hexRowHeightRatio * cellSize)
+        if (hexBoard) {
+            var display = hexDisplayCoordForBoard(x, y)
+            return hexDisplayPointLocal(display.x, display.y)
+        }
+        if (squareCellBoard)
+            return Qt.point(boardLeft + (x + 0.5) * cellSize,
+                            boardTop + (y + 0.5) * cellSize)
         return Qt.point(boardLeft + x * cellSize, boardTop + y * cellSize)
     }
 
@@ -70,10 +104,29 @@ Item {
         if (cellSize <= 0)
             return null
 
-        var y = hexBoard ? Math.round((mouseY - boardTop) / (cellSize * hexRowHeightRatio))
-                         : Math.round((mouseY - boardTop) / cellSize)
-        var x = hexBoard ? Math.round((mouseX - boardLeft) / cellSize - y * 0.5)
-                         : Math.round((mouseX - boardLeft) / cellSize)
+        if (squareCellBoard) {
+            var cellX = Math.floor((mouseX - boardLeft) / cellSize)
+            var cellY = Math.floor((mouseY - boardTop) / cellSize)
+            if (!app.pointInBoard(cellX, cellY))
+                return null
+            return { "x": cellX, "y": cellY, "key": app.keyFor(cellX, cellY) }
+        }
+
+        var y
+        var x
+        if (hexBoard) {
+            var displayY = Math.round((mouseY - boardTop) / (cellSize * hexRowHeightRatio))
+            var displayUnitX = (mouseX - boardLeft) / cellSize
+            if (hexFlippedX)
+                displayUnitX = gridUnitWidth - displayUnitX
+            var displayX = Math.round(displayUnitX - displayY * 0.5)
+            var board = boardCoordForHexDisplay(displayX, displayY)
+            x = board.x
+            y = board.y
+        } else {
+            y = Math.round((mouseY - boardTop) / cellSize)
+            x = Math.round((mouseX - boardLeft) / cellSize)
+        }
         if (!app.pointInBoard(x, y))
             return null
 
@@ -92,8 +145,8 @@ Item {
         width: boardScene.gridWidth + boardScene.boardPaddingX * 2
         height: boardScene.gridHeight + boardScene.boardPaddingY * 2
         radius: 6
-        color: app.boardWoodColor
-        border.color: "#9d7442"
+        color: boardScene.hexCellStyle ? "#f2cc62" : app.boardWoodColor
+        border.color: boardScene.hexCellStyle ? "#0b3d73" : "#9d7442"
         border.width: 1
         opacity: 0.98
     }
@@ -102,8 +155,135 @@ Item {
         id: boardCanvas
         anchors.fill: parent
 
+        function hexCellPath(ctx, cx, cy, radius) {
+            ctx.beginPath()
+            for (var i = 0; i < 6; ++i) {
+                var angle = -Math.PI / 2 + i * Math.PI / 3
+                var px = cx + Math.cos(angle) * radius
+                var py = cy + Math.sin(angle) * radius
+                if (i === 0)
+                    ctx.moveTo(px, py)
+                else
+                    ctx.lineTo(px, py)
+            }
+            ctx.closePath()
+        }
+
+        function hexCellVertex(center, radius, index) {
+            var angle = -Math.PI / 2 + index * Math.PI / 3
+            return Qt.point(center.x + Math.cos(angle) * radius,
+                            center.y + Math.sin(angle) * radius)
+        }
+
+        function drawHexBoundarySegment(ctx, p1, p2, color, cell) {
+            ctx.save()
+            ctx.globalAlpha = 1
+            ctx.lineCap = "round"
+            ctx.lineJoin = "round"
+            if (color === "#ffffff") {
+                ctx.strokeStyle = "#0b3d73"
+                ctx.lineWidth = Math.max(4, cell * 0.16)
+                ctx.beginPath()
+                ctx.moveTo(p1.x, p1.y)
+                ctx.lineTo(p2.x, p2.y)
+                ctx.stroke()
+            }
+            ctx.strokeStyle = color
+            ctx.lineWidth = Math.max(3, cell * 0.10)
+            ctx.beginPath()
+            ctx.moveTo(p1.x, p1.y)
+            ctx.lineTo(p2.x, p2.y)
+            ctx.stroke()
+            ctx.restore()
+        }
+
+        function drawHexCellBoundarySide(ctx, x, y, side, color, cell) {
+            var center = boardScene.boardPointLocal(x, y)
+            var radius = cell / Math.sqrt(3)
+            var p1 = hexCellVertex(center, radius, side)
+            var p2 = hexCellVertex(center, radius, (side + 1) % 6)
+            drawHexBoundarySegment(ctx, p1, p2, color, cell)
+        }
+
+        function hexCellBoardVertex(x, y, index, cell) {
+            var center = boardScene.boardPointLocal(x, y)
+            return hexCellVertex(center, cell / Math.sqrt(3), index)
+        }
+
+        function drawHexBoundaryPath(ctx, points, color, cell) {
+            if (!points || points.length < 2)
+                return
+            ctx.save()
+            ctx.globalAlpha = 1
+            ctx.lineCap = "round"
+            ctx.lineJoin = "round"
+            if (color === "#ffffff") {
+                ctx.strokeStyle = "#0b3d73"
+                ctx.lineWidth = Math.max(4, cell * 0.16)
+                ctx.beginPath()
+                ctx.moveTo(points[0].x, points[0].y)
+                for (var back = 1; back < points.length; ++back)
+                    ctx.lineTo(points[back].x, points[back].y)
+                ctx.stroke()
+            }
+            ctx.strokeStyle = color
+            ctx.lineWidth = Math.max(3, cell * 0.10)
+            ctx.beginPath()
+            ctx.moveTo(points[0].x, points[0].y)
+            for (var i = 1; i < points.length; ++i)
+                ctx.lineTo(points[i].x, points[i].y)
+            ctx.stroke()
+            ctx.restore()
+        }
+
+        function drawHexCellColoredEdges(ctx, cell) {
+            var topPoints = []
+            var bottomPoints = []
+            for (var lx = 0; lx < app.boardSizeX; ++lx) {
+                if (lx === 0)
+                    topPoints.push(hexCellBoardVertex(lx, 0, 5, cell))
+                topPoints.push(hexCellBoardVertex(lx, 0, 0, cell))
+                topPoints.push(hexCellBoardVertex(lx, 0, 1, cell))
+
+                if (lx === 0)
+                    bottomPoints.push(hexCellBoardVertex(lx, app.boardSizeY - 1, 4, cell))
+                bottomPoints.push(hexCellBoardVertex(lx, app.boardSizeY - 1, 3, cell))
+                bottomPoints.push(hexCellBoardVertex(lx, app.boardSizeY - 1, 2, cell))
+            }
+
+            var leftPoints = []
+            var rightPoints = []
+            for (var ly = 0; ly < app.boardSizeY; ++ly) {
+                if (ly === 0)
+                    leftPoints.push(hexCellBoardVertex(0, ly, 5, cell))
+                leftPoints.push(hexCellBoardVertex(0, ly, 4, cell))
+                leftPoints.push(hexCellBoardVertex(0, ly, 3, cell))
+
+                if (ly === 0)
+                    rightPoints.push(hexCellBoardVertex(app.boardSizeX - 1, ly, 0, cell))
+                rightPoints.push(hexCellBoardVertex(app.boardSizeX - 1, ly, 1, cell))
+                rightPoints.push(hexCellBoardVertex(app.boardSizeX - 1, ly, 2, cell))
+            }
+
+            drawHexBoundaryPath(ctx, topPoints, "#000000", cell)
+            drawHexBoundaryPath(ctx, bottomPoints, "#000000", cell)
+            drawHexBoundaryPath(ctx, leftPoints, "#ffffff", cell)
+            drawHexBoundaryPath(ctx, rightPoints, "#ffffff", cell)
+        }
+
         function drawStone(ctx, x, y, player, radius) {
             var point = boardScene.boardPointLocal(x, y)
+            if (boardScene.hexCellStyle) {
+                ctx.save()
+                hexCellPath(ctx, point.x, point.y, boardScene.cellSize / Math.sqrt(3))
+                ctx.fillStyle = player === 1 ? "#101418" : "#ffffff"
+                ctx.fill()
+                ctx.strokeStyle = "#0b3d73"
+                ctx.lineWidth = Math.max(1, boardScene.cellSize * 0.035)
+                ctx.stroke()
+                ctx.restore()
+                return
+            }
             var gradient = ctx.createRadialGradient(point.x - radius * 0.28,
                                                     point.y - radius * 0.34,
                                                     radius * 0.12,
@@ -156,6 +336,27 @@ Item {
             return []
         }
 
+        function drawHexEdge(ctx, p1, p2, color, cell) {
+            ctx.save()
+            ctx.globalAlpha = 1
+            ctx.lineCap = "round"
+            if (color === "#ffffff") {
+                ctx.strokeStyle = "#0b3d73"
+                ctx.lineWidth = Math.max(4, cell * 0.16)
+                ctx.beginPath()
+                ctx.moveTo(p1.x, p1.y)
+                ctx.lineTo(p2.x, p2.y)
+                ctx.stroke()
+            }
+            ctx.strokeStyle = color
+            ctx.lineWidth = Math.max(3, cell * 0.10)
+            ctx.beginPath()
+            ctx.moveTo(p1.x, p1.y)
+            ctx.lineTo(p2.x, p2.y)
+            ctx.stroke()
+            ctx.restore()
+        }
+
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
@@ -171,56 +372,76 @@ Item {
             ctx.globalAlpha = app.gridOpacity
             ctx.lineWidth = Math.max(1, app.gridLineWidth)
             if (boardScene.hexBoard) {
-                for (var hy = 0; hy < app.boardSizeY; ++hy) {
-                    var hStart = boardScene.boardPointLocal(0, hy)
-                    var hEnd = boardScene.boardPointLocal(app.boardSizeX - 1, hy)
-                    ctx.beginPath()
-                    ctx.moveTo(hStart.x, hStart.y)
-                    ctx.lineTo(hEnd.x, hEnd.y)
-                    ctx.stroke()
-                }
-                for (var sy = 0; sy < app.boardSizeY - 1; ++sy) {
-                    for (var sx = 0; sx < app.boardSizeX; ++sx) {
-                        var downRightStart = boardScene.boardPointLocal(sx, sy)
-                        var downRightEnd = boardScene.boardPointLocal(sx, sy + 1)
+                if (boardScene.hexCellStyle) {
+                    ctx.save()
+                    ctx.globalAlpha = 1
+                    ctx.strokeStyle = "#0b3d73"
+                    ctx.lineWidth = Math.max(1, app.gridLineWidth)
+                    for (var cellY = 0; cellY < app.boardSizeY; ++cellY) {
+                        for (var cellX = 0; cellX < app.boardSizeX; ++cellX) {
+                            var center = boardScene.boardPointLocal(cellX, cellY)
+                            hexCellPath(ctx, center.x, center.y, cell / Math.sqrt(3))
+                            ctx.fillStyle = "#f2cc62"
+                            ctx.fill()
+                            ctx.stroke()
+                        }
+                    }
+                    ctx.restore()
+                } else {
+                    for (var hy = 0; hy < boardScene.hexDisplaySizeY; ++hy) {
+                        var hStart = boardScene.hexDisplayPointLocal(0, hy)
+                        var hEnd = boardScene.hexDisplayPointLocal(boardScene.hexDisplaySizeX - 1, hy)
                         ctx.beginPath()
-                        ctx.moveTo(downRightStart.x, downRightStart.y)
-                        ctx.lineTo(downRightEnd.x, downRightEnd.y)
+                        ctx.moveTo(hStart.x, hStart.y)
+                        ctx.lineTo(hEnd.x, hEnd.y)
                         ctx.stroke()
                     }
-                    for (var dx = 0; dx < app.boardSizeX - 1; ++dx) {
-                        var downLeftStart = boardScene.boardPointLocal(dx + 1, sy)
-                        var downLeftEnd = boardScene.boardPointLocal(dx, sy + 1)
-                        ctx.beginPath()
-                        ctx.moveTo(downLeftStart.x, downLeftStart.y)
-                        ctx.lineTo(downLeftEnd.x, downLeftEnd.y)
-                        ctx.stroke()
+                    for (var sy = 0; sy < boardScene.hexDisplaySizeY - 1; ++sy) {
+                        for (var sx = 0; sx < boardScene.hexDisplaySizeX; ++sx) {
+                            var downRightStart = boardScene.hexDisplayPointLocal(sx, sy)
+                            var downRightEnd = boardScene.hexDisplayPointLocal(sx, sy + 1)
+                            ctx.beginPath()
+                            ctx.moveTo(downRightStart.x, downRightStart.y)
+                            ctx.lineTo(downRightEnd.x, downRightEnd.y)
+                            ctx.stroke()
+                        }
+                        for (var dx = 0; dx < boardScene.hexDisplaySizeX - 1; ++dx) {
+                            var downLeftStart = boardScene.hexDisplayPointLocal(dx + 1, sy)
+                            var downLeftEnd = boardScene.hexDisplayPointLocal(dx, sy + 1)
+                            ctx.beginPath()
+                            ctx.moveTo(downLeftStart.x, downLeftStart.y)
+                            ctx.lineTo(downLeftEnd.x, downLeftEnd.y)
+                            ctx.stroke()
+                        }
                     }
                 }
-                ctx.save()
-                ctx.globalAlpha = app.gridOpacity
-                ctx.lineWidth = Math.max(2, app.gridLineWidth * 1.6)
-                var p1 = boardScene.boardPointLocal(0, 0)
-                var p2 = boardScene.boardPointLocal(app.boardSizeX - 1, 0)
-                var p3 = boardScene.boardPointLocal(app.boardSizeX - 1, app.boardSizeY - 1)
-                var p4 = boardScene.boardPointLocal(0, app.boardSizeY - 1)
-                ctx.beginPath()
-                ctx.moveTo(p1.x, p1.y)
-                ctx.lineTo(p2.x, p2.y)
-                ctx.lineTo(p3.x, p3.y)
-                ctx.lineTo(p4.x, p4.y)
-                ctx.closePath()
-                ctx.stroke()
-                ctx.restore()
+                if (boardScene.hexCellStyle) {
+                    drawHexCellColoredEdges(ctx, cell)
+                } else {
+                    var blackTop1 = boardScene.boardPointLocal(0, 0)
+                    var blackTop2 = boardScene.boardPointLocal(app.boardSizeX - 1, 0)
+                    var blackBottom1 = boardScene.boardPointLocal(0, app.boardSizeY - 1)
+                    var blackBottom2 = boardScene.boardPointLocal(app.boardSizeX - 1, app.boardSizeY - 1)
+                    var whiteLeft1 = boardScene.boardPointLocal(0, 0)
+                    var whiteLeft2 = boardScene.boardPointLocal(0, app.boardSizeY - 1)
+                    var whiteRight1 = boardScene.boardPointLocal(app.boardSizeX - 1, 0)
+                    var whiteRight2 = boardScene.boardPointLocal(app.boardSizeX - 1, app.boardSizeY - 1)
+                    drawHexEdge(ctx, blackTop1, blackTop2, "#000000", cell)
+                    drawHexEdge(ctx, blackBottom1, blackBottom2, "#000000", cell)
+                    drawHexEdge(ctx, whiteLeft1, whiteLeft2, "#ffffff", cell)
+                    drawHexEdge(ctx, whiteRight1, whiteRight2, "#ffffff", cell)
+                }
             } else {
-                for (var x = 0; x < app.boardSizeX; ++x) {
+                var xLineCount = boardScene.squareCellBoard ? app.boardSizeX + 1 : app.boardSizeX
+                var yLineCount = boardScene.squareCellBoard ? app.boardSizeY + 1 : app.boardSizeY
+                for (var x = 0; x < xLineCount; ++x) {
                     var px = left + x * cell
                     ctx.beginPath()
                     ctx.moveTo(px, top)
                     ctx.lineTo(px, bottom)
                     ctx.stroke()
                 }
-                for (var y = 0; y < app.boardSizeY; ++y) {
+                for (var y = 0; y < yLineCount; ++y) {
                     var py = top + y * cell
                     ctx.beginPath()
                     ctx.moveTo(left, py)
@@ -376,6 +597,9 @@ Item {
             target: app
             function onBoardRevisionChanged() { boardCanvas.requestPaint() }
             function onGameRuleModeChanged() { boardCanvas.requestPaint() }
+            function onBoardPresentationModeChanged() { boardCanvas.requestPaint() }
+            function onHexBoardStyleChanged() { boardCanvas.requestPaint() }
+            function onHexBoardRotationChanged() { boardCanvas.requestPaint() }
             function onBoardSizeXChanged() { boardCanvas.requestPaint() }
             function onBoardSizeYChanged() { boardCanvas.requestPaint() }
             function onEngineCandidateItemsChanged() { boardCanvas.requestPaint() }
@@ -483,6 +707,9 @@ Item {
             function onEngineCandidateItemsChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardRevisionChanged() { variationPreviewCanvas.requestPaint() }
             function onGameRuleModeChanged() { variationPreviewCanvas.requestPaint() }
+            function onBoardPresentationModeChanged() { variationPreviewCanvas.requestPaint() }
+            function onHexBoardStyleChanged() { variationPreviewCanvas.requestPaint() }
+            function onHexBoardRotationChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardSizeXChanged() { variationPreviewCanvas.requestPaint() }
             function onBoardSizeYChanged() { variationPreviewCanvas.requestPaint() }
             function onStoneScaleChanged() { variationPreviewCanvas.requestPaint() }
@@ -552,6 +779,9 @@ Item {
             function onEngineCandidateItemsChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardRevisionChanged() { hoverOverlayCanvas.requestPaint() }
             function onGameRuleModeChanged() { hoverOverlayCanvas.requestPaint() }
+            function onBoardPresentationModeChanged() { hoverOverlayCanvas.requestPaint() }
+            function onHexBoardStyleChanged() { hoverOverlayCanvas.requestPaint() }
+            function onHexBoardRotationChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardSizeXChanged() { hoverOverlayCanvas.requestPaint() }
             function onBoardSizeYChanged() { hoverOverlayCanvas.requestPaint() }
             function onStoneScaleChanged() { hoverOverlayCanvas.requestPaint() }

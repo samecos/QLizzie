@@ -21,32 +21,72 @@ Rectangle {
         spacing: app.compactLayout ? 7 : 11
 
         Label {
-            visible: app.packageMode !== app.packageModeGo
-            text: app.trText("gameRule")
+            visible: app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1
+            text: app.trText("boardPresentation")
             color: "#26333b"
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
 
-        GameRuleComboBox {
-            id: toolbarGameRuleCombo
+        ToolbarPresentationCombo {
             app: toolbar.app
-            visible: app.packageMode !== app.packageModeGo
-            Layout.preferredWidth: app.compactLayout ? 106 : 132
+            visible: app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1
+            options: app.boardPresentationOptions()
+            currentIndex: app.boardPresentationCurrentIndex()
+            Layout.preferredWidth: app.compactLayout ? 134 : 178
             implicitHeight: app.compactLayout ? 28 : 32
+            onPicked: function(index) {
+                app.setBoardPresentationFromIndex(index)
+                app.focusBoardInput()
+            }
         }
 
-        RuleVariantComboBox {
-            id: toolbarRuleVariantCombo
+        Label {
+            visible: app.gameRuleMode === app.gameRuleHex
+            text: app.trText("hexBoardStyle")
+            color: "#26333b"
+            font.pixelSize: app.compactLayout ? 13 : 15
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        ToolbarPresentationCombo {
             app: toolbar.app
-            visible: app.ruleVariantComboVisible()
-            Layout.preferredWidth: app.compactLayout ? 138 : 178
+            visible: app.gameRuleMode === app.gameRuleHex
+            options: app.hexBoardStyleOptions()
+            currentIndex: app.hexBoardStyleCurrentIndex()
+            Layout.preferredWidth: app.compactLayout ? 116 : 150
             implicitHeight: app.compactLayout ? 28 : 32
+            onPicked: function(index) {
+                app.setHexBoardStyleFromIndex(index)
+                app.focusBoardInput()
+            }
+        }
+
+        Label {
+            visible: app.gameRuleMode === app.gameRuleHex
+            text: app.trText("hexBoardRotation")
+            color: "#26333b"
+            font.pixelSize: app.compactLayout ? 13 : 15
+            verticalAlignment: Text.AlignVCenter
+        }
+
+        ToolbarPresentationCombo {
+            app: toolbar.app
+            visible: app.gameRuleMode === app.gameRuleHex
+            options: app.hexBoardRotationOptions()
+            currentIndex: app.hexBoardRotationCurrentIndex()
+            Layout.preferredWidth: app.compactLayout ? 132 : 178
+            implicitHeight: app.compactLayout ? 28 : 32
+            onPicked: function(index) {
+                app.setHexBoardRotationFromIndex(index)
+                app.focusBoardInput()
+            }
         }
 
         Rectangle {
-            visible: app.packageMode !== app.packageModeGo
-                     && (app.ruleVariantComboVisible() || app.komiControlsVisible())
+            visible: app.komiControlsVisible()
+                     || (app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1)
+                     || app.gameRuleMode === app.gameRuleHex
             Layout.preferredWidth: 1
             Layout.fillHeight: true
             Layout.topMargin: 7
@@ -492,6 +532,89 @@ Rectangle {
             onClicked: {
                 app.requestRuleModeChange(ruleButton.mode)
                 app.focusBoardInput()
+            }
+        }
+    }
+
+    component ToolbarPresentationCombo: Basic.ComboBox {
+        id: control
+
+        required property var app
+        property var options: []
+        signal picked(int index)
+
+        model: options
+        textRole: "label"
+        valueRole: "value"
+        leftPadding: 9
+        rightPadding: 28
+        onActivated: function(index) { picked(index) }
+
+        contentItem: Text {
+            leftPadding: control.leftPadding
+            rightPadding: control.rightPadding
+            text: control.displayText
+            color: "#17212a"
+            font.pixelSize: control.app.compactLayout ? 13 : 15
+            font.bold: true
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+
+        indicator: Canvas {
+            id: toolbarComboArrow
+            x: control.width - width - 9
+            y: Math.round((control.height - height) / 2)
+            width: 12
+            height: 8
+
+            Connections {
+                target: control
+                function onHoveredChanged() { toolbarComboArrow.requestPaint() }
+                function onPressedChanged() { toolbarComboArrow.requestPaint() }
+            }
+
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                ctx.fillStyle = control.pressed ? "#1f6f8d" : "#6b7880"
+                ctx.beginPath()
+                ctx.moveTo(1, 1)
+                ctx.lineTo(width - 1, 1)
+                ctx.lineTo(width / 2, height - 1)
+                ctx.closePath()
+                ctx.fill()
+            }
+        }
+
+        background: Rectangle {
+            radius: 5
+            color: control.pressed ? "#dcecf3"
+                                 : control.hovered ? "#eef7fa" : "#f8fbfd"
+            border.color: control.activeFocus ? "#2a91c9" : "#a8bac5"
+            border.width: control.activeFocus ? 2 : 1
+        }
+
+        delegate: Basic.ItemDelegate {
+            id: optionDelegate
+
+            width: control.width
+            height: control.app.compactLayout ? 30 : 34
+            highlighted: control.highlightedIndex === index
+            hoverEnabled: true
+
+            contentItem: Text {
+                text: modelData.label
+                color: "#14242e"
+                font.pixelSize: control.app.compactLayout ? 12 : 13
+                verticalAlignment: Text.AlignVCenter
+                leftPadding: 10
+                elide: Text.ElideRight
+            }
+
+            background: Rectangle {
+                color: optionDelegate.highlighted ? "#d8e9f1"
+                                                  : optionDelegate.hovered ? "#edf5f8" : "#ffffff"
             }
         }
     }

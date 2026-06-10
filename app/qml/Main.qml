@@ -166,7 +166,18 @@ ApplicationWindow {
     readonly property int coordinateDisplayNone: 5
     property int coordinateDisplayMode: coordinateDisplayGoNoI
     readonly property int boardPresentationIntersections: 0
+    readonly property int boardPresentationCells: 1
     property int boardPresentationMode: boardPresentationIntersections
+    property int goBoardPresentationMode: boardPresentationIntersections
+    property int gomokuBoardPresentationMode: boardPresentationIntersections
+    readonly property int hexBoardStyleTriangle: 0
+    readonly property int hexBoardStyleCells: 1
+    property int hexBoardStyle: hexBoardStyleTriangle
+    readonly property int hexRotationCurrent: 0
+    readonly property int hexRotationTranspose: 1
+    readonly property int hexRotationFlipX: 2
+    readonly property int hexRotationFlipXTranspose: 3
+    property int hexBoardRotation: hexRotationCurrent
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
     readonly property int packageModeSix: 2
@@ -321,32 +332,6 @@ ApplicationWindow {
     menuBar: MenuBar {
         font.pixelSize: root.compactLayout ? 15 : 17
 
-        delegate: Basic.MenuBarItem {
-            id: menuBarItem
-            readonly property bool engineItem: text === root.engineMenuTitle()
-
-            implicitWidth: engineItem
-                           ? Math.min(root.compactLayout ? 260 : 380,
-                                      Math.max(root.compactLayout ? 180 : 220,
-                                               menuTitleText.implicitWidth + 28))
-                           : menuTitleText.implicitWidth + 24
-            implicitHeight: 34
-
-            contentItem: Text {
-                id: menuTitleText
-                text: menuBarItem.text
-                color: "#102532"
-                font.pixelSize: root.compactLayout ? 15 : 17
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-            }
-
-            background: Rectangle {
-                color: menuBarItem.highlighted || menuBarItem.down ? "#d8e9f1" : "transparent"
-            }
-        }
-
         Menu {
             title: root.trText("menuFile")
             font.pixelSize: root.compactLayout ? 14 : 16
@@ -414,6 +399,41 @@ ApplicationWindow {
             Action {
                 text: root.trText("settingsDialogTitle")
                 onTriggered: settingsDialog.openPage(0)
+            }
+
+            Menu {
+                title: root.trText("settingsPageRules")
+
+                Action {
+                    text: root.trText("settingsPageRules") + "..."
+                    onTriggered: settingsDialog.openPage(1)
+                }
+
+                MenuSeparator {}
+
+                Action {
+                    text: root.trText("gameRuleGo")
+                    checkable: true
+                    checked: root.gameRuleMode === root.gameRuleGo
+                    enabled: root.ruleModeAllowedForPackage(root.gameRuleGo)
+                    onTriggered: root.requestRuleModeChange(root.gameRuleGo)
+                }
+
+                Action {
+                    text: root.trText("gameRuleGomoku")
+                    checkable: true
+                    checked: root.gameRuleMode === root.gameRuleGomoku
+                    enabled: root.ruleModeAllowedForPackage(root.gameRuleGomoku)
+                    onTriggered: root.requestRuleModeChange(root.gameRuleGomoku)
+                }
+
+                Action {
+                    text: root.trText("gameRuleHex")
+                    checkable: true
+                    checked: root.gameRuleMode === root.gameRuleHex
+                    enabled: root.ruleModeAllowedForPackage(root.gameRuleHex)
+                    onTriggered: root.requestRuleModeChange(root.gameRuleHex)
+                }
             }
 
             Action {
@@ -1489,6 +1509,30 @@ ApplicationWindow {
         return RuleSupport.boardPresentationText(root, mode)
     }
 
+    function hexBoardStyleOptions() {
+        return RuleSupport.hexBoardStyleOptions(root)
+    }
+
+    function hexBoardStyleCurrentIndex() {
+        return RuleSupport.hexBoardStyleCurrentIndex(root)
+    }
+
+    function setHexBoardStyleFromIndex(index) {
+        RuleSupport.setHexBoardStyleFromIndex(root, index)
+    }
+
+    function hexBoardRotationOptions() {
+        return RuleSupport.hexBoardRotationOptions(root)
+    }
+
+    function hexBoardRotationCurrentIndex() {
+        return RuleSupport.hexBoardRotationCurrentIndex(root)
+    }
+
+    function setHexBoardRotationFromIndex(index) {
+        RuleSupport.setHexBoardRotationFromIndex(root, index)
+    }
+
     function packageBoardSizeRejectText(xSize, ySize) {
         return RuleSupport.packageBoardSizeRejectText(root, xSize, ySize)
     }
@@ -1717,7 +1761,12 @@ ApplicationWindow {
         if (preset.ruleMode === gameRuleGomoku)
             gomokuRuleMode = preset.ruleVariant
         normalizeGomokuRuleForCurrentMode()
-        boardPresentationMode = preset.boardPresentationMode
+        if (preset.ruleMode === gameRuleGomoku)
+            gomokuBoardPresentationMode = preset.boardPresentationMode
+        else
+            goBoardPresentationMode = boardPresentationIntersections
+        boardPresentationMode = preset.ruleMode === gameRuleGomoku
+                                ? gomokuBoardPresentationMode : goBoardPresentationMode
         boardSizeX = preset.boardSizeX
         boardSizeY = preset.boardSizeY
         if (preset.ruleMode === gameRuleHex)

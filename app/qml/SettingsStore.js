@@ -1,5 +1,6 @@
 .pragma library
 .import "EnginePresets.js" as EnginePresets
+.import "rules/RuleCatalog.js" as RuleCatalog
 
 function normalizeColorHex(value, fallback) {
     var text = String(value)
@@ -24,8 +25,27 @@ function normalizePersistentSettings(app) {
         app.moveNumberDisplayMode = app.defaultMoveNumberDisplayMode
     if (app.coordinateDisplayMode < app.coordinateDisplayGoNoI || app.coordinateDisplayMode > app.coordinateDisplayNone)
         app.coordinateDisplayMode = app.coordinateDisplayGoNoI
-    if (app.boardPresentationMode !== app.boardPresentationIntersections)
-        app.boardPresentationMode = app.boardPresentationIntersections
+    app.goBoardPresentationMode = app.boardPresentationIntersections
+    app.gomokuBoardPresentationMode = RuleCatalog.normalizeBoardPresentationMode(
+                app, app.gameRuleGomoku, Math.round(Number(app.gomokuBoardPresentationMode)))
+    app.boardPresentationMode = RuleCatalog.normalizeBoardPresentationMode(
+                app, app.gameRuleMode, Math.round(Number(app.boardPresentationMode)))
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        app.gomokuBoardPresentationMode = app.boardPresentationMode
+    else
+        app.boardPresentationMode = RuleCatalog.rememberedBoardPresentationMode(app, app.gameRuleMode)
+    var hexStyle = Number(app.hexBoardStyle)
+    if (isNaN(hexStyle))
+        hexStyle = app.hexBoardStyleTriangle
+    app.hexBoardStyle = Math.round(app.clamp(hexStyle,
+                                             app.hexBoardStyleTriangle,
+                                             app.hexBoardStyleCells))
+    var hexRotation = Number(app.hexBoardRotation)
+    if (isNaN(hexRotation))
+        hexRotation = app.hexRotationCurrent
+    app.hexBoardRotation = Math.round(app.clamp(hexRotation,
+                                                app.hexRotationCurrent,
+                                                app.hexRotationFlipXTranspose))
     app.packageMode = Math.round(app.clamp(app.packageMode, app.packageModeUniversal, app.packageModeSix))
     app.enginePresets = EnginePresets.normalizeList(app, app.enginePresets)
     app.engineStartupMode = Math.round(app.clamp(Number(app.engineStartupMode),
@@ -117,6 +137,9 @@ function loadPersistentSettings(app, settings) {
     app.moveNumberDisplayMode = Number(settingValue(settings, "moveNumberDisplayMode", app.moveNumberDisplayMode))
     app.coordinateDisplayMode = Number(settingValue(settings, "coordinateDisplayMode", app.coordinateDisplayMode))
     app.boardPresentationMode = Number(settingValue(settings, "boardPresentationMode", app.boardPresentationMode))
+    app.gomokuBoardPresentationMode = Number(settingValue(settings, "gomokuBoardPresentationMode", app.gomokuBoardPresentationMode))
+    app.hexBoardStyle = Number(settingValue(settings, "hexBoardStyle", app.hexBoardStyle))
+    app.hexBoardRotation = Number(settingValue(settings, "hexBoardRotation", app.hexBoardRotation))
     app.packageMode = Number(settingValue(settings, "packageMode", app.packageMode))
     app.enginePresets = EnginePresets.parseList(app, String(settingValue(settings, "enginePresetsJson", "")))
     app.defaultEngineId = String(settingValue(settings, "defaultEngineId", app.defaultEngineId))
@@ -183,6 +206,9 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("moveNumberDisplayMode", app.moveNumberDisplayMode)
     settings.setValue("coordinateDisplayMode", app.coordinateDisplayMode)
     settings.setValue("boardPresentationMode", app.boardPresentationMode)
+    settings.setValue("gomokuBoardPresentationMode", app.gomokuBoardPresentationMode)
+    settings.setValue("hexBoardStyle", app.hexBoardStyle)
+    settings.setValue("hexBoardRotation", app.hexBoardRotation)
     settings.setValue("packageMode", app.packageMode)
     settings.setValue("enginePresetsJson", EnginePresets.serializeList(app.enginePresets))
     settings.setValue("defaultEngineId", app.defaultEngineId)

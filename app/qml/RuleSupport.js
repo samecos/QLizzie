@@ -153,11 +153,57 @@ function setBoardPresentationFromIndex(app, index) {
     var options = boardPresentationOptions(app)
     if (index < 0 || index >= options.length)
         return
-    app.boardPresentationMode = options[index].value
+    var next = RuleCatalog.normalizeBoardPresentationMode(app, app.gameRuleMode, options[index].value)
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        app.gomokuBoardPresentationMode = next
+    else if (app.gameRuleMode === app.gameRuleGo)
+        app.goBoardPresentationMode = next
+    if (app.boardPresentationMode !== next) {
+        app.boardPresentationMode = next
+        app.boardRevision += 1
+    }
 }
 
 function boardPresentationText(app, mode) {
     return RuleCatalog.boardPresentationText(app, mode)
+}
+
+function hexBoardStyleOptions(app) {
+    return RuleCatalog.hexBoardStyleOptions(app)
+}
+
+function hexBoardStyleCurrentIndex(app) {
+    return RuleCatalog.hexBoardStyleCurrentIndex(app)
+}
+
+function setHexBoardStyleFromIndex(app, index) {
+    var options = hexBoardStyleOptions(app)
+    if (index < 0 || index >= options.length)
+        return
+    var next = options[index].value
+    if (app.hexBoardStyle === next)
+        return
+    app.hexBoardStyle = next
+    app.boardRevision += 1
+}
+
+function hexBoardRotationOptions(app) {
+    return RuleCatalog.hexBoardRotationOptions(app)
+}
+
+function hexBoardRotationCurrentIndex(app) {
+    return RuleCatalog.hexBoardRotationCurrentIndex(app)
+}
+
+function setHexBoardRotationFromIndex(app, index) {
+    var options = hexBoardRotationOptions(app)
+    if (index < 0 || index >= options.length)
+        return
+    var next = options[index].value
+    if (app.hexBoardRotation === next)
+        return
+    app.hexBoardRotation = next
+    app.boardRevision += 1
 }
 
 function engineCommandEditable(app) {
@@ -249,7 +295,12 @@ function applyRuleModeChange(app, mode) {
     app.gameRuleMode = mode
     if (mode === app.gameRuleHex)
         app.coordinateDisplayMode = app.coordinateDisplayHex
-    app.boardPresentationMode = RuleCatalog.boardPresentationOptions(app, mode)[0].value
+    app.boardPresentationMode = RuleCatalog.normalizeBoardPresentationMode(
+                app, mode, RuleCatalog.rememberedBoardPresentationMode(app, mode))
+    if (mode === app.gameRuleGo)
+        app.goBoardPresentationMode = app.boardPresentationMode
+    else if (mode === app.gameRuleGomoku)
+        app.gomokuBoardPresentationMode = app.boardPresentationMode
     normalizeGomokuRuleForCurrentMode(app)
     app.clearHover(true)
     app.resetGameTree()

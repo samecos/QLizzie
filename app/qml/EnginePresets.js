@@ -88,7 +88,11 @@ function normalizePreset(app, preset, index) {
                                            app.maxBoardSize))
     copy.komi = numeric(copy.komi, copy.ruleMode === app.gameRuleGo ? 6.5 : 0.0)
     copy.legacyHexEngineCoordinates = copy.legacyHexEngineCoordinates === true
-    copy.boardPresentationMode = Math.round(numeric(copy.boardPresentationMode, 0))
+    copy.boardPresentationMode = Math.round(app.clamp(numeric(copy.boardPresentationMode, 0),
+                                                       app.boardPresentationIntersections,
+                                                       app.boardPresentationCells))
+    if (copy.ruleMode !== app.gameRuleGomoku)
+        copy.boardPresentationMode = app.boardPresentationIntersections
     return copy
 }
 
