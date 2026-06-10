@@ -359,6 +359,88 @@ Basic.Dialog {
 
                             Item { Layout.fillWidth: true }
                         }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateDisplayCount")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: 65536
+                                editable: true
+                                value: app.candidateDisplayCount
+                                Layout.preferredWidth: 116
+                                onValueModified: app.candidateDisplayCount = value
+                            }
+
+                            Label {
+                                text: app.trText("candidateCountUnlimitedTip")
+                                color: "#52636d"
+                                font.pixelSize: 12
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateMinVisitRatio")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            SpinBox {
+                                from: 0
+                                to: 1000
+                                editable: true
+                                value: Math.round(app.candidateMinVisitRatio * 1000)
+                                Layout.preferredWidth: 96
+                                textFromValue: function(value) {
+                                    var percent = value / 10
+                                    return value % 10 === 0 ? percent.toFixed(0) : percent.toFixed(1)
+                                }
+                                valueFromText: function(text) {
+                                    var parsed = Number(String(text).replace("%", ""))
+                                    return isNaN(parsed) ? 0 : Math.round(parsed * 10)
+                                }
+                                onValueModified: app.candidateMinVisitRatio = value / 1000
+                            }
+
+                            Label {
+                                text: "%"
+                                color: "#52636d"
+                                font.pixelSize: 14
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("candidateShowFilteredMarkers")
+                                color: "#24313a"
+                                Layout.preferredWidth: 230
+                                elide: Text.ElideRight
+                            }
+
+                            CheckBox {
+                                checked: app.candidateShowFilteredMarkers
+                                onToggled: app.candidateShowFilteredMarkers = checked
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
                     }
                 }
 
@@ -430,169 +512,7 @@ Basic.Dialog {
 
                 SectionBox {
                     visible: settingsDialog.currentPage === 2
-                    title: app.trText("visualSettings")
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 12
-
-                        ColorRow {
-                            label: app.trText("backgroundColor")
-                            field: backgroundColorField
-                            resettable: true
-                            onApply: settingsDialog.applyColorText(backgroundColorField,
-                                                                    function(value) { app.backgroundColor = value },
-                                                                    function() { return app.backgroundColor })
-                            onReset: {
-                                app.backgroundColor = app.defaultBackgroundColor
-                                settingsDialog.syncFields()
-                            }
-                        }
-
-                        ColorRow {
-                            label: app.trText("boardColor")
-                            field: boardColorField
-                            resettable: true
-                            onApply: settingsDialog.applyColorText(boardColorField,
-                                                                    function(value) { app.boardWoodColor = value },
-                                                                    function() { return app.boardWoodColor })
-                            onReset: {
-                                app.boardWoodColor = app.defaultBoardWoodColor
-                                settingsDialog.syncFields()
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("coordinateDisplay")
-                                color: "#24313a"
-                                Layout.preferredWidth: 150
-                            }
-
-                            ComboBox {
-                                model: [
-                                    app.trText("coordinateDisplayGoNoI"),
-                                    app.trText("coordinateDisplayGomokuWithI"),
-                                    app.trText("coordinateDisplayNumeric"),
-                                    app.trText("coordinateDisplayNumericOneBased"),
-                                    app.trText("coordinateDisplayHex"),
-                                    app.trText("coordinateDisplayNone")
-                                ]
-                                currentIndex: app.effectiveCoordinateDisplayMode()
-                                Layout.preferredWidth: 210
-                                onActivated: function(index) { app.setCoordinateDisplayMode(index) }
-                            }
-
-                            Label {
-                                text: app.coordinateDisplayForcedNumeric() ? app.trText("coordinateDisplayForcedNumeric") : ""
-                                color: "#6a7a84"
-                                font.pixelSize: 12
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-                        }
-
-                        SliderRow {
-                            label: app.trText("stoneSize")
-                            from: app.minStoneScale
-                            to: 1.0
-                            value: app.stoneScale
-                            decimals: 2
-                            resettable: true
-                            onMoved: function(v) { app.stoneScale = v }
-                            onReset: app.stoneScale = app.defaultStoneScale
-                        }
-
-                        SliderRow {
-                            label: app.trText("gridPointOpacity")
-                            from: 0.25
-                            to: 1.0
-                            value: app.gridOpacity
-                            decimals: 2
-                            resettable: true
-                            onMoved: function(v) { app.gridOpacity = v }
-                            onReset: app.gridOpacity = app.defaultGridOpacity
-                        }
-
-                        SliderRow {
-                            label: app.trText("gridLineWidth")
-                            from: 0.5
-                            to: 4.0
-                            value: app.gridLineWidth
-                            decimals: 1
-                            resettable: true
-                            onMoved: function(v) { app.gridLineWidth = v }
-                            onReset: app.gridLineWidth = app.defaultGridLineWidth
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("moveNumberDisplay")
-                                color: "#24313a"
-                                Layout.preferredWidth: 150
-                            }
-
-                            ComboBox {
-                                model: [
-                                    app.trText("moveNumberAll"),
-                                    app.trText("moveNumberLastOnly"),
-                                    app.trText("moveNumberHidden")
-                                ]
-                                currentIndex: app.moveNumberDisplayMode
-                                Layout.preferredWidth: 210
-                                onActivated: function(index) { app.moveNumberDisplayMode = index }
-                            }
-
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        BoardVisualPreview {
-                            Layout.fillWidth: true
-                        }
-
-                        SliderRow {
-                            label: app.trText("selectedPointSize")
-                            from: 0.5
-                            to: 1.0
-                            value: app.selectedPointScale
-                            decimals: 2
-                            resettable: true
-                            onMoved: function(v) { app.selectedPointScale = v }
-                            onReset: app.selectedPointScale = app.defaultSelectedPointScale
-                        }
-
-                        SliderRow {
-                            label: app.trText("moveNumberLabelScale")
-                            from: 0.5
-                            to: 2.0
-                            value: app.moveNumberLabelScale
-                            decimals: 2
-                            percent: true
-                            resettable: true
-                            onMoved: function(v) { app.moveNumberLabelScale = v }
-                            onReset: app.moveNumberLabelScale = app.defaultMoveNumberLabelScale
-                        }
-
-                        SavePromptButton {
-                            text: app.trText("resetAll")
-                            Layout.preferredWidth: 120
-                            onClicked: {
-                                app.resetBoardVisualSettings()
-                                settingsDialog.syncFields()
-                            }
-                        }
-                    }
-                }
-
-                SectionBox {
-                    visible: settingsDialog.currentPage === 2
-                    title: app.trText("candidateLabelSettings")
+                    title: app.trText("candidateSettings")
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -765,88 +685,6 @@ Basic.Dialog {
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("candidateDisplayCount")
-                                color: "#24313a"
-                                Layout.preferredWidth: 150
-                            }
-
-                            SpinBox {
-                                from: 0
-                                to: 65536
-                                editable: true
-                                value: app.candidateDisplayCount
-                                Layout.preferredWidth: 116
-                                onValueModified: app.candidateDisplayCount = value
-                            }
-
-                            Label {
-                                text: app.trText("candidateCountUnlimitedTip")
-                                color: "#52636d"
-                                font.pixelSize: 12
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("candidateMinVisitRatio")
-                                color: "#24313a"
-                                Layout.preferredWidth: 150
-                            }
-
-                            SpinBox {
-                                from: 0
-                                to: 1000
-                                editable: true
-                                value: Math.round(app.candidateMinVisitRatio * 1000)
-                                Layout.preferredWidth: 96
-                                textFromValue: function(value) {
-                                    var percent = value / 10
-                                    return value % 10 === 0 ? percent.toFixed(0) : percent.toFixed(1)
-                                }
-                                valueFromText: function(text) {
-                                    var parsed = Number(String(text).replace("%", ""))
-                                    return isNaN(parsed) ? 0 : Math.round(parsed * 10)
-                                }
-                                onValueModified: app.candidateMinVisitRatio = value / 1000
-                            }
-
-                            Label {
-                                text: "%"
-                                color: "#52636d"
-                                font.pixelSize: 14
-                            }
-
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("candidateShowFilteredMarkers")
-                                color: "#24313a"
-                                Layout.preferredWidth: 230
-                                elide: Text.ElideRight
-                            }
-
-                            CheckBox {
-                                checked: app.candidateShowFilteredMarkers
-                                onToggled: app.candidateShowFilteredMarkers = checked
-                            }
-                            Item { Layout.fillWidth: true }
-                        }
-
                         SavePromptButton {
                             text: app.trText("reset")
                             Layout.preferredWidth: 120
@@ -856,6 +694,168 @@ Basic.Dialog {
                             }
                         }
 
+                    }
+                }
+
+                SectionBox {
+                    visible: settingsDialog.currentPage === 2
+                    title: app.trText("visualSettings")
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 12
+
+                        ColorRow {
+                            label: app.trText("backgroundColor")
+                            field: backgroundColorField
+                            resettable: true
+                            onApply: settingsDialog.applyColorText(backgroundColorField,
+                                                                    function(value) { app.backgroundColor = value },
+                                                                    function() { return app.backgroundColor })
+                            onReset: {
+                                app.backgroundColor = app.defaultBackgroundColor
+                                settingsDialog.syncFields()
+                            }
+                        }
+
+                        ColorRow {
+                            label: app.trText("boardColor")
+                            field: boardColorField
+                            resettable: true
+                            onApply: settingsDialog.applyColorText(boardColorField,
+                                                                    function(value) { app.boardWoodColor = value },
+                                                                    function() { return app.boardWoodColor })
+                            onReset: {
+                                app.boardWoodColor = app.defaultBoardWoodColor
+                                settingsDialog.syncFields()
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("coordinateDisplay")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            ComboBox {
+                                model: [
+                                    app.trText("coordinateDisplayGoNoI"),
+                                    app.trText("coordinateDisplayGomokuWithI"),
+                                    app.trText("coordinateDisplayNumeric"),
+                                    app.trText("coordinateDisplayNumericOneBased"),
+                                    app.trText("coordinateDisplayHex"),
+                                    app.trText("coordinateDisplayNone")
+                                ]
+                                currentIndex: app.effectiveCoordinateDisplayMode()
+                                Layout.preferredWidth: 210
+                                onActivated: function(index) { app.setCoordinateDisplayMode(index) }
+                            }
+
+                            Label {
+                                text: app.coordinateDisplayForcedNumeric() ? app.trText("coordinateDisplayForcedNumeric") : ""
+                                color: "#6a7a84"
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        SliderRow {
+                            label: app.trText("stoneSize")
+                            from: app.minStoneScale
+                            to: 1.0
+                            value: app.stoneScale
+                            decimals: 2
+                            resettable: true
+                            onMoved: function(v) { app.stoneScale = v }
+                            onReset: app.stoneScale = app.defaultStoneScale
+                        }
+
+                        SliderRow {
+                            label: app.trText("gridPointOpacity")
+                            from: 0.25
+                            to: 1.0
+                            value: app.gridOpacity
+                            decimals: 2
+                            resettable: true
+                            onMoved: function(v) { app.gridOpacity = v }
+                            onReset: app.gridOpacity = app.defaultGridOpacity
+                        }
+
+                        SliderRow {
+                            label: app.trText("gridLineWidth")
+                            from: 0.5
+                            to: 4.0
+                            value: app.gridLineWidth
+                            decimals: 1
+                            resettable: true
+                            onMoved: function(v) { app.gridLineWidth = v }
+                            onReset: app.gridLineWidth = app.defaultGridLineWidth
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("moveNumberDisplay")
+                                color: "#24313a"
+                                Layout.preferredWidth: 150
+                            }
+
+                            ComboBox {
+                                model: [
+                                    app.trText("moveNumberAll"),
+                                    app.trText("moveNumberLastOnly"),
+                                    app.trText("moveNumberHidden")
+                                ]
+                                currentIndex: app.moveNumberDisplayMode
+                                Layout.preferredWidth: 210
+                                onActivated: function(index) { app.moveNumberDisplayMode = index }
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        BoardVisualPreview {
+                            Layout.fillWidth: true
+                        }
+
+                        SliderRow {
+                            label: app.trText("selectedPointSize")
+                            from: 0.5
+                            to: 1.0
+                            value: app.selectedPointScale
+                            decimals: 2
+                            resettable: true
+                            onMoved: function(v) { app.selectedPointScale = v }
+                            onReset: app.selectedPointScale = app.defaultSelectedPointScale
+                        }
+
+                        SliderRow {
+                            label: app.trText("moveNumberLabelScale")
+                            from: 0.5
+                            to: 2.0
+                            value: app.moveNumberLabelScale
+                            decimals: 2
+                            percent: true
+                            resettable: true
+                            onMoved: function(v) { app.moveNumberLabelScale = v }
+                            onReset: app.moveNumberLabelScale = app.defaultMoveNumberLabelScale
+                        }
+
+                        SavePromptButton {
+                            text: app.trText("resetAll")
+                            Layout.preferredWidth: 120
+                            onClicked: {
+                                app.resetBoardVisualSettings()
+                                settingsDialog.syncFields()
+                            }
+                        }
                     }
                 }
 
