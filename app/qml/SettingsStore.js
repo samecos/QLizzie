@@ -1,4 +1,5 @@
 .pragma library
+.import "EnginePresets.js" as EnginePresets
 
 function normalizeColorHex(value, fallback) {
     var text = String(value)
@@ -23,7 +24,17 @@ function normalizePersistentSettings(app) {
         app.moveNumberDisplayMode = app.defaultMoveNumberDisplayMode
     if (app.coordinateDisplayMode < app.coordinateDisplayGoNoI || app.coordinateDisplayMode > app.coordinateDisplayNone)
         app.coordinateDisplayMode = app.coordinateDisplayGoNoI
+    if (app.boardPresentationMode !== app.boardPresentationIntersections)
+        app.boardPresentationMode = app.boardPresentationIntersections
     app.packageMode = Math.round(app.clamp(app.packageMode, app.packageModeUniversal, app.packageModeSix))
+    app.enginePresets = EnginePresets.normalizeList(app, app.enginePresets)
+    app.engineStartupMode = Math.round(app.clamp(Number(app.engineStartupMode),
+                                                 app.engineStartupDefault,
+                                                 app.engineStartupNone))
+    if (app.defaultEngineId.length > 0 && !EnginePresets.findById(app.enginePresets, app.defaultEngineId))
+        app.defaultEngineId = ""
+    if (app.activeEngineId.length > 0 && !EnginePresets.findById(app.enginePresets, app.activeEngineId))
+        app.activeEngineId = ""
     app.candidateDisplayCount = Math.round(app.clamp(app.candidateDisplayCount, 0, 65536))
     app.candidateMinVisitRatio = app.clamp(app.candidateMinVisitRatio, 0, 1)
 
@@ -88,10 +99,6 @@ function settingNumberEquals(value, expected) {
 function migratePersistentSettings(app) {
     if (app.loadedSettingsVersion < 2) {
         app.persistedEngineCommand = app.defaultGo7EngineCommand
-        app.go5EngineCommand = app.defaultGo7EngineCommand
-        app.go7EngineCommand = app.defaultGo7EngineCommand
-        app.six11EngineCommand = app.defaultGo7EngineCommand
-        app.six13EngineCommand = app.defaultGo7EngineCommand
         app.settingsMigrated = true
     }
     app.loadedSettingsVersion = app.currentSettingsVersion
@@ -109,12 +116,13 @@ function loadPersistentSettings(app, settings) {
     app.komi = Number(settingValue(settings, "komi", app.komi))
     app.moveNumberDisplayMode = Number(settingValue(settings, "moveNumberDisplayMode", app.moveNumberDisplayMode))
     app.coordinateDisplayMode = Number(settingValue(settings, "coordinateDisplayMode", app.coordinateDisplayMode))
+    app.boardPresentationMode = Number(settingValue(settings, "boardPresentationMode", app.boardPresentationMode))
     app.packageMode = Number(settingValue(settings, "packageMode", app.packageMode))
+    app.enginePresets = EnginePresets.parseList(app, String(settingValue(settings, "enginePresetsJson", "")))
+    app.defaultEngineId = String(settingValue(settings, "defaultEngineId", app.defaultEngineId))
+    app.activeEngineId = String(settingValue(settings, "activeEngineId", app.activeEngineId))
+    app.engineStartupMode = Number(settingValue(settings, "engineStartupMode", app.engineStartupMode))
     app.persistedEngineCommand = String(settingValue(settings, "engineCommand", app.persistedEngineCommand))
-    app.go5EngineCommand = String(settingValue(settings, "go5EngineCommand", app.go5EngineCommand))
-    app.go7EngineCommand = String(settingValue(settings, "go7EngineCommand", app.go7EngineCommand))
-    app.six11EngineCommand = String(settingValue(settings, "six11EngineCommand", app.six11EngineCommand))
-    app.six13EngineCommand = String(settingValue(settings, "six13EngineCommand", app.six13EngineCommand))
     app.legacyHexEngineCoordinates = settingBool(settings, "legacyHexEngineCoordinates", app.legacyHexEngineCoordinates)
     app.analysisIntervalCentiseconds = Number(settingValue(settings, "analysisIntervalCentiseconds", app.analysisIntervalCentiseconds))
     app.maxAnalysisSeconds = Number(settingValue(settings, "maxAnalysisSeconds", app.maxAnalysisSeconds))
@@ -174,12 +182,13 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("komi", app.komi)
     settings.setValue("moveNumberDisplayMode", app.moveNumberDisplayMode)
     settings.setValue("coordinateDisplayMode", app.coordinateDisplayMode)
+    settings.setValue("boardPresentationMode", app.boardPresentationMode)
     settings.setValue("packageMode", app.packageMode)
+    settings.setValue("enginePresetsJson", EnginePresets.serializeList(app.enginePresets))
+    settings.setValue("defaultEngineId", app.defaultEngineId)
+    settings.setValue("activeEngineId", app.activeEngineId)
+    settings.setValue("engineStartupMode", app.engineStartupMode)
     settings.setValue("engineCommand", engineController ? engineController.command : app.persistedEngineCommand)
-    settings.setValue("go5EngineCommand", app.go5EngineCommand)
-    settings.setValue("go7EngineCommand", app.go7EngineCommand)
-    settings.setValue("six11EngineCommand", app.six11EngineCommand)
-    settings.setValue("six13EngineCommand", app.six13EngineCommand)
     settings.setValue("legacyHexEngineCoordinates", app.legacyHexEngineCoordinates)
     settings.setValue("analysisIntervalCentiseconds", app.analysisIntervalCentiseconds)
     settings.setValue("maxAnalysisSeconds", app.maxAnalysisSeconds)
@@ -222,7 +231,6 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("resignMinMove", app.resignMinMove)
     settings.setValue("resignConsecutiveMoves", app.resignConsecutiveMoves)
     settings.setValue("resignWinrateThreshold", app.resignWinrateThreshold)
-    settings.sync()
 }
 
 function resetBoardVisualSettings(app) {

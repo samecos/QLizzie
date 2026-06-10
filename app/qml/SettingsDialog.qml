@@ -9,7 +9,6 @@ Basic.Dialog {
     required property var app
     required property var controller
     property int currentPage: 0
-    property bool syncingEngineCommand: false
 
     modal: true
     title: app.trText("settingsDialogTitle")
@@ -21,7 +20,7 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     function openPage(pageIndex) {
-        currentPage = app.clamp(Math.round(pageIndex), 0, 2)
+        currentPage = app.clamp(Math.round(pageIndex), 0, 3)
         syncFields()
         open()
     }
@@ -33,21 +32,11 @@ Basic.Dialog {
         boardColorField.text = colorToText(app.boardWoodColor)
         candidateFirstTextColorField.text = colorToText(app.candidateFirstLabelTextColor)
         candidateTextColorField.text = colorToText(app.candidateLabelTextColor)
-        syncingEngineCommand = true
-        engineCommandEdit.text = controller ? controller.command : ""
-        syncingEngineCommand = false
     }
 
     function chooseBoardPreset(size) {
         boardXSpin.value = size
         boardYSpin.value = size
-    }
-
-    function applyEngineCommand() {
-        if (!app.engineCommandEditable())
-            return
-        if (controller && controller.command !== engineCommandEdit.text)
-            controller.command = engineCommandEdit.text
     }
 
     function colorToText(colorValue) {
@@ -66,7 +55,6 @@ Basic.Dialog {
 
     onOpened: syncFields()
     onClosed: {
-        applyEngineCommand()
         app.requestBoardDimensionsChange(boardXSpin.value, boardYSpin.value)
         app.onSettingsDialogClosed()
         app.focusBoardInput()
@@ -132,8 +120,9 @@ Basic.Dialog {
                 spacing: 8
 
                 PageButton { page: 0; text: app.trText("settingsPageBasic") }
-                PageButton { page: 1; text: app.trText("settingsPageVisual") }
-                PageButton { page: 2; text: app.trText("settingsPageEngine") }
+                PageButton { page: 1; text: app.trText("settingsPageRules") }
+                PageButton { page: 2; text: app.trText("settingsPageVisual") }
+                PageButton { page: 3; text: app.trText("settingsPageEngine") }
                 Item { Layout.fillHeight: true }
             }
         }
@@ -217,63 +206,10 @@ Basic.Dialog {
                     }
                 }
 
-                SectionBox {
-                    visible: settingsDialog.currentPage === 0
-                    title: app.trText("gameKindRuleSettings")
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 10
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: app.trText("gameRule")
-                                color: "#24313a"
-                                Layout.preferredWidth: 88
-                            }
-
-                            GameRuleComboBox {
-                                app: settingsDialog.app
-                                Layout.preferredWidth: 150
-                                implicitHeight: 32
-                            }
-
-                            RuleVariantComboBox {
-                                app: settingsDialog.app
-                                visible: app.ruleVariantComboVisible()
-                                Layout.preferredWidth: 220
-                                implicitHeight: 32
-                            }
-
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            visible: app.komiControlsVisible()
-
-                            Label {
-                                text: app.trText("komi")
-                                color: "#24313a"
-                                Layout.preferredWidth: 88
-                            }
-
-                            SpinBox {
-                                from: -200
-                                to: 200
-                                value: Math.round(app.effectiveKomi() * 2)
-                                editable: true
-                                Layout.preferredWidth: 96
-                                textFromValue: function(value) { return (value / 2).toFixed(1) }
-                                valueFromText: function(text) { return Math.round(Number(text) * 2) }
-                                onValueModified: app.komi = value / 2
-                            }
-                        }
-                    }
+                RuleSettingsPage {
+                    visible: settingsDialog.currentPage === 1
+                    app: settingsDialog.app
+                    Layout.fillWidth: true
                 }
 
                 SectionBox {
@@ -493,7 +429,7 @@ Basic.Dialog {
                 }
 
                 SectionBox {
-                    visible: settingsDialog.currentPage === 1
+                    visible: settingsDialog.currentPage === 2
                     title: app.trText("visualSettings")
 
                     ColumnLayout {
@@ -655,7 +591,7 @@ Basic.Dialog {
                 }
 
                 SectionBox {
-                    visible: settingsDialog.currentPage === 1
+                    visible: settingsDialog.currentPage === 2
                     title: app.trText("candidateLabelSettings")
 
                     ColumnLayout {
@@ -924,12 +860,63 @@ Basic.Dialog {
                 }
 
                 SectionBox {
-                    visible: settingsDialog.currentPage === 2
+                    visible: settingsDialog.currentPage === 3
                     title: app.trText("engine")
 
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 10
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("engineDefaultEngine")
+                                color: "#24313a"
+                                font.bold: true
+                                Layout.preferredWidth: 96
+                            }
+
+                            Basic.ComboBox {
+                                id: defaultEngineCombo
+                                model: app.engineDefaultOptions()
+                                textRole: "label"
+                                valueRole: "id"
+                                currentIndex: app.engineDefaultCurrentIndex()
+                                onActivated: function(index) { app.setDefaultEnginePresetFromIndex(index) }
+                                Layout.fillWidth: true
+                            }
+
+                            SavePromptButton {
+                                text: app.trText("engineSettingsTitle")
+                                Layout.preferredWidth: 112
+                                onClicked: app.openEngineListDialog()
+                            }
+                        }
+
+                        Label {
+                            text: app.trText("engineParameterEditHint")
+                            color: "#647782"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("engineName")
+                                color: "#24313a"
+                                Layout.preferredWidth: 96
+                            }
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset() ? app.defaultEnginePreset().name : app.trText("engineNoDefault")
+                                Layout.fillWidth: true
+                            }
+                        }
 
                         Label {
                             text: app.trText("engineCommand")
@@ -937,22 +924,25 @@ Basic.Dialog {
                             font.bold: true
                         }
 
-                        Basic.TextArea {
-                            id: engineCommandEdit
+                        ReadOnlyArea {
+                            text: app.defaultEnginePreset() ? app.defaultEnginePreset().command : ""
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 82
-                            enabled: app.engineCommandEditable()
-                            wrapMode: TextEdit.WrapAnywhere
-                            selectByMouse: true
-                            color: enabled ? "#13232d" : "#78868d"
-                            onTextChanged: {
-                                if (!settingsDialog.syncingEngineCommand)
-                                    settingsDialog.applyEngineCommand()
+                            Layout.preferredHeight: 72
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label {
+                                text: app.trText("engineInitialCommands")
+                                color: "#24313a"
+                                Layout.preferredWidth: 96
                             }
-                            background: Rectangle {
-                                radius: 5
-                                color: engineCommandEdit.enabled ? "#ffffff" : "#edf2f4"
-                                border.color: engineCommandEdit.activeFocus ? "#2388b8" : "#b7c5cc"
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset() ? String(app.defaultEnginePreset().initialCommands || "") : ""
+                                Layout.fillWidth: true
                             }
                         }
 
@@ -960,17 +950,50 @@ Basic.Dialog {
                             Layout.fillWidth: true
                             spacing: 8
 
-                            CheckBox {
-                                checked: app.legacyHexEngineCoordinates
-                                onToggled: app.legacyHexEngineCoordinates = checked
+                            Label {
+                                text: app.trText("engineRule")
+                                color: "#24313a"
+                                Layout.preferredWidth: 96
+                            }
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset() ? app.enginePresetRuleDetailText(app.defaultEnginePreset()) : ""
+                                Layout.preferredWidth: 128
                             }
 
                             Label {
-                                text: app.trText("legacyHexEngineCoordinates")
+                                text: app.trText("boardSize")
                                 color: "#24313a"
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
                             }
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset() ? app.enginePresetBoardSizeText(app.defaultEnginePreset()) : ""
+                                Layout.preferredWidth: 88
+                            }
+
+                            Label {
+                                text: app.trText("komi")
+                                color: "#24313a"
+                            }
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset() ? Number(app.defaultEnginePreset().komi).toFixed(1) : ""
+                                Layout.preferredWidth: 72
+                            }
+
+                            Label {
+                                text: app.trText("legacyHexEngineCoordinatesShort")
+                                color: "#24313a"
+                            }
+
+                            ReadOnlyField {
+                                text: app.defaultEnginePreset()
+                                      ? (app.defaultEnginePreset().legacyHexEngineCoordinates ? app.trText("yes") : app.trText("no"))
+                                      : ""
+                                Layout.preferredWidth: 72
+                            }
+
+                            Item { Layout.fillWidth: true }
                         }
 
                         RowLayout {
@@ -1030,6 +1053,31 @@ Basic.Dialog {
                 Layout.preferredWidth: 110
                 onClicked: settingsDialog.close()
             }
+        }
+    }
+
+    component ReadOnlyField: Basic.TextField {
+        readOnly: true
+        selectByMouse: true
+        color: "#667a85"
+
+        background: Rectangle {
+            radius: 4
+            color: "#edf2f4"
+            border.color: "#c3d0d8"
+        }
+    }
+
+    component ReadOnlyArea: Basic.TextArea {
+        readOnly: true
+        selectByMouse: true
+        wrapMode: TextEdit.WrapAnywhere
+        color: "#667a85"
+
+        background: Rectangle {
+            radius: 4
+            color: "#edf2f4"
+            border.color: "#c3d0d8"
         }
     }
 

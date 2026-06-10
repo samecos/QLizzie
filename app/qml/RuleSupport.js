@@ -1,4 +1,5 @@
 .pragma library
+.import "rules/RuleCatalog.js" as RuleCatalog
 
 function gomokuRuleLabel(app, rule) {
     if (rule === app.gomokuRuleStdCon5)
@@ -133,11 +134,30 @@ function ruleModeButtonsVisible(app) {
 }
 
 function ruleVariantComboVisible(app) {
-    return app.gameRuleMode === app.gameRuleGomoku
+    return true
 }
 
 function komiControlsVisible(app) {
     return app.gameRuleMode === app.gameRuleGo && app.packageMode !== app.packageModeSix
+}
+
+function boardPresentationOptions(app) {
+    return RuleCatalog.boardPresentationOptions(app, app.gameRuleMode)
+}
+
+function boardPresentationCurrentIndex(app) {
+    return RuleCatalog.boardPresentationCurrentIndex(app)
+}
+
+function setBoardPresentationFromIndex(app, index) {
+    var options = boardPresentationOptions(app)
+    if (index < 0 || index >= options.length)
+        return
+    app.boardPresentationMode = options[index].value
+}
+
+function boardPresentationText(app, mode) {
+    return RuleCatalog.boardPresentationText(app, mode)
 }
 
 function engineCommandEditable(app) {
@@ -229,6 +249,7 @@ function applyRuleModeChange(app, mode) {
     app.gameRuleMode = mode
     if (mode === app.gameRuleHex)
         app.coordinateDisplayMode = app.coordinateDisplayHex
+    app.boardPresentationMode = RuleCatalog.boardPresentationOptions(app, mode)[0].value
     normalizeGomokuRuleForCurrentMode(app)
     app.clearHover(true)
     app.resetGameTree()
@@ -278,7 +299,6 @@ function setBoardDimensions(app, xSize, ySize, markDirty) {
     app.setSelectedPoint(0, 0)
     if (markDirty !== false)
         app.gameDirty = true
-    app.applyEngineCommandForCurrentPackageMode(false)
     app.resetEngineSyncState()
     app.scheduleAutoAnalysis()
     app.requestAiMoveIfNeeded()

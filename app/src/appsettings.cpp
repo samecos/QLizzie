@@ -3,8 +3,6 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
-#include <QSettings>
-
 namespace {
 
 QString portableRootPath()
@@ -26,25 +24,23 @@ QString portableRootPath()
 AppSettings::AppSettings(QObject *parent)
     : QObject(parent)
     , m_fileName(QDir(portableRootPath()).absoluteFilePath(QStringLiteral("settings.ini")))
+    , m_settings(m_fileName, QSettings::IniFormat)
 {
 }
 
 QVariant AppSettings::value(const QString &key, const QVariant &defaultValue) const
 {
-    QSettings settings(m_fileName, QSettings::IniFormat);
-    return settings.value(key, defaultValue);
+    return m_settings.value(key, defaultValue);
 }
 
 void AppSettings::setValue(const QString &key, const QVariant &value)
 {
-    QSettings settings(m_fileName, QSettings::IniFormat);
-    settings.setValue(key, value);
+    m_settings.setValue(key, value);
 }
 
 void AppSettings::sync()
 {
-    QSettings settings(m_fileName, QSettings::IniFormat);
-    settings.sync();
+    m_settings.sync();
 }
 
 QString AppSettings::fileName() const

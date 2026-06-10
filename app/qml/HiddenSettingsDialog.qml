@@ -8,7 +8,6 @@ Basic.Dialog {
 
     required property var app
     required property var controller
-    property bool syncingFields: false
 
     modal: true
     title: app.trText("hiddenSettingsTitle")
@@ -25,27 +24,11 @@ Basic.Dialog {
     }
 
     function syncFields() {
-        syncingFields = true
         packageModeCombo.currentIndex = app.packageMode
-        go5CommandEdit.text = app.go5EngineCommand
-        go7CommandEdit.text = app.go7EngineCommand
-        six11CommandEdit.text = app.six11EngineCommand
-        six13CommandEdit.text = app.six13EngineCommand
-        syncingFields = false
-    }
-
-    function applyCommands() {
-        if (syncingFields)
-            return
-        app.go5EngineCommand = go5CommandEdit.text
-        app.go7EngineCommand = go7CommandEdit.text
-        app.six11EngineCommand = six11CommandEdit.text
-        app.six13EngineCommand = six13CommandEdit.text
     }
 
     onOpened: syncFields()
     onClosed: {
-        applyCommands()
         app.focusBoardInput()
     }
 
@@ -93,7 +76,7 @@ Basic.Dialog {
 
     contentItem: ColumnLayout {
         implicitWidth: 700
-        implicitHeight: 510
+        implicitHeight: 220
         spacing: 12
 
         Label {
@@ -138,52 +121,7 @@ Basic.Dialog {
             }
         }
 
-        Label {
-            Layout.fillWidth: true
-            text: app.trText("packageEngineCommands")
-            color: "#17212a"
-            font.pixelSize: 15
-            font.bold: true
-        }
-
-        Flickable {
-            id: commandFlick
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            contentWidth: width
-            contentHeight: commandColumn.implicitHeight
-
-            ScrollBar.vertical: AppScrollBar {
-                policy: commandFlick.contentHeight > commandFlick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
-            }
-
-            ColumnLayout {
-                id: commandColumn
-                width: commandFlick.width
-                spacing: 10
-
-                CommandEditor {
-                    id: go5CommandEdit
-                    label: "Go 5x5"
-                }
-
-                CommandEditor {
-                    id: go7CommandEdit
-                    label: "Go 7x7"
-                }
-
-                CommandEditor {
-                    id: six11CommandEdit
-                    label: "Six 11x11"
-                }
-
-                CommandEditor {
-                    id: six13CommandEdit
-                    label: "Six 13x13"
-                }
-            }
-        }
+        Item { Layout.fillHeight: true }
 
         RowLayout {
             Layout.fillWidth: true
@@ -198,38 +136,4 @@ Basic.Dialog {
         }
     }
 
-    component CommandEditor: ColumnLayout {
-        id: commandEditor
-
-        required property string label
-        property alias text: commandTextArea.text
-
-        Layout.fillWidth: true
-        spacing: 4
-
-        Label {
-            text: commandEditor.label
-            color: "#24313a"
-            font.pixelSize: 13
-            font.bold: true
-        }
-
-        Basic.TextArea {
-            id: commandTextArea
-            property alias targetText: commandTextArea.text
-            Layout.fillWidth: true
-            Layout.preferredHeight: 62
-            selectByMouse: true
-            wrapMode: TextEdit.WrapAnywhere
-            font.pixelSize: 12
-            color: "#13232d"
-            onTextChanged: hiddenDialog.applyCommands()
-
-            background: Rectangle {
-                radius: 5
-                color: "#ffffff"
-                border.color: commandTextArea.activeFocus ? "#2388b8" : "#b7c5cc"
-            }
-        }
-    }
 }

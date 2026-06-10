@@ -9,6 +9,7 @@ import "BoardInteraction.js" as BoardInteraction
 import "BoardVisuals.js" as BoardVisuals
 import "CandidateAnalysis.js" as CandidateAnalysis
 import "CoordinateUtils.js" as CoordinateUtils
+import "EnginePresets.js" as EnginePresets
 import "EngineSupport.js" as EngineSupport
 import "GameRules.js" as GameRules
 import "RuleSupport.js" as RuleSupport
@@ -164,17 +165,25 @@ ApplicationWindow {
     readonly property int coordinateDisplayHex: 4
     readonly property int coordinateDisplayNone: 5
     property int coordinateDisplayMode: coordinateDisplayGoNoI
+    readonly property int boardPresentationIntersections: 0
+    property int boardPresentationMode: boardPresentationIntersections
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
     readonly property int packageModeSix: 2
     property int packageMode: packageModeUniversal
     property string defaultGo7EngineCommand: "D:\\katago\\engine2024\\go.exe gtp -config ./engine2024.cfg -model \"D:\\Downloads\\model (68).bin.gz\" -override-config useUncertainty=false"
-    property string go5EngineCommand: defaultGo7EngineCommand
-    property string go7EngineCommand: defaultGo7EngineCommand
-    property string six11EngineCommand: defaultGo7EngineCommand
-    property string six13EngineCommand: defaultGo7EngineCommand
     property string persistedEngineCommand: ""
     property bool legacyHexEngineCoordinates: false
+    property var enginePresets: []
+    property string activeEngineId: ""
+    property string defaultEngineId: ""
+    readonly property int engineStartupDefault: 0
+    readonly property int engineStartupLast: 1
+    readonly property int engineStartupManual: 2
+    readonly property int engineStartupNone: 3
+    property int engineStartupMode: engineStartupDefault
+    property string engineInitialCommandsSentForId: ""
+    property bool enginePresetStartupPromptShown: false
 
     property bool engineAutoAnalyze: true
     property bool enginePaused: false
@@ -275,6 +284,8 @@ ApplicationWindow {
 
     onClosing: function(event) {
         savePersistentSettings()
+        if (appSettings)
+            appSettings.sync()
         if (gameDirty && !suppressUnsavedPrompt) {
             event.accepted = false
             unsavedSgfDialog.open()
@@ -309,6 +320,32 @@ ApplicationWindow {
 
     menuBar: MenuBar {
         font.pixelSize: root.compactLayout ? 15 : 17
+
+        delegate: Basic.MenuBarItem {
+            id: menuBarItem
+            readonly property bool engineItem: text === root.engineMenuTitle()
+
+            implicitWidth: engineItem
+                           ? Math.min(root.compactLayout ? 260 : 380,
+                                      Math.max(root.compactLayout ? 180 : 220,
+                                               menuTitleText.implicitWidth + 28))
+                           : menuTitleText.implicitWidth + 24
+            implicitHeight: 34
+
+            contentItem: Text {
+                id: menuTitleText
+                text: menuBarItem.text
+                color: "#102532"
+                font.pixelSize: root.compactLayout ? 15 : 17
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+
+            background: Rectangle {
+                color: menuBarItem.highlighted || menuBarItem.down ? "#d8e9f1" : "transparent"
+            }
+        }
 
         Menu {
             title: root.trText("menuFile")
@@ -379,6 +416,11 @@ ApplicationWindow {
                 onTriggered: settingsDialog.openPage(0)
             }
 
+            Action {
+                text: root.trText("engineListTitle")
+                onTriggered: engineListDialog.openManage()
+            }
+
             Menu {
                 title: root.trText("menuLanguage")
                 Action { text: root.trText("languageChinese"); onTriggered: root.language = "zh" }
@@ -403,6 +445,59 @@ ApplicationWindow {
             Action {
                 text: root.trText("aboutTitle")
                 onTriggered: aboutDialog.open()
+            }
+        }
+
+        Menu {
+            id: engineMenu
+            title: root.engineMenuTitle()
+            font.pixelSize: root.compactLayout ? 14 : 16
+
+            Instantiator {
+                model: Math.min(20, root.enginePresets.length)
+
+                delegate: MenuItem {
+                    text: root.engineMenuPresetText(index)
+                    checkable: true
+                    checked: {
+                        var preset = root.enginePresets[index]
+                        return preset && root.activeEngineId === preset.id
+                    }
+                    onTriggered: {
+                        var preset = root.enginePresets[index]
+                        if (preset)
+                            root.loadEnginePreset(preset.id, false)
+                    }
+                }
+
+                onObjectAdded: function(index, object) {
+                    engineMenu.insertItem(index, object)
+                }
+
+                onObjectRemoved: function(index, object) {
+                    engineMenu.removeItem(object)
+                }
+            }
+
+            MenuSeparator { visible: root.enginePresets.length > 0 }
+
+            Action {
+                text: root.trText("moreEngines")
+                onTriggered: engineListDialog.openManage()
+            }
+
+            MenuSeparator { }
+
+            Action {
+                text: root.trText("engineRestartCurrent")
+                enabled: root.activeEnginePreset() !== null
+                onTriggered: root.restartEngine()
+            }
+
+            Action {
+                text: root.trText("engineCloseCurrent")
+                enabled: !root.engineDisabled
+                onTriggered: root.stopEngine()
             }
         }
     }
@@ -468,6 +563,13 @@ ApplicationWindow {
         }
     }
 
+    Timer {
+        id: startupEngineListTimer
+        interval: 180
+        repeat: false
+        onTriggered: root.showStartupEngineListIfNeeded()
+    }
+
     ListModel {
         id: engineCommunicationLogModel
     }
@@ -475,6 +577,8 @@ ApplicationWindow {
     SettingsDialog { id: settingsDialog; app: root; controller: engineController }
     HiddenSettingsDialog { id: hiddenSettingsDialog; app: root; controller: engineController }
     EngineParametersDialog { id: engineParametersDialog; app: root; controller: engineController }
+    EngineListDialog { id: engineListDialog; app: root; controller: engineController }
+    EngineRuleWarningDialog { id: engineRuleWarningDialog; app: root }
     EngineFailureDialog { id: engineFailureDialog; app: root }
     HelpKeysDialog { id: helpKeysDialog; app: root }
     AboutDialog { id: aboutDialog; app: root }
@@ -1369,6 +1473,22 @@ ApplicationWindow {
         return RuleSupport.packageModeText(root, mode)
     }
 
+    function boardPresentationOptions() {
+        return RuleSupport.boardPresentationOptions(root)
+    }
+
+    function boardPresentationCurrentIndex() {
+        return RuleSupport.boardPresentationCurrentIndex(root)
+    }
+
+    function setBoardPresentationFromIndex(index) {
+        RuleSupport.setBoardPresentationFromIndex(root, index)
+    }
+
+    function boardPresentationText(mode) {
+        return RuleSupport.boardPresentationText(root, mode)
+    }
+
     function packageBoardSizeRejectText(xSize, ySize) {
         return RuleSupport.packageBoardSizeRejectText(root, xSize, ySize)
     }
@@ -1412,6 +1532,304 @@ ApplicationWindow {
     function applyPendingClearAction() {
         RuleSupport.applyPendingClearAction(root, loadSgfDialog)
     }
+
+    function normalizeEnginePreset(preset, index) {
+        return EnginePresets.normalizePreset(root, preset, index || 0)
+    }
+
+    function normalizeEnginePresetList(presets) {
+        return EnginePresets.normalizeList(root, presets)
+    }
+
+    function serializeEnginePresets() {
+        return EnginePresets.serializeList(enginePresets)
+    }
+
+    function enginePresetById(id) {
+        return EnginePresets.findById(enginePresets, id)
+    }
+
+    function activeEnginePreset() {
+        return enginePresetById(activeEngineId)
+    }
+
+    function enginePresetIndexById(id) {
+        return EnginePresets.findIndexById(enginePresets, id)
+    }
+
+    function enginePresetRuleText(preset) {
+        return EnginePresets.ruleText(root, preset)
+    }
+
+    function enginePresetRuleDetailText(preset) {
+        return EnginePresets.ruleDetailText(root, preset)
+    }
+
+    function enginePresetBoardSizeText(preset) {
+        return EnginePresets.boardSizeText(preset)
+    }
+
+    function engineMenuTitle() {
+        var preset = activeEnginePreset()
+        if (!preset || engineDisabled)
+            return trText("engineMenuNoEngine")
+        if (engineLoading || !engineController || !engineController.ready)
+            return "\u23F8 " + preset.name
+        return "\u25B6 " + preset.name
+    }
+
+    function engineMenuPresetText(index) {
+        var preset = index >= 0 && index < enginePresets.length ? enginePresets[index] : null
+        return preset ? "[" + (index + 1) + "] " + preset.name : ""
+    }
+
+    function engineDefaultOptions() {
+        var options = [{ "label": trText("engineNoDefault"), "id": "" }]
+        for (var i = 0; i < enginePresets.length; ++i)
+            options.push({ "label": "[" + (i + 1) + "] " + enginePresets[i].name, "id": enginePresets[i].id })
+        return options
+    }
+
+    function engineDefaultCurrentIndex() {
+        if (defaultEngineId.length <= 0)
+            return 0
+        for (var i = 0; i < enginePresets.length; ++i) {
+            if (enginePresets[i].id === defaultEngineId)
+                return i + 1
+        }
+        return 0
+    }
+
+    function setDefaultEnginePresetFromIndex(index) {
+        var options = engineDefaultOptions()
+        if (index < 0 || index >= options.length)
+            return
+        setDefaultEnginePreset(options[index].id)
+    }
+
+    function defaultEnginePreset() {
+        return enginePresetById(defaultEngineId)
+    }
+
+    function setEnginePresetList(presets) {
+        enginePresets = EnginePresets.normalizeList(root, presets)
+        if (defaultEngineId.length > 0 && !enginePresetById(defaultEngineId))
+            defaultEngineId = ""
+        if (activeEngineId.length > 0 && !enginePresetById(activeEngineId))
+            activeEngineId = ""
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+    }
+
+    function replaceEnginePreset(index, preset) {
+        if (index < 0 || index >= enginePresets.length)
+            return
+        var next = EnginePresets.cloneList(enginePresets)
+        next[index] = EnginePresets.normalizePreset(root, preset, index)
+        setEnginePresetList(next)
+        if (activeEngineId === next[index].id) {
+            komi = Number(next[index].komi)
+            legacyHexEngineCoordinates = next[index].legacyHexEngineCoordinates
+            if (engineController && engineController.command !== next[index].command)
+                engineController.command = next[index].command
+            resetEngineSyncState()
+            scheduleAutoAnalysis()
+        }
+    }
+
+    function addEnginePreset(preset) {
+        var next = EnginePresets.cloneList(enginePresets)
+        next.push(EnginePresets.normalizePreset(root, preset || EnginePresets.newPreset(root), next.length))
+        setEnginePresetList(next)
+        return next.length - 1
+    }
+
+    function removeEnginePreset(index) {
+        if (index < 0 || index >= enginePresets.length)
+            return -1
+        var removedId = enginePresets[index].id
+        var removedDefault = defaultEngineId === removedId
+        var removedActive = activeEngineId === removedId
+        var next = EnginePresets.cloneList(enginePresets)
+        next.splice(index, 1)
+        setEnginePresetList(next)
+        if (removedDefault)
+            defaultEngineId = ""
+        if (removedActive) {
+            activeEngineId = ""
+            stopEngine()
+        }
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+        return Math.min(index, Math.max(0, next.length - 1))
+    }
+
+    function moveEnginePreset(index, delta) {
+        return moveEnginePresetTo(index, index + delta)
+    }
+
+    function moveEnginePresetTo(index, target) {
+        if (index < 0 || target < 0 || index >= enginePresets.length || target >= enginePresets.length)
+            return index
+        if (index === target)
+            return index
+        var next = EnginePresets.cloneList(enginePresets)
+        var item = next.splice(index, 1)[0]
+        next.splice(target, 0, item)
+        setEnginePresetList(next)
+        return target
+    }
+
+    function setDefaultEnginePreset(id) {
+        defaultEngineId = enginePresetById(id) ? String(id) : ""
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+    }
+
+    function setEngineStartupMode(mode) {
+        var nextMode = Math.round(clamp(Number(mode), engineStartupDefault, engineStartupNone))
+        if (engineStartupMode === nextMode)
+            return
+        engineStartupMode = nextMode
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+    }
+
+    function boardTreeEmptyForEngineSwitch() {
+        if (currentNodeId !== 0 || stoneCount !== 0)
+            return false
+        var rootNode = nodeById(0)
+        return !rootNode || !rootNode.children || rootNode.children.length === 0
+    }
+
+    function enginePresetRuleMatchesCurrent(preset) {
+        if (!preset || preset.ruleMode !== gameRuleMode)
+            return false
+        if (preset.ruleMode === gameRuleGomoku && preset.ruleVariant !== gomokuRuleMode)
+            return false
+        return true
+    }
+
+    function applyEnginePresetBoardDefaults(preset) {
+        if (!preset)
+            return
+        gameRuleMode = preset.ruleMode
+        if (preset.ruleMode === gameRuleGomoku)
+            gomokuRuleMode = preset.ruleVariant
+        normalizeGomokuRuleForCurrentMode()
+        boardPresentationMode = preset.boardPresentationMode
+        boardSizeX = preset.boardSizeX
+        boardSizeY = preset.boardSizeY
+        if (preset.ruleMode === gameRuleHex)
+            coordinateDisplayMode = coordinateDisplayHex
+        komi = Number(preset.komi)
+        legacyHexEngineCoordinates = preset.legacyHexEngineCoordinates
+        clearHover(true)
+        resetGameTree()
+        setSelectedPoint(0, 0)
+        gameDirty = false
+    }
+
+    function loadEnginePreset(id, startup) {
+        var preset = enginePresetById(id)
+        if (!preset || !engineController)
+            return false
+
+        var emptyBoard = boardTreeEmptyForEngineSwitch()
+        var mismatchedRule = !emptyBoard && !enginePresetRuleMatchesCurrent(preset)
+        if (emptyBoard)
+            applyEnginePresetBoardDefaults(preset)
+        else {
+            komi = Number(preset.komi)
+            legacyHexEngineCoordinates = preset.legacyHexEngineCoordinates
+        }
+
+        activeEngineId = preset.id
+        engineInitialCommandsSentForId = ""
+        engineDisabled = false
+        engineLoading = true
+        engineNoticeDismissed = false
+        if (engineController.command !== preset.command)
+            engineController.command = preset.command
+        resetEngineSyncState()
+        clearEngineCandidates()
+        if (engineController.running)
+            restartEngine()
+        else
+            startEngine()
+        if (mismatchedRule)
+            engineRuleWarningDialog.openForPreset(preset)
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+        statusMode = "message"
+        statusMessage = trText("engineLoaded") + ": " + preset.name
+        return true
+    }
+
+    function chooseNoEngineFromList() {
+        activeEngineId = ""
+        stopEngine()
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+        focusBoardInput()
+    }
+
+    function showStartupEngineListIfNeeded() {
+        if (enginePresetStartupPromptShown || engineStartupMode === engineStartupNone)
+            return
+        if (engineStartupMode === engineStartupDefault && defaultEngineId.length > 0 && enginePresetById(defaultEngineId))
+            return
+        if (engineStartupMode === engineStartupLast && activeEngineId.length > 0 && enginePresetById(activeEngineId))
+            return
+        enginePresetStartupPromptShown = true
+        engineListDialog.openStartup()
+    }
+
+    function runStartupEnginePolicy() {
+        if (engineStartupMode === engineStartupNone) {
+            engineDisabled = true
+            return
+        }
+        if (engineStartupMode === engineStartupManual) {
+            engineDisabled = true
+            startupEngineListTimer.start()
+            return
+        }
+
+        var startupId = engineStartupMode === engineStartupLast ? activeEngineId : defaultEngineId
+        if (startupId.length > 0 && enginePresetById(startupId)) {
+            loadEnginePreset(startupId, true)
+            return
+        }
+        engineDisabled = true
+        startupEngineListTimer.start()
+    }
+
+    function activeEngineInitialCommands() {
+        var preset = activeEnginePreset()
+        if (!preset)
+            return []
+        var pieces = String(preset.initialCommands || "").split(";")
+        var commands = []
+        for (var i = 0; i < pieces.length; ++i) {
+            var command = pieces[i].trim()
+            if (command.length > 0)
+                commands.push(command)
+        }
+        return commands
+    }
+
+    function sendActiveEngineInitialCommands() {
+        if (!engineController || !engineController.ready || activeEngineId.length <= 0)
+            return
+        if (engineInitialCommandsSentForId === activeEngineId)
+            return
+        engineInitialCommandsSentForId = activeEngineId
+        var commands = activeEngineInitialCommands()
+        for (var i = 0; i < commands.length; ++i)
+            engineController.sendCommand(commands[i])
+    }
+
     function engineRuleCommand() {
         if (gameRuleMode !== gameRuleGomoku)
             return ""
@@ -1597,6 +2015,8 @@ ApplicationWindow {
         engineDisabled = false
         engineLoading = true
         engineNoticeDismissed = false
+        if (!engineController.running)
+            engineInitialCommandsSentForId = ""
         engineController.ensureStarted()
     }
 
@@ -1605,6 +2025,7 @@ ApplicationWindow {
             return
         engineDisabled = true
         engineController.stop()
+        engineInitialCommandsSentForId = ""
         engineLoading = false
         stopAnalysisLimitTimer()
         clearEngineCandidates()
@@ -1617,6 +2038,7 @@ ApplicationWindow {
         engineDisabled = false
         engineLoading = true
         engineNoticeDismissed = false
+        engineInitialCommandsSentForId = ""
         resetEngineSyncState()
         engineController.restart()
     }
@@ -2054,14 +2476,30 @@ ApplicationWindow {
     }
 
     function effectiveKomi() {
-        return gameRuleMode === gameRuleGo ? komi : 0
+        return komi
+    }
+
+    function setKomiValue(value) {
+        var nextKomi = Math.round(Number(value) * 10) / 10
+        if (isNaN(nextKomi))
+            return
+        if (Math.abs(komi - nextKomi) < 0.0001)
+            return
+        komi = nextKomi
+        var presetIndex = enginePresetIndexById(activeEngineId)
+        if (presetIndex >= 0) {
+            var next = EnginePresets.cloneList(enginePresets)
+            next[presetIndex].komi = komi
+            enginePresets = next
+            if (persistentSettingsLoaded)
+                savePersistentSettings()
+        }
+        resetEngineSyncState()
+        scheduleAutoAnalysis()
     }
 
     function adjustKomi(delta) {
-        if (gameRuleMode !== gameRuleGo)
-            return
-        komi = Math.round((komi + delta) * 10) / 10
-        scheduleAutoAnalysis()
+        setKomiValue(komi + delta)
     }
 
     function buildGomokuWinLineItems(map) {
@@ -2166,6 +2604,10 @@ ApplicationWindow {
         engineCommunicationWindow.openWindow()
     }
 
+    function openEngineListDialog() {
+        engineListDialog.openManage()
+    }
+
     function openSaveSgfDialog() {
         saveSgfDialog.currentFile = "qlizzie-" + boardDimensionsText() + ".sgf"
         saveSgfDialog.open()
@@ -2253,14 +2695,6 @@ ApplicationWindow {
         EngineSupport.applyPackageModeConstraints(root, restartIfChanged, engineController)
     }
 
-    function packageEngineCommandForCurrentBoard() {
-        return EngineSupport.packageEngineCommandForCurrentBoard(root)
-    }
-
-    function applyEngineCommandForCurrentPackageMode(restartIfChanged) {
-        EngineSupport.applyEngineCommandForCurrentPackageMode(root, restartIfChanged, engineController)
-    }
-
     function applyUniversalEngineCommand(restartIfChanged) {
         EngineSupport.applyUniversalEngineCommand(root, restartIfChanged, engineController)
     }
@@ -2272,6 +2706,7 @@ ApplicationWindow {
             initialSetupDialog.close()
         if (openTutorial)
             openBeginnerTutorial()
+        runStartupEnginePolicy()
         focusBoardInput()
     }
 
@@ -2307,7 +2742,16 @@ ApplicationWindow {
         }
 
         function onCommandChanged() {
-            if (root.packageMode === root.packageModeUniversal) {
+            var presetIndex = root.enginePresetIndexById(root.activeEngineId)
+            if (presetIndex >= 0) {
+                var next = EnginePresets.cloneList(root.enginePresets)
+                if (next[presetIndex].command !== engineController.command) {
+                    next[presetIndex].command = engineController.command
+                    root.enginePresets = next
+                }
+                if (root.persistentSettingsLoaded)
+                    root.savePersistentSettings()
+            } else if (root.packageMode === root.packageModeUniversal) {
                 root.persistedEngineCommand = engineController.command
                 if (root.persistentSettingsLoaded)
                     root.savePersistentSettings()
@@ -2322,6 +2766,7 @@ ApplicationWindow {
         function onReadyChanged() {
             if (engineController.ready) {
                 root.engineLoading = false
+                root.sendActiveEngineInitialCommands()
                 root.scheduleAutoAnalysis()
                 root.requestAiMoveIfNeeded()
             }
@@ -2352,10 +2797,6 @@ ApplicationWindow {
     Component.onCompleted: {
         loadPersistentSettings()
         normalizePersistentSettings()
-        if (packageMode === packageModeUniversal && persistedEngineCommand.length > 0)
-            engineController.command = persistedEngineCommand
-        else
-            applyEngineCommandForCurrentPackageMode(false)
         persistentSettingsLoaded = true
         if (settingsMigrated)
             savePersistentSettings()
@@ -2364,7 +2805,10 @@ ApplicationWindow {
         appReady = true
         if (!firstLaunchCompleted)
             firstLaunchTimer.start()
-        startEngine()
+        if (firstLaunchCompleted)
+            runStartupEnginePolicy()
+        else
+            engineDisabled = true
         scheduleAutoAnalysis()
     }
 

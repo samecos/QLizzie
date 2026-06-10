@@ -43,10 +43,13 @@ qt_add_qml_module(qlizzie
         qml/CommandToolbar.qml
         qml/ConfirmDeleteNodeDialog.qml
         qml/CoordinateUtils.js
+        qml/EnginePresets.js
+        qml/EngineListDialog.qml
         qml/EngineSupport.js
         qml/EngineCommunicationWindow.qml
         qml/EngineFailureDialog.qml
         qml/EngineParametersDialog.qml
+        qml/EngineRuleWarningDialog.qml
         qml/BeginnerTutorialDialog.qml
         qml/GameOverDialog.qml
         qml/GameRuleComboBox.qml
@@ -58,6 +61,7 @@ qt_add_qml_module(qlizzie
         qml/Main.qml
         qml/RuleSupport.js
         qml/RuleChangeSaveDialog.qml
+        qml/RuleSettingsPage.qml
         qml/RuleVariantComboBox.qml
         qml/SavePromptButton.qml
         qml/SettingsDialog.qml
@@ -67,6 +71,7 @@ qt_add_qml_module(qlizzie
         qml/Translations.js
         qml/TreeLayout.js
         qml/UnsavedSgfDialog.qml
+        qml/rules/RuleCatalog.js
 )
 
 qt_add_resources(qlizzie qlizzie_icons

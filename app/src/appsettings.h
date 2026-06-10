@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QSettings>
 #include <QString>
 #include <QVariant>
 
@@ -18,4 +19,5 @@ public:
 
 private:
     QString m_fileName;
+    mutable QSettings m_settings;
 };
