@@ -21,7 +21,7 @@ Rectangle {
         spacing: app.compactLayout ? 7 : 11
 
         Label {
-            visible: app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1
+            visible: app.boardPresentationOptions().length > 1
             text: app.trText("boardPresentation")
             color: "#26333b"
             font.pixelSize: app.compactLayout ? 13 : 15
@@ -30,7 +30,7 @@ Rectangle {
 
         ToolbarPresentationCombo {
             app: toolbar.app
-            visible: app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1
+            visible: app.boardPresentationOptions().length > 1
             options: app.boardPresentationOptions()
             currentIndex: app.boardPresentationCurrentIndex()
             Layout.preferredWidth: app.compactLayout ? 134 : 178
@@ -42,7 +42,7 @@ Rectangle {
         }
 
         Label {
-            visible: app.gameRuleMode === app.gameRuleHex
+            visible: app.hexBoardStyleOptions().length > 1
             text: app.trText("hexBoardStyle")
             color: "#26333b"
             font.pixelSize: app.compactLayout ? 13 : 15
@@ -51,7 +51,7 @@ Rectangle {
 
         ToolbarPresentationCombo {
             app: toolbar.app
-            visible: app.gameRuleMode === app.gameRuleHex
+            visible: app.hexBoardStyleOptions().length > 1
             options: app.hexBoardStyleOptions()
             currentIndex: app.hexBoardStyleCurrentIndex()
             Layout.preferredWidth: app.compactLayout ? 116 : 150
@@ -63,7 +63,7 @@ Rectangle {
         }
 
         Label {
-            visible: app.gameRuleMode === app.gameRuleHex
+            visible: app.hexBoardRotationOptions().length > 1
             text: app.trText("hexBoardRotation")
             color: "#26333b"
             font.pixelSize: app.compactLayout ? 13 : 15
@@ -72,7 +72,7 @@ Rectangle {
 
         ToolbarPresentationCombo {
             app: toolbar.app
-            visible: app.gameRuleMode === app.gameRuleHex
+            visible: app.hexBoardRotationOptions().length > 1
             options: app.hexBoardRotationOptions()
             currentIndex: app.hexBoardRotationCurrentIndex()
             Layout.preferredWidth: app.compactLayout ? 132 : 178
@@ -85,8 +85,9 @@ Rectangle {
 
         Rectangle {
             visible: app.komiControlsVisible()
-                     || (app.gameRuleMode !== app.gameRuleHex && app.boardPresentationOptions().length > 1)
-                     || app.gameRuleMode === app.gameRuleHex
+                     || app.boardPresentationOptions().length > 1
+                     || app.hexBoardStyleOptions().length > 1
+                     || app.hexBoardRotationOptions().length > 1
             Layout.preferredWidth: 1
             Layout.fillHeight: true
             Layout.topMargin: 7
@@ -97,7 +98,7 @@ Rectangle {
         Label {
             visible: app.komiControlsVisible()
             text: app.trText("komi")
-            color: app.gameRuleMode === app.gameRuleGo ? "#26333b" : "#7f8b92"
+            color: app.ruleUsesGoCapture() ? "#26333b" : "#7f8b92"
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -105,16 +106,16 @@ Rectangle {
         Basic.TextField {
             id: komiField
             visible: app.komiControlsVisible()
-            enabled: app.gameRuleMode === app.gameRuleGo
+            enabled: app.ruleUsesGoCapture()
             text: Number(app.effectiveKomi()).toFixed(1)
             selectByMouse: true
             validator: DoubleValidator {
-                bottom: -99
-                top: 99
+                bottom: -app.maxKomiMagnitude
+                top: app.maxKomiMagnitude
                 decimals: 2
                 notation: DoubleValidator.StandardNotation
             }
-            Layout.preferredWidth: app.compactLayout ? 48 : 54
+            Layout.preferredWidth: app.compactLayout ? 72 : 82
             implicitHeight: app.compactLayout ? 28 : 32
             leftPadding: 3
             rightPadding: 3
@@ -137,7 +138,7 @@ Rectangle {
             function applyValue() {
                 var nextValue = Number(text)
                 if (!isNaN(nextValue))
-                    app.komi = Math.round(nextValue * 10) / 10
+                    app.setKomiValue(nextValue)
                 text = Number(app.effectiveKomi()).toFixed(1)
             }
 
@@ -174,13 +175,13 @@ Rectangle {
 
             StepButton {
                 text: "^"
-                enabled: app.gameRuleMode === app.gameRuleGo
+                enabled: app.ruleUsesGoCapture()
                 onClicked: app.adjustKomi(0.5)
             }
 
             StepButton {
                 text: "v"
-                enabled: app.gameRuleMode === app.gameRuleGo
+                enabled: app.ruleUsesGoCapture()
                 onClicked: app.adjustKomi(-0.5)
             }
         }
@@ -427,7 +428,7 @@ Rectangle {
             anchors.fill: parent
             hoverEnabled: true
             onClicked: {
-                app.stoneColorMode = colorButton.mode
+                app.setStoneColorMode(colorButton.mode)
                 app.focusBoardInput()
             }
         }

@@ -45,7 +45,7 @@ Basic.Dialog {
         } else if (app.pendingClearAction === "boardSize") {
             close()
         } else {
-            errorText = app.packageBoardSizeRejectText(xSize, ySize)
+            errorText = app.ruleBoardSizeRejectText(app.gameRuleMode, xSize, ySize)
         }
     }
 

@@ -18,11 +18,24 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     function openForPreset(preset) {
+        title = app.trText("engineRuleMismatchTitle")
         messageText = app.trText("engineRuleMismatchBody")
                       + "\n\n"
                       + app.trText("currentRule") + ": " + app.gameRuleText()
                       + "\n"
                       + app.trText("enginePresetRule") + ": " + app.enginePresetRuleDetailText(preset)
+        open()
+    }
+
+    function openForSgf(gameId, expectedGameId) {
+        title = app.trText("sgfGameTypeMismatchTitle")
+        messageText = app.trText("sgfGameTypeMismatchBody")
+                      + "\n\n"
+                      + app.trText("currentRule") + ": " + app.gameRuleText()
+                      + "\n"
+                      + app.trText("sgfGameTypeField") + ": GM[" + gameId + "]"
+                      + "\n"
+                      + app.trText("expectedGameType") + ": GM[" + expectedGameId + "]"
         open()
     }
 
@@ -77,7 +90,10 @@ Basic.Dialog {
                 text: app.trText("confirm")
                 primary: true
                 Layout.preferredWidth: 100
-                onClicked: warningDialog.close()
+                onClicked: {
+                    warningDialog.close()
+                    app.focusBoardInput()
+                }
             }
         }
     }

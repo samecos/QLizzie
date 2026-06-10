@@ -17,7 +17,6 @@ Basic.Dialog {
     property bool listTooltipReady: false
     property real listTooltipX: 0
     property real listTooltipY: 0
-    readonly property real defaultColumnWidth: startupMode ? 0 : 58
     readonly property real legacyHexColumnWidth: startupMode ? 0 : 82
 
     modal: true
@@ -66,7 +65,12 @@ Basic.Dialog {
             return app.gomokuRuleOptions()
         if (ruleMode === app.gameRuleGo)
             return app.goRuleOptions()
-        return [{ "label": app.trText("gameRuleHex"), "value": -1, "tip": app.trText("gameRuleHexTip") }]
+        var options = app.gameRuleOptions()
+        for (var i = 0; i < options.length; ++i) {
+            if (options[i].value === ruleMode)
+                return [{ "label": options[i].label, "value": -1, "tip": options[i].tip }]
+        }
+        return [{ "label": app.trText("gameRule"), "value": -1, "tip": "" }]
     }
 
     function currentEditorRuleMode() {
@@ -87,7 +91,6 @@ Basic.Dialog {
         heightSpin.value = hasPreset ? preset.boardSizeY : app.defaultBoardSize
         komiSpin.value = hasPreset ? Math.round(Number(preset.komi) * 2) : 13
         legacyHexCheck.checked = hasPreset && preset.legacyHexEngineCoordinates === true
-        defaultCheck.checked = hasPreset && app.defaultEngineId === preset.id
 
         var ruleOptions = app.gameRuleOptions()
         var ruleIndex = 0
@@ -135,10 +138,6 @@ Basic.Dialog {
             return
         var preset = collectPreset()
         app.replaceEnginePreset(selectedIndex, preset)
-        if (defaultCheck.checked)
-            app.setDefaultEnginePreset(preset.id)
-        else if (app.defaultEngineId === preset.id)
-            app.setDefaultEnginePreset("")
         syncEditor()
     }
 
@@ -270,7 +269,7 @@ Basic.Dialog {
         Rectangle {
             visible: !engineListDialog.startupMode
             Layout.fillWidth: true
-            Layout.preferredHeight: 386
+            Layout.preferredHeight: 440
             color: "#f6fafc"
 
             ColumnLayout {
@@ -341,12 +340,6 @@ Basic.Dialog {
                     Layout.fillWidth: true
                     spacing: 10
 
-                    CheckBox {
-                        id: defaultCheck
-                        enabled: engineListDialog.selectedPreset() !== null
-                        text: app.trText("engineDefault")
-                    }
-
                     Label { text: app.trText("engineWidthShort"); color: "#52636d" }
                     SpinBox {
                         id: widthSpin
@@ -370,11 +363,11 @@ Basic.Dialog {
                     Label { text: app.trText("komi"); color: "#52636d" }
                     SpinBox {
                         id: komiSpin
-                        from: -200
-                        to: 200
+                        from: -Math.round(app.maxKomiMagnitude * 2)
+                        to: Math.round(app.maxKomiMagnitude * 2)
                         editable: true
                         enabled: engineListDialog.selectedPreset() !== null
-                        Layout.preferredWidth: 78
+                        Layout.preferredWidth: 116
                         textFromValue: function(value) { return (value / 2).toFixed(1) }
                         valueFromText: function(text) { return Math.round(Number(text) * 2) }
                     }
@@ -397,7 +390,8 @@ Basic.Dialog {
                         id: ruleCombo
                         model: app.gameRuleOptions()
                         enabled: engineListDialog.selectedPreset() !== null
-                        Layout.preferredWidth: 150
+                        Layout.preferredWidth: 250
+                        Layout.minimumWidth: 220
                         onActivated: {
                             if (!engineListDialog.syncingEditor)
                                 variantCombo.currentIndex = 0
@@ -412,7 +406,8 @@ Basic.Dialog {
                         id: variantCombo
                         model: engineListDialog.variantOptionsForRule(engineListDialog.currentEditorRuleMode())
                         enabled: engineListDialog.selectedPreset() !== null
-                        Layout.preferredWidth: 190
+                        Layout.preferredWidth: 300
+                        Layout.minimumWidth: 240
                     }
 
                     Item { Layout.fillWidth: true }
@@ -434,6 +429,27 @@ Basic.Dialog {
                     CompactButton { text: app.trText("newEngine"); onClicked: engineListDialog.createPreset() }
                     CompactButton { text: app.trText("delete"); enabled: engineListDialog.selectedPreset() !== null; onClicked: engineListDialog.deleteSelected() }
                     CompactButton { text: app.trText("save"); enabled: engineListDialog.selectedPreset() !== null; primary: true; onClicked: engineListDialog.saveSelected() }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Label {
+                        text: app.trText("engineDefaultEngine")
+                        color: "#24313a"
+                    }
+
+                    StyledComboBox {
+                        id: defaultEngineCombo
+                        model: app.engineDefaultOptions()
+                        currentIndex: app.engineDefaultCurrentIndex()
+                        Layout.preferredWidth: 280
+                        Layout.minimumWidth: 220
+                        onActivated: function(index) { app.setDefaultEnginePresetFromIndex(index) }
+                    }
+
+                    Item { Layout.fillWidth: true }
                 }
 
                 RowLayout {
@@ -507,12 +523,6 @@ Basic.Dialog {
                         HeaderCell { text: app.trText("komi"); widthValue: 58; alignCenter: true }
                         HeaderCell {
                             visible: !engineListDialog.startupMode
-                            text: app.trText("engineDefault")
-                            widthValue: engineListDialog.defaultColumnWidth
-                            alignCenter: true
-                        }
-                        HeaderCell {
-                            visible: !engineListDialog.startupMode
                             text: app.trText("legacyHexEngineCoordinatesShort")
                             widthValue: engineListDialog.legacyHexColumnWidth
                             alignCenter: true
@@ -541,7 +551,6 @@ Basic.Dialog {
                         readonly property real nameColumnStart: 52
                         readonly property real nameColumnEnd: 252
                         readonly property real trailingColumnsWidth: 252
-                                                                    + engineListDialog.defaultColumnWidth
                                                                     + engineListDialog.legacyHexColumnWidth
                         readonly property real commandColumnStart: nameColumnEnd
                         readonly property real commandColumnEnd: Math.max(commandColumnStart, width - trailingColumnsWidth)
@@ -585,13 +594,6 @@ Basic.Dialog {
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeX) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeY) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? Number(rowItem.preset.komi).toFixed(1) : ""; widthValue: 58; alignCenter: true; selected: rowItem.selected }
-                            DataCell {
-                                visible: !engineListDialog.startupMode
-                                text: rowItem.preset && app.defaultEngineId === rowItem.preset.id ? app.trText("yes") : app.trText("no")
-                                widthValue: engineListDialog.defaultColumnWidth
-                                alignCenter: true
-                                selected: rowItem.selected
-                            }
                             DataCell {
                                 visible: !engineListDialog.startupMode
                                 text: rowItem.preset && rowItem.preset.legacyHexEngineCoordinates ? app.trText("yes") : app.trText("no")

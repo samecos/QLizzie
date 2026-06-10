@@ -12,10 +12,11 @@ function normalizeColorHex(value, fallback) {
 function normalizePersistentSettings(app) {
     app.boardSizeX = Math.round(app.clamp(app.boardSizeX, app.minBoardSize, app.maxBoardSize))
     app.boardSizeY = Math.round(app.clamp(app.boardSizeY, app.minBoardSize, app.maxBoardSize))
-    if (app.gameRuleMode !== app.gameRuleGo
-            && app.gameRuleMode !== app.gameRuleGomoku
-            && app.gameRuleMode !== app.gameRuleHex)
+    if (!app.validRuleMode(app.gameRuleMode))
         app.gameRuleMode = app.gameRuleGo
+    var adjustedRuleSize = app.adjustedBoardDimensionsForRule(app.gameRuleMode, app.boardSizeX, app.boardSizeY)
+    app.boardSizeX = adjustedRuleSize.x
+    app.boardSizeY = adjustedRuleSize.y
     app.ruleVisibilityMap = normalizeRuleVisibilityMap(app, app.ruleVisibilityMap)
     app.gomokuRuleMode = Math.round(app.clamp(app.gomokuRuleMode, app.gomokuRuleCon5, app.gomokuRuleDirectCon5))
     if (app.stoneColorMode !== app.stoneColorModeAuto
@@ -46,7 +47,7 @@ function normalizePersistentSettings(app) {
         hexRotation = app.hexRotationCurrent
     app.hexBoardRotation = Math.round(app.clamp(hexRotation,
                                                 app.hexRotationCurrent,
-                                                app.hexRotationFlipXTranspose))
+                                                app.hexRotationMirrorTranspose))
     app.packageMode = Math.round(app.clamp(app.packageMode, app.packageModeUniversal, app.packageModeSix))
     app.enginePresets = EnginePresets.normalizeList(app, app.enginePresets)
     app.engineStartupMode = Math.round(app.clamp(Number(app.engineStartupMode),
@@ -159,7 +160,7 @@ function loadPersistentSettings(app, settings) {
                 parseJsonObject(settingValue(settings, "ruleVisibilityJson", "{}"), app.ruleVisibilityMap))
     app.gomokuRuleMode = Number(settingValue(settings, "gomokuRuleMode", app.gomokuRuleMode))
     app.stoneColorMode = Number(settingValue(settings, "stoneColorMode", app.stoneColorMode))
-    app.komi = Number(settingValue(settings, "komi", app.komi))
+    app.komi = app.clampKomiValue(settingValue(settings, "komi", app.komi))
     app.moveNumberDisplayMode = Number(settingValue(settings, "moveNumberDisplayMode", app.moveNumberDisplayMode))
     app.coordinateDisplayMode = Number(settingValue(settings, "coordinateDisplayMode", app.coordinateDisplayMode))
     app.boardPresentationMode = Number(settingValue(settings, "boardPresentationMode", app.boardPresentationMode))

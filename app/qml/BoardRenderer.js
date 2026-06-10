@@ -12,6 +12,15 @@ function stateFromApp(app, overrides) {
         "gameRuleGo": app.gameRuleGo,
         "gameRuleGomoku": app.gameRuleGomoku,
         "gameRuleHex": app.gameRuleHex,
+        "gameRuleHexGoParallelogram": app.gameRuleHexGoParallelogram,
+        "gameRuleHexGoHexagon": app.gameRuleHexGoHexagon,
+        "gameRuleHexGoTriangle": app.gameRuleHexGoTriangle,
+        "gameRuleReversi": app.gameRuleReversi,
+        "gameRuleAtaxx": app.gameRuleAtaxx,
+        "gameRuleBreakthrough": app.gameRuleBreakthrough,
+        "hexGridBoard": app.ruleUsesHexGrid(),
+        "squareCellBoard": app.ruleUsesSquareCells(),
+        "hexCellStyleActive": app.ruleUsesHexCellStyle(),
         "boardPresentationMode": app.boardPresentationMode,
         "boardPresentationCells": app.boardPresentationCells,
         "hexBoardStyle": app.hexBoardStyle,
@@ -20,6 +29,12 @@ function stateFromApp(app, overrides) {
         "hexRotationTranspose": app.hexRotationTranspose,
         "hexRotationFlipX": app.hexRotationFlipX,
         "hexRotationFlipXTranspose": app.hexRotationFlipXTranspose,
+        "hexRotationHorizontal": app.hexRotationHorizontal,
+        "hexRotationHorizontalTranspose": app.hexRotationHorizontalTranspose,
+        "hexRotationVertical": app.hexRotationVertical,
+        "hexRotationVerticalTranspose": app.hexRotationVerticalTranspose,
+        "hexRotationMirror": app.hexRotationMirror,
+        "hexRotationMirrorTranspose": app.hexRotationMirrorTranspose,
         "coordinateDisplayMode": app.coordinateDisplayMode,
         "coordinateDisplayNone": app.coordinateDisplayNone,
         "stoneScale": app.stoneScale,
@@ -35,26 +50,109 @@ function stateFromApp(app, overrides) {
 }
 
 function hexBoard(state) {
-    return state.gameRuleMode === state.gameRuleHex
+    return state.hexGridBoard === true || state.gameRuleMode === state.gameRuleHex
 }
 
 function squareCellBoard(state) {
-    return state.gameRuleMode === state.gameRuleGomoku
-           && state.boardPresentationMode === state.boardPresentationCells
+    return state.squareCellBoard === true
+           || (state.gameRuleMode === state.gameRuleGomoku
+               && state.boardPresentationMode === state.boardPresentationCells)
 }
 
 function hexCellStyle(state) {
-    return hexBoard(state) && state.hexBoardStyle === state.hexBoardStyleCells
+    return state.hexCellStyleActive === true
+           || (state.gameRuleMode === state.gameRuleHex && state.hexBoardStyle === state.hexBoardStyleCells)
 }
 
 function hexTransposed(state) {
     return state.hexBoardRotation === state.hexRotationTranspose
            || state.hexBoardRotation === state.hexRotationFlipXTranspose
+           || state.hexBoardRotation === state.hexRotationHorizontalTranspose
+           || state.hexBoardRotation === state.hexRotationVerticalTranspose
+           || state.hexBoardRotation === state.hexRotationMirrorTranspose
 }
 
 function hexFlippedX(state) {
     return state.hexBoardRotation === state.hexRotationFlipX
            || state.hexBoardRotation === state.hexRotationFlipXTranspose
+           || state.hexBoardRotation === state.hexRotationHorizontal
+           || state.hexBoardRotation === state.hexRotationHorizontalTranspose
+}
+
+function hexFlippedY(state) {
+    return state.hexBoardRotation === state.hexRotationMirror
+           || state.hexBoardRotation === state.hexRotationMirrorTranspose
+           || state.hexBoardRotation === state.hexRotationVertical
+           || state.hexBoardRotation === state.hexRotationVerticalTranspose
+}
+
+function hexHorizontalOrientation(state) {
+    return state.hexBoardRotation === state.hexRotationHorizontal
+           || state.hexBoardRotation === state.hexRotationHorizontalTranspose
+}
+
+function hexVerticalOrientation(state) {
+    return state.hexBoardRotation === state.hexRotationVertical
+           || state.hexBoardRotation === state.hexRotationVerticalTranspose
+}
+
+function pointInRuleBoard(state, x, y) {
+    if (x < 0 || x >= state.boardSizeX || y < 0 || y >= state.boardSizeY)
+        return false
+    if (state.gameRuleMode === state.gameRuleHexGoHexagon) {
+        if (state.boardSizeX !== state.boardSizeY || state.boardSizeX % 2 === 0)
+            return false
+        var half = Math.floor(state.boardSizeX / 2)
+        return x + y >= half
+               && (state.boardSizeX - x - 1) + (state.boardSizeY - y - 1) >= half
+    }
+    if (state.gameRuleMode === state.gameRuleHexGoTriangle) {
+        if (state.boardSizeX !== state.boardSizeY)
+            return false
+        return x + y >= state.boardSizeX - 1
+    }
+    return true
+}
+
+function validXRangeForRow(state, y) {
+    if (y < 0 || y >= state.boardSizeY || state.boardSizeX <= 0)
+        return null
+    var minX = 0
+    var maxX = state.boardSizeX - 1
+    if (state.gameRuleMode === state.gameRuleHexGoHexagon) {
+        if (state.boardSizeX !== state.boardSizeY || state.boardSizeX % 2 === 0)
+            return null
+        var half = Math.floor(state.boardSizeX / 2)
+        minX = Math.max(minX, half - y)
+        maxX = Math.min(maxX, (state.boardSizeX - 1) + (state.boardSizeY - 1) - y - half)
+    } else if (state.gameRuleMode === state.gameRuleHexGoTriangle) {
+        if (state.boardSizeX !== state.boardSizeY)
+            return null
+        minX = Math.max(minX, state.boardSizeX - 1 - y)
+    }
+    minX = Math.ceil(minX)
+    maxX = Math.floor(maxX)
+    if (minX > maxX)
+        return null
+    return { "min": minX, "max": maxX }
+}
+
+function updateBoundsWithBoardPoint(state, bounds, basisX, basisY, x, y) {
+    var display = hexDisplayCoordForBoard(state, x, y)
+    var unitX = display.x * basisX.x + display.y * basisY.x
+    var unitY = display.x * basisX.y + display.y * basisY.y
+    if (!bounds.valid) {
+        bounds.minX = unitX
+        bounds.maxX = unitX
+        bounds.minY = unitY
+        bounds.maxY = unitY
+        bounds.valid = true
+        return
+    }
+    bounds.minX = Math.min(bounds.minX, unitX)
+    bounds.maxX = Math.max(bounds.maxX, unitX)
+    bounds.minY = Math.min(bounds.minY, unitY)
+    bounds.maxY = Math.max(bounds.maxY, unitY)
 }
 
 function hexDisplaySizeX(state) {
@@ -63,6 +161,59 @@ function hexDisplaySizeX(state) {
 
 function hexDisplaySizeY(state) {
     return hexTransposed(state) ? state.boardSizeX : state.boardSizeY
+}
+
+function hexDisplayTransform(state) {
+    var basisX
+    var basisY
+    if (hexHorizontalOrientation(state)) {
+        basisX = { "x": HEX_ROW_HEIGHT, "y": -0.5 }
+        basisY = { "x": HEX_ROW_HEIGHT, "y": 0.5 }
+    } else if (hexVerticalOrientation(state)) {
+        basisX = { "x": 0.5, "y": HEX_ROW_HEIGHT }
+        basisY = { "x": -0.5, "y": HEX_ROW_HEIGHT }
+    } else {
+        basisX = { "x": hexFlippedX(state) ? -1 : 1, "y": 0 }
+        basisY = {
+            "x": hexFlippedX(state) ? -0.5 : 0.5,
+            "y": hexFlippedY(state) ? -HEX_ROW_HEIGHT : HEX_ROW_HEIGHT
+        }
+    }
+
+    var bounds = { "valid": false, "minX": 0, "maxX": 0, "minY": 0, "maxY": 0 }
+    for (var y = 0; y < state.boardSizeY; ++y) {
+        var range = validXRangeForRow(state, y)
+        if (!range)
+            continue
+        updateBoundsWithBoardPoint(state, bounds, basisX, basisY, range.min, y)
+        if (range.max !== range.min)
+            updateBoundsWithBoardPoint(state, bounds, basisX, basisY, range.max, y)
+    }
+    if (!bounds.valid)
+        updateBoundsWithBoardPoint(state, bounds, basisX, basisY, 0, 0)
+    return {
+        "basisX": basisX,
+        "basisY": basisY,
+        "minX": bounds.minX,
+        "minY": bounds.minY,
+        "width": Math.max(0.0001, bounds.maxX - bounds.minX),
+        "height": Math.max(0.0001, bounds.maxY - bounds.minY)
+    }
+}
+
+function hexDisplayCoordFromUnit(state, unitX, unitY, transformOverride) {
+    var transform = transformOverride || hexDisplayTransform(state)
+    var rawX = unitX + transform.minX
+    var rawY = unitY + transform.minY
+    var bx = transform.basisX
+    var by = transform.basisY
+    var determinant = bx.x * by.y - bx.y * by.x
+    if (Math.abs(determinant) <= 0.000001)
+        return { "x": 0, "y": 0 }
+    return {
+        "x": (rawX * by.y - rawY * by.x) / determinant,
+        "y": (bx.x * rawY - bx.y * rawX) / determinant
+    }
 }
 
 function effectiveCoordinateDisplayMode(state) {
@@ -83,17 +234,16 @@ function yCoordinateText(state, y) {
     return CoordinateUtils.yCoordinateText(y, state.boardSizeX, state.boardSizeY, state.coordinateDisplayMode)
 }
 
-function gridUnitWidth(state) {
+function gridUnitWidth(state, transformOverride) {
     if (hexBoard(state))
-        return Math.max(1, Math.max(0, hexDisplaySizeX(state) - 1)
-                           + Math.max(0, hexDisplaySizeY(state) - 1) * 0.5)
+        return Math.max(1, (transformOverride || hexDisplayTransform(state)).width)
     return squareCellBoard(state) ? Math.max(1, state.boardSizeX)
                                   : Math.max(1, state.boardSizeX - 1)
 }
 
-function gridUnitHeight(state) {
+function gridUnitHeight(state, transformOverride) {
     if (hexBoard(state))
-        return Math.max(1, Math.max(0, hexDisplaySizeY(state) - 1) * HEX_ROW_HEIGHT)
+        return Math.max(1, (transformOverride || hexDisplayTransform(state)).height)
     return squareCellBoard(state) ? Math.max(1, state.boardSizeY)
                                   : Math.max(1, state.boardSizeY - 1)
 }
@@ -104,6 +254,7 @@ function createGeometry(state, width, height, options) {
     var coordinateCharWidthRatio = 0.58
     var coordinateGapRatio = 0.10
     var coordinateOuterGapRatio = 0.10
+    var hexCellCoordinateExtraRatio = hexCellStyle(state) ? 0.35 : 0
     var stoneRadiusRatio = state.stoneScale * 0.5
     var horizontalPointRadiusRatio = hexBoard(state)
             ? (hexCellStyle(state) ? 0.5 : Math.max(stoneRadiusRatio, 0.5))
@@ -122,16 +273,19 @@ function createGeometry(state, width, height, options) {
     var xCoordinateTextWidthRatio = maxXCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     var yCoordinateTextWidthRatio = maxYCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     var horizontalPaddingRatio = visible
-            ? horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio + coordinateOuterGapRatio
+            ? horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio
+              + coordinateOuterGapRatio + hexCellCoordinateExtraRatio
             : horizontalPointRadiusRatio + coordinateOuterGapRatio
     var verticalPaddingRatio = visible
-            ? verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio + coordinateOuterGapRatio
+            ? verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio
+              + coordinateOuterGapRatio + hexCellCoordinateExtraRatio
             : verticalPointRadiusRatio + coordinateOuterGapRatio
     var outerMargin = options && options.outerMargin !== undefined ? options.outerMargin : (state.compactLayout ? 12 : 18)
     var availableWidth = Math.max(1, width - outerMargin * 2)
     var availableHeight = Math.max(1, height - outerMargin * 2)
-    var unitWidth = gridUnitWidth(state)
-    var unitHeight = gridUnitHeight(state)
+    var transform = hexBoard(state) ? hexDisplayTransform(state) : null
+    var unitWidth = gridUnitWidth(state, transform)
+    var unitHeight = gridUnitHeight(state, transform)
     var cellSize = Math.max(0.1, Math.min(
         availableWidth / (unitWidth + horizontalPaddingRatio * 2),
         availableHeight / (unitHeight + verticalPaddingRatio * 2)))
@@ -142,8 +296,10 @@ function createGeometry(state, width, height, options) {
         "height": height,
         "coordinatesVisible": visible,
         "coordinateFontSize": coordinateFontRatio * cellSize,
-        "xCoordinateLabelOffset": (verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize,
-        "yCoordinateLabelOffset": (horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize,
+        "xCoordinateLabelOffset": (verticalPointRadiusRatio + coordinateGapRatio
+                                   + coordinateFontRatio * 0.5 + hexCellCoordinateExtraRatio) * cellSize,
+        "yCoordinateLabelOffset": (horizontalPointRadiusRatio + coordinateGapRatio
+                                   + yCoordinateTextWidthRatio * 0.5 + hexCellCoordinateExtraRatio) * cellSize,
         "boardPaddingX": horizontalPaddingRatio * cellSize,
         "boardPaddingY": verticalPaddingRatio * cellSize,
         "cellSize": cellSize,
@@ -151,6 +307,7 @@ function createGeometry(state, width, height, options) {
         "gridUnitHeight": unitHeight,
         "gridWidth": gridWidth,
         "gridHeight": gridHeight,
+        "hexTransform": transform,
         "boardLeft": Math.round((width - gridWidth) / 2),
         "boardTop": Math.round((height - gridHeight) / 2)
     }
@@ -176,6 +333,7 @@ function geometryFromScene(scene) {
         "gridUnitHeight": scene.gridUnitHeight,
         "gridWidth": scene.gridWidth,
         "gridHeight": scene.gridHeight,
+        "hexTransform": scene.hexDisplayTransform,
         "boardLeft": scene.boardLeft,
         "boardTop": scene.boardTop,
         "boardRight": scene.boardRight,
@@ -190,12 +348,12 @@ function hexDisplayCoordForBoard(state, x, y) {
 }
 
 function hexDisplayPointLocal(state, geometry, x, y) {
-    var unitX = x + y * 0.5
-    if (hexFlippedX(state))
-        unitX = geometry.gridUnitWidth - unitX
+    var transform = geometry.hexTransform || hexDisplayTransform(state)
+    var unitX = x * transform.basisX.x + y * transform.basisY.x - transform.minX
+    var unitY = x * transform.basisX.y + y * transform.basisY.y - transform.minY
     return {
         "x": geometry.boardLeft + unitX * geometry.cellSize,
-        "y": geometry.boardTop + y * HEX_ROW_HEIGHT * geometry.cellSize
+        "y": geometry.boardTop + unitY * geometry.cellSize
     }
 }
 
@@ -215,10 +373,19 @@ function boardPointLocal(state, geometry, x, y) {
     }
 }
 
-function hexCellPath(ctx, cx, cy, radius) {
+function hexCellVertexStartAngle(state) {
+    return hexHorizontalOrientation(state) ? -Math.PI * 2 / 3 : -Math.PI / 2
+}
+
+function hexCellSideCenterAngle(state, side) {
+    return hexCellVertexStartAngle(state) + (side + 0.5) * Math.PI / 3
+}
+
+function hexCellPath(ctx, state, cx, cy, radius) {
     ctx.beginPath()
+    var startAngle = hexCellVertexStartAngle(state)
     for (var i = 0; i < 6; ++i) {
-        var angle = -Math.PI / 2 + i * Math.PI / 3
+        var angle = startAngle + i * Math.PI / 3
         var px = cx + Math.cos(angle) * radius
         var py = cy + Math.sin(angle) * radius
         if (i === 0)
@@ -229,8 +396,8 @@ function hexCellPath(ctx, cx, cy, radius) {
     ctx.closePath()
 }
 
-function hexCellVertex(center, radius, index) {
-    var angle = -Math.PI / 2 + index * Math.PI / 3
+function hexCellVertex(state, center, radius, index) {
+    var angle = hexCellVertexStartAngle(state) + index * Math.PI / 3
     return {
         "x": center.x + Math.cos(angle) * radius,
         "y": center.y + Math.sin(angle) * radius
@@ -238,7 +405,7 @@ function hexCellVertex(center, radius, index) {
 }
 
 function hexCellBoardVertex(state, geometry, x, y, index) {
-    return hexCellVertex(geometry.point(x, y), geometry.cellSize / Math.sqrt(3), index)
+    return hexCellVertex(state, geometry.point(x, y), geometry.cellSize / Math.sqrt(3), index)
 }
 
 function pointDistanceSquared(a, b) {
@@ -255,13 +422,9 @@ function offsetPoint(point, normal, distance) {
 }
 
 function boardCenter(state, geometry) {
-    var p1 = geometry.point(0, 0)
-    var p2 = geometry.point(Math.max(0, state.boardSizeX - 1), 0)
-    var p3 = geometry.point(0, Math.max(0, state.boardSizeY - 1))
-    var p4 = geometry.point(Math.max(0, state.boardSizeX - 1), Math.max(0, state.boardSizeY - 1))
     return {
-        "x": (p1.x + p2.x + p3.x + p4.x) / 4,
-        "y": (p1.y + p2.y + p3.y + p4.y) / 4
+        "x": geometry.boardLeft + geometry.gridWidth / 2,
+        "y": geometry.boardTop + geometry.gridHeight / 2
     }
 }
 
@@ -306,7 +469,7 @@ function sideIndexForNeighbor(state, geometry, x, y, neighborX, neighborY) {
     var bestSide = 0
     var bestDot = -999999
     for (var side = 0; side < 6; ++side) {
-        var angle = -Math.PI / 3 + side * Math.PI / 3
+        var angle = hexCellSideCenterAngle(state, side)
         var dot = vector.x * Math.cos(angle) + vector.y * Math.sin(angle)
         if (dot > bestDot) {
             bestDot = dot
@@ -316,20 +479,12 @@ function sideIndexForNeighbor(state, geometry, x, y, neighborX, neighborY) {
     return bestSide
 }
 
-function hexBoundarySegmentForMissingNeighbor(state, geometry, x, y, neighborX, neighborY, outwardOffset) {
+function hexBoundarySegmentForMissingNeighbor(state, geometry, x, y, neighborX, neighborY) {
     var side = sideIndexForNeighbor(state, geometry, x, y, neighborX, neighborY)
-    var segment = {
+    return {
         "a": hexCellBoardVertex(state, geometry, x, y, side),
         "b": hexCellBoardVertex(state, geometry, x, y, (side + 1) % 6)
     }
-    if (outwardOffset > 0) {
-        var center = geometry.point(x, y)
-        var neighbor = geometry.point(neighborX, neighborY)
-        var normal = normalizedVector(neighbor.x - center.x, neighbor.y - center.y, 0, -1)
-        segment.a = offsetPoint(segment.a, normal, outwardOffset)
-        segment.b = offsetPoint(segment.b, normal, outwardOffset)
-    }
-    return segment
 }
 
 function boundaryChainsFromSegments(segments, snapDistance) {
@@ -421,7 +576,8 @@ function drawHexBoundaryPath(ctx, points, color, cell) {
     ctx.save()
     ctx.globalAlpha = 1
     ctx.lineCap = "round"
-    ctx.lineJoin = "round"
+    ctx.lineJoin = "miter"
+    ctx.miterLimit = 4
     if (color === "#ffffff") {
         ctx.strokeStyle = "#0b3d73"
         ctx.lineWidth = Math.max(4, cell * 0.16)
@@ -439,6 +595,65 @@ function drawHexBoundaryPath(ctx, points, color, cell) {
         ctx.lineTo(points[i].x, points[i].y)
     ctx.stroke()
     ctx.restore()
+}
+
+function lineIntersection(a1, a2, b1, b2) {
+    var rx = a2.x - a1.x
+    var ry = a2.y - a1.y
+    var sx = b2.x - b1.x
+    var sy = b2.y - b1.y
+    var denominator = rx * sy - ry * sx
+    if (Math.abs(denominator) <= 0.000001)
+        return null
+    var qpx = b1.x - a1.x
+    var qpy = b1.y - a1.y
+    var t = (qpx * sy - qpy * sx) / denominator
+    return { "x": a1.x + t * rx, "y": a1.y + t * ry }
+}
+
+function offsetBoundaryPolyline(points, offset, geometry) {
+    if (!points || points.length < 2 || offset <= 0)
+        return points
+    var center = {
+        "x": geometry.boardLeft + geometry.gridWidth / 2,
+        "y": geometry.boardTop + geometry.gridHeight / 2
+    }
+    var normals = []
+    for (var i = 0; i < points.length - 1; ++i) {
+        var a = points[i]
+        var b = points[i + 1]
+        var dx = b.x - a.x
+        var dy = b.y - a.y
+        var normal = normalizedVector(-dy, dx, 0, -1)
+        var mid = { "x": (a.x + b.x) / 2, "y": (a.y + b.y) / 2 }
+        if (normal.x * (mid.x - center.x) + normal.y * (mid.y - center.y) < 0) {
+            normal.x = -normal.x
+            normal.y = -normal.y
+        }
+        normals.push(normal)
+    }
+
+    var result = []
+    result.push(offsetPoint(points[0], normals[0], offset))
+    for (var p = 1; p < points.length - 1; ++p) {
+        var prevNormal = normals[p - 1]
+        var nextNormal = normals[p]
+        var prevA = offsetPoint(points[p - 1], prevNormal, offset)
+        var prevB = offsetPoint(points[p], prevNormal, offset)
+        var nextA = offsetPoint(points[p], nextNormal, offset)
+        var nextB = offsetPoint(points[p + 1], nextNormal, offset)
+        var intersection = lineIntersection(prevA, prevB, nextA, nextB)
+        if (intersection)
+            result.push(intersection)
+        else
+            result.push({ "x": (prevB.x + nextA.x) / 2, "y": (prevB.y + nextA.y) / 2 })
+    }
+    result.push(offsetPoint(points[points.length - 1], normals[normals.length - 1], offset))
+    return result
+}
+
+function drawHexBoundaryPathOffset(ctx, points, color, cell, offset, geometry) {
+    drawHexBoundaryPath(ctx, offsetBoundaryPolyline(points, offset, geometry), color, cell)
 }
 
 function hexBoundaryOuterLineWidth(color, cell) {
@@ -462,17 +677,17 @@ function drawHexCellColoredEdges(ctx, state, geometry) {
     var whiteOffset = hexBoundaryOuterLineWidth("#ffffff", cell) * 0.5
 
     for (var lx = 0; lx < state.boardSizeX; ++lx) {
-        topSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, 0, lx, -1, blackOffset))
-        topSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, 0, lx + 1, -1, blackOffset))
-        bottomSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, maxY, lx - 1, maxY + 1, blackOffset))
-        bottomSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, maxY, lx, maxY + 1, blackOffset))
+        topSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, 0, lx, -1))
+        topSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, 0, lx + 1, -1))
+        bottomSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, maxY, lx - 1, maxY + 1))
+        bottomSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, lx, maxY, lx, maxY + 1))
     }
 
     for (var ly = 0; ly < state.boardSizeY; ++ly) {
-        leftSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, 0, ly, -1, ly, whiteOffset))
-        leftSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, 0, ly, -1, ly + 1, whiteOffset))
-        rightSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, maxX, ly, maxX + 1, ly - 1, whiteOffset))
-        rightSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, maxX, ly, maxX + 1, ly, whiteOffset))
+        leftSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, 0, ly, -1, ly))
+        leftSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, 0, ly, -1, ly + 1))
+        rightSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, maxX, ly, maxX + 1, ly - 1))
+        rightSegments.push(hexBoundarySegmentForMissingNeighbor(state, geometry, maxX, ly, maxX + 1, ly))
     }
 
     var snap = Math.max(1, cell * 0.12)
@@ -481,20 +696,20 @@ function drawHexCellColoredEdges(ctx, state, geometry) {
     var leftChains = boundaryChainsFromSegments(leftSegments, snap)
     var rightChains = boundaryChainsFromSegments(rightSegments, snap)
     for (var top = 0; top < topChains.length; ++top)
-        drawHexBoundaryPath(ctx, topChains[top], "#000000", cell)
+        drawHexBoundaryPathOffset(ctx, topChains[top], "#000000", cell, blackOffset, geometry)
     for (var bottom = 0; bottom < bottomChains.length; ++bottom)
-        drawHexBoundaryPath(ctx, bottomChains[bottom], "#000000", cell)
+        drawHexBoundaryPathOffset(ctx, bottomChains[bottom], "#000000", cell, blackOffset, geometry)
     for (var left = 0; left < leftChains.length; ++left)
-        drawHexBoundaryPath(ctx, leftChains[left], "#ffffff", cell)
+        drawHexBoundaryPathOffset(ctx, leftChains[left], "#ffffff", cell, whiteOffset, geometry)
     for (var right = 0; right < rightChains.length; ++right)
-        drawHexBoundaryPath(ctx, rightChains[right], "#ffffff", cell)
+        drawHexBoundaryPathOffset(ctx, rightChains[right], "#ffffff", cell, whiteOffset, geometry)
 }
 
 function drawStone(ctx, state, geometry, x, y, player, radius) {
     var point = geometry.point(x, y)
     if (hexCellStyle(state)) {
         ctx.save()
-        hexCellPath(ctx, point.x, point.y, geometry.cellSize / Math.sqrt(3))
+        hexCellPath(ctx, state, point.x, point.y, geometry.cellSize / Math.sqrt(3))
         ctx.fillStyle = player === 1 ? "#101418" : "#ffffff"
         ctx.fill()
         ctx.strokeStyle = "#0b3d73"
@@ -544,40 +759,45 @@ function drawGrid(ctx, state, geometry) {
         if (hexCellStyle(state)) {
             for (var cellY = 0; cellY < state.boardSizeY; ++cellY) {
                 for (var cellX = 0; cellX < state.boardSizeX; ++cellX) {
+                    if (!pointInRuleBoard(state, cellX, cellY))
+                        continue
                     var center = geometry.point(cellX, cellY)
-                    hexCellPath(ctx, center.x, center.y, cell / Math.sqrt(3))
+                    hexCellPath(ctx, state, center.x, center.y, cell / Math.sqrt(3))
                     ctx.fillStyle = "#f2cc62"
                     ctx.fill()
                     ctx.stroke()
                 }
             }
-            drawHexCellColoredEdges(ctx, state, geometry)
+            if (state.gameRuleMode === state.gameRuleHex)
+                drawHexCellColoredEdges(ctx, state, geometry)
         } else {
-            for (var hy = 0; hy < hexDisplaySizeY(state); ++hy) {
-                var hStart = geometry.hexDisplayPoint(0, hy)
-                var hEnd = geometry.hexDisplayPoint(hexDisplaySizeX(state) - 1, hy)
-                ctx.beginPath()
-                ctx.moveTo(hStart.x, hStart.y)
-                ctx.lineTo(hEnd.x, hEnd.y)
-                ctx.stroke()
+            var edgeOffsets = [
+                { "dx": 1, "dy": 0 },
+                { "dx": 0, "dy": 1 },
+                { "dx": -1, "dy": 1 }
+            ]
+            for (var hy = 0; hy < state.boardSizeY; ++hy) {
+                for (var hx = 0; hx < state.boardSizeX; ++hx) {
+                    if (!pointInRuleBoard(state, hx, hy))
+                        continue
+                    var start = geometry.point(hx, hy)
+                    for (var edge = 0; edge < edgeOffsets.length; ++edge) {
+                        var offset = edgeOffsets[edge]
+                        var ex = hx + offset.dx
+                        var ey = hy + offset.dy
+                        if (!pointInRuleBoard(state, ex, ey))
+                            continue
+                        var end = geometry.point(ex, ey)
+                        ctx.beginPath()
+                        ctx.moveTo(start.x, start.y)
+                        ctx.lineTo(end.x, end.y)
+                        ctx.stroke()
+                    }
+                }
             }
-            for (var sy = 0; sy < hexDisplaySizeY(state) - 1; ++sy) {
-                for (var sx = 0; sx < hexDisplaySizeX(state); ++sx) {
-                    var downRightStart = geometry.hexDisplayPoint(sx, sy)
-                    var downRightEnd = geometry.hexDisplayPoint(sx, sy + 1)
-                    ctx.beginPath()
-                    ctx.moveTo(downRightStart.x, downRightStart.y)
-                    ctx.lineTo(downRightEnd.x, downRightEnd.y)
-                    ctx.stroke()
-                }
-                for (var dx = 0; dx < hexDisplaySizeX(state) - 1; ++dx) {
-                    var downLeftStart = geometry.hexDisplayPoint(dx + 1, sy)
-                    var downLeftEnd = geometry.hexDisplayPoint(dx, sy + 1)
-                    ctx.beginPath()
-                    ctx.moveTo(downLeftStart.x, downLeftStart.y)
-                    ctx.lineTo(downLeftEnd.x, downLeftEnd.y)
-                    ctx.stroke()
-                }
+            if (state.gameRuleMode !== state.gameRuleHex) {
+                ctx.restore()
+                return
             }
             var blackTop1 = geometry.point(0, 0)
             var blackTop2 = geometry.point(state.boardSizeX - 1, 0)
@@ -649,12 +869,36 @@ function drawStarPoints(ctx, state, geometry) {
     ctx.restore()
 }
 
+function coordinateEdgePointCount(state, edge) {
+    var count = 0
+    var maxX = Math.max(0, state.boardSizeX - 1)
+    var maxY = Math.max(0, state.boardSizeY - 1)
+    if (edge === "top" || edge === "bottom") {
+        var y = edge === "top" ? 0 : maxY
+        for (var x = 0; x < state.boardSizeX; ++x) {
+            if (pointInRuleBoard(state, x, y))
+                ++count
+        }
+    } else {
+        var xEdge = edge === "left" ? 0 : maxX
+        for (var yEdge = 0; yEdge < state.boardSizeY; ++yEdge) {
+            if (pointInRuleBoard(state, xEdge, yEdge))
+                ++count
+        }
+    }
+    return count
+}
+
 function drawCoordinates(ctx, state, geometry) {
     if (!geometry.coordinatesVisible)
         return
     var cell = geometry.cellSize
     var maxX = Math.max(0, state.boardSizeX - 1)
     var maxY = Math.max(0, state.boardSizeY - 1)
+    var drawTop = coordinateEdgePointCount(state, "top") > 1
+    var drawBottom = coordinateEdgePointCount(state, "bottom") > 1
+    var drawLeft = coordinateEdgePointCount(state, "left") > 1
+    var drawRight = coordinateEdgePointCount(state, "right") > 1
     var topNormal = logicalEdgeNormal(state, geometry, "top")
     var bottomNormal = logicalEdgeNormal(state, geometry, "bottom")
     var leftNormal = logicalEdgeNormal(state, geometry, "left")
@@ -665,31 +909,39 @@ function drawCoordinates(ctx, state, geometry) {
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     for (var lx = 0; lx < state.boardSizeX; ++lx) {
-        var topPoint = geometry.point(lx, 0)
-        var bottomPoint = geometry.point(lx, maxY)
         var xLabel = xCoordinateText(state, lx)
-        ctx.fillText(xLabel,
-                     topPoint.x + topNormal.x * geometry.xCoordinateLabelOffset,
-                     topPoint.y + topNormal.y * geometry.xCoordinateLabelOffset,
-                     cell * 0.96)
-        ctx.fillText(xLabel,
-                     bottomPoint.x + bottomNormal.x * geometry.xCoordinateLabelOffset,
-                     bottomPoint.y + bottomNormal.y * geometry.xCoordinateLabelOffset,
-                     cell * 0.96)
+        if (drawTop && pointInRuleBoard(state, lx, 0)) {
+            var topPoint = geometry.point(lx, 0)
+            ctx.fillText(xLabel,
+                         topPoint.x + topNormal.x * geometry.xCoordinateLabelOffset,
+                         topPoint.y + topNormal.y * geometry.xCoordinateLabelOffset,
+                         cell * 0.96)
+        }
+        if (drawBottom && pointInRuleBoard(state, lx, maxY)) {
+            var bottomPoint = geometry.point(lx, maxY)
+            ctx.fillText(xLabel,
+                         bottomPoint.x + bottomNormal.x * geometry.xCoordinateLabelOffset,
+                         bottomPoint.y + bottomNormal.y * geometry.xCoordinateLabelOffset,
+                         cell * 0.96)
+        }
     }
     for (var ly = 0; ly < state.boardSizeY; ++ly) {
-        var leftPoint = geometry.point(0, ly)
-        var rightPoint = geometry.point(maxX, ly)
         var yLabel = yCoordinateText(state, ly)
         var yLabelMaxWidth = Math.max(1, geometry.boardPaddingX - cell * (state.stoneScale * 0.5 + 0.10))
-        ctx.fillText(yLabel,
-                     leftPoint.x + leftNormal.x * geometry.yCoordinateLabelOffset,
-                     leftPoint.y + leftNormal.y * geometry.yCoordinateLabelOffset,
-                     yLabelMaxWidth)
-        ctx.fillText(yLabel,
-                     rightPoint.x + rightNormal.x * geometry.yCoordinateLabelOffset,
-                     rightPoint.y + rightNormal.y * geometry.yCoordinateLabelOffset,
-                     yLabelMaxWidth)
+        if (drawLeft && pointInRuleBoard(state, 0, ly)) {
+            var leftPoint = geometry.point(0, ly)
+            ctx.fillText(yLabel,
+                         leftPoint.x + leftNormal.x * geometry.yCoordinateLabelOffset,
+                         leftPoint.y + leftNormal.y * geometry.yCoordinateLabelOffset,
+                         yLabelMaxWidth)
+        }
+        if (drawRight && pointInRuleBoard(state, maxX, ly)) {
+            var rightPoint = geometry.point(maxX, ly)
+            ctx.fillText(yLabel,
+                         rightPoint.x + rightNormal.x * geometry.yCoordinateLabelOffset,
+                         rightPoint.y + rightNormal.y * geometry.yCoordinateLabelOffset,
+                         yLabelMaxWidth)
+        }
     }
     ctx.restore()
 }

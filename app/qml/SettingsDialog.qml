@@ -233,19 +233,19 @@ Basic.Dialog {
                             SmallModeButton {
                                 text: app.trText("stoneColorAuto")
                                 selected: app.stoneColorMode === app.stoneColorModeAuto
-                                onClicked: app.stoneColorMode = app.stoneColorModeAuto
+                                onClicked: app.setStoneColorMode(app.stoneColorModeAuto)
                             }
 
                             SmallModeButton {
                                 text: app.trText("stoneColorBlack")
                                 selected: app.stoneColorMode === app.stoneColorModeBlack
-                                onClicked: app.stoneColorMode = app.stoneColorModeBlack
+                                onClicked: app.setStoneColorMode(app.stoneColorModeBlack)
                             }
 
                             SmallModeButton {
                                 text: app.trText("stoneColorWhite")
                                 selected: app.stoneColorMode === app.stoneColorModeWhite
-                                onClicked: app.stoneColorMode = app.stoneColorModeWhite
+                                onClicked: app.setStoneColorMode(app.stoneColorModeWhite)
                             }
                         }
 
@@ -864,7 +864,7 @@ Basic.Dialog {
                     title: app.trText("engine")
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        Layout.fillWidth: true
                         spacing: 10
 
                         RowLayout {
@@ -886,11 +886,83 @@ Basic.Dialog {
                                 currentIndex: app.engineDefaultCurrentIndex()
                                 onActivated: function(index) { app.setDefaultEnginePresetFromIndex(index) }
                                 Layout.fillWidth: true
+                                Layout.preferredWidth: 420
+                                Layout.minimumWidth: 260
+                                implicitHeight: 34
+
+                                contentItem: Text {
+                                    leftPadding: 12
+                                    rightPadding: 30
+                                    text: defaultEngineCombo.displayText
+                                    color: "#102532"
+                                    font.pixelSize: 14
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+
+                                indicator: Text {
+                                    x: defaultEngineCombo.width - width - 8
+                                    y: Math.round((defaultEngineCombo.height - height) / 2)
+                                    text: "\u25BE"
+                                    color: "#657883"
+                                    font.pixelSize: 13
+                                }
+
+                                background: Rectangle {
+                                    radius: 4
+                                    color: defaultEngineCombo.pressed ? "#dcecf3" : "#ffffff"
+                                    border.color: defaultEngineCombo.activeFocus ? "#2388b8" : "#a9bcc6"
+                                    border.width: defaultEngineCombo.activeFocus ? 2 : 1
+                                }
+
+                                delegate: Basic.ItemDelegate {
+                                    id: defaultEngineDelegate
+                                    width: defaultEngineCombo.width
+                                    height: 36
+                                    highlighted: defaultEngineCombo.highlightedIndex === index
+
+                                    contentItem: Text {
+                                        text: modelData && modelData.label !== undefined ? modelData.label : String(modelData)
+                                        color: "#102532"
+                                        font.pixelSize: 14
+                                        font.bold: defaultEngineDelegate.highlighted
+                                        verticalAlignment: Text.AlignVCenter
+                                        leftPadding: 12
+                                        rightPadding: 12
+                                        elide: Text.ElideRight
+                                    }
+
+                                    background: Rectangle {
+                                        color: defaultEngineDelegate.highlighted ? "#d8e9f1" : "#ffffff"
+                                        border.color: defaultEngineDelegate.highlighted ? "#9abaca" : "#eef3f6"
+                                    }
+                                }
+
+                                popup: Popup {
+                                    y: defaultEngineCombo.height
+                                    width: defaultEngineCombo.width
+                                    implicitHeight: Math.min(contentItem.implicitHeight, 360)
+                                    padding: 1
+
+                                    contentItem: ListView {
+                                        clip: true
+                                        implicitHeight: contentHeight
+                                        model: defaultEngineCombo.popup.visible ? defaultEngineCombo.delegateModel : null
+                                        currentIndex: defaultEngineCombo.highlightedIndex
+                                        boundsBehavior: Flickable.StopAtBounds
+                                    }
+
+                                    background: Rectangle {
+                                        color: "#ffffff"
+                                        border.color: "#91a8b4"
+                                    }
+                                }
                             }
 
                             SavePromptButton {
                                 text: app.trText("engineSettingsTitle")
-                                Layout.preferredWidth: 112
+                                Layout.preferredWidth: 132
+                                Layout.minimumWidth: 124
                                 onClicked: app.openEngineListDialog()
                             }
                         }
@@ -958,7 +1030,8 @@ Basic.Dialog {
 
                             ReadOnlyField {
                                 text: app.defaultEnginePreset() ? app.enginePresetRuleDetailText(app.defaultEnginePreset()) : ""
-                                Layout.preferredWidth: 128
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 160
                             }
 
                             Label {
@@ -971,9 +1044,17 @@ Basic.Dialog {
                                 Layout.preferredWidth: 88
                             }
 
+                            Item { Layout.preferredWidth: 0 }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
                             Label {
                                 text: app.trText("komi")
                                 color: "#24313a"
+                                Layout.preferredWidth: 96
                             }
 
                             ReadOnlyField {

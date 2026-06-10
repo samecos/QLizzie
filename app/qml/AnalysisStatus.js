@@ -75,27 +75,34 @@ function engineDotColor(app, engineController) {
 function engineNoticeVisible(app, engineController) {
     if (app.engineNoticeDismissed)
         return false
+    if (app.engineFailureNoticeText && app.engineFailureNoticeText.length > 0)
+        return true
     if (app.engineDisabled)
         return false
     return app.engineLoading || (engineController && engineController.failed)
 }
 
 function engineNoticeText(app, engineController) {
+    if (app.engineFailureNoticeText && app.engineFailureNoticeText.length > 0)
+        return app.engineFailureNoticeText
     if (engineController && engineController.failed)
         return engineFailureMessage(app, engineController)
     return app.trText("engineStartingNotice")
 }
 
-function engineNoticeFillColor(engineController) {
-    return engineController && engineController.failed ? "#fff1ee" : "#eef5f8"
+function engineNoticeFillColor(app, engineController) {
+    return (app.engineFailureNoticeText && app.engineFailureNoticeText.length > 0)
+            || (engineController && engineController.failed) ? "#fff1ee" : "#eef5f8"
 }
 
-function engineNoticeBorderColor(engineController) {
-    return engineController && engineController.failed ? "#d0695f" : "#8fb7c6"
+function engineNoticeBorderColor(app, engineController) {
+    return (app.engineFailureNoticeText && app.engineFailureNoticeText.length > 0)
+            || (engineController && engineController.failed) ? "#d0695f" : "#8fb7c6"
 }
 
-function engineNoticeTextColor(engineController) {
-    return engineController && engineController.failed ? "#641a14" : "#183643"
+function engineNoticeTextColor(app, engineController) {
+    return (app.engineFailureNoticeText && app.engineFailureNoticeText.length > 0)
+            || (engineController && engineController.failed) ? "#641a14" : "#183643"
 }
 
 function engineFailureMessage(app, engineController) {

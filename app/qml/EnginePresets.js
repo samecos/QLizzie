@@ -67,9 +67,7 @@ function normalizePreset(app, preset, index) {
     delete copy.preload
 
     copy.ruleMode = Math.round(numeric(copy.ruleMode, app.gameRuleGo))
-    if (copy.ruleMode !== app.gameRuleGo
-            && copy.ruleMode !== app.gameRuleGomoku
-            && copy.ruleMode !== app.gameRuleHex)
+    if (!app.validRuleMode(copy.ruleMode))
         copy.ruleMode = app.gameRuleGo
 
     copy.ruleVariant = Math.round(numeric(copy.ruleVariant, -1))
@@ -86,7 +84,10 @@ function normalizePreset(app, preset, index) {
     copy.boardSizeY = Math.round(app.clamp(numeric(copy.boardSizeY, copy.boardSizeX),
                                            app.minBoardSize,
                                            app.maxBoardSize))
-    copy.komi = numeric(copy.komi, copy.ruleMode === app.gameRuleGo ? 6.5 : 0.0)
+    var adjusted = app.adjustedBoardDimensionsForRule(copy.ruleMode, copy.boardSizeX, copy.boardSizeY)
+    copy.boardSizeX = adjusted.x
+    copy.boardSizeY = adjusted.y
+    copy.komi = app.clampKomiValue(numeric(copy.komi, copy.ruleMode === app.gameRuleGo ? 6.5 : 0.0))
     copy.legacyHexEngineCoordinates = copy.legacyHexEngineCoordinates === true
     copy.boardPresentationMode = Math.round(app.clamp(numeric(copy.boardPresentationMode, 0),
                                                        app.boardPresentationIntersections,
@@ -164,6 +165,22 @@ function ruleText(app, preset) {
         return app.trText("gameRuleGo")
     if (preset.ruleMode === app.gameRuleHex)
         return app.trText("gameRuleHex")
+    if (preset.ruleMode === app.gameRuleSquareFree)
+        return app.trText("gameRuleSquareFree")
+    if (preset.ruleMode === app.gameRuleReversi)
+        return app.trText("gameRuleReversi")
+    if (preset.ruleMode === app.gameRuleConnect6)
+        return app.trText("gameRuleConnect6")
+    if (preset.ruleMode === app.gameRuleHexGoParallelogram)
+        return app.trText("gameRuleHexGoParallelogram")
+    if (preset.ruleMode === app.gameRuleHexGoHexagon)
+        return app.trText("gameRuleHexGoHexagon")
+    if (preset.ruleMode === app.gameRuleHexGoTriangle)
+        return app.trText("gameRuleHexGoTriangle")
+    if (preset.ruleMode === app.gameRuleAtaxx)
+        return app.trText("gameRuleAtaxx")
+    if (preset.ruleMode === app.gameRuleBreakthrough)
+        return app.trText("gameRuleBreakthrough")
     return app.trText("gameRuleGomoku")
 }
 

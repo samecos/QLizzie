@@ -15,6 +15,17 @@ function boardPresentationOptions(app, ruleMode) {
             }
         ]
     }
+    if (ruleMode === app.gameRuleReversi
+            || ruleMode === app.gameRuleAtaxx
+            || ruleMode === app.gameRuleBreakthrough) {
+        return [
+            {
+                "label": app.trText("boardPresentationCells"),
+                "value": app.boardPresentationCells,
+                "tip": app.trText("boardPresentationCellsTip")
+            }
+        ]
+    }
     return [
         {
             "label": app.trText("boardPresentationIntersections"),
@@ -57,7 +68,17 @@ function normalizeBoardPresentationMode(app, ruleMode, value) {
     return options.length > 0 ? options[0].value : app.boardPresentationIntersections
 }
 
-function hexBoardStyleOptions(app) {
+function hexBoardStyleOptions(app, ruleMode) {
+    ruleMode = ruleMode === undefined ? app.gameRuleMode : ruleMode
+    if (ruleMode !== app.gameRuleHex) {
+        return [
+            {
+                "label": app.trText("hexBoardStyleTriangle"),
+                "value": app.hexBoardStyleTriangle,
+                "tip": app.trText("hexBoardStyleTriangleTip")
+            }
+        ]
+    }
     return [
         {
             "label": app.trText("hexBoardStyleTriangle"),
@@ -81,7 +102,26 @@ function hexBoardStyleCurrentIndex(app) {
     return 0
 }
 
-function hexBoardRotationOptions(app) {
+function hexBoardRotationOptions(app, ruleMode) {
+    ruleMode = ruleMode === undefined ? app.gameRuleMode : ruleMode
+    if (ruleMode === app.gameRuleHexGoParallelogram) {
+        return [
+            { "label": app.trText("hexRotationCurrent"), "value": app.hexRotationCurrent, "tip": app.trText("hexRotationCurrentTip") },
+            { "label": app.trText("hexRotationFlipX"), "value": app.hexRotationFlipX, "tip": app.trText("hexRotationFlipXTip") },
+            { "label": app.trText("hexRotationHorizontal"), "value": app.hexRotationHorizontal, "tip": app.trText("hexRotationHorizontalTip") },
+            { "label": app.trText("hexRotationVertical"), "value": app.hexRotationVertical, "tip": app.trText("hexRotationVerticalTip") }
+        ]
+    }
+    if (ruleMode === app.gameRuleHexGoTriangle) {
+        return [
+            { "label": app.trText("hexRotationCurrent"), "value": app.hexRotationCurrent, "tip": app.trText("hexRotationCurrentTip") },
+            { "label": app.trText("hexRotationMirror"), "value": app.hexRotationMirror, "tip": app.trText("hexRotationMirrorTip") }
+        ]
+    }
+    if (ruleMode !== app.gameRuleHex)
+        return [
+            { "label": app.trText("hexRotationCurrent"), "value": app.hexRotationCurrent, "tip": app.trText("hexRotationCurrentTip") }
+        ]
     return [
         {
             "label": app.trText("hexRotationCurrent"),
@@ -102,6 +142,26 @@ function hexBoardRotationOptions(app) {
             "label": app.trText("hexRotationFlipXTranspose"),
             "value": app.hexRotationFlipXTranspose,
             "tip": app.trText("hexRotationFlipXTransposeTip")
+        },
+        {
+            "label": app.trText("hexRotationHorizontal"),
+            "value": app.hexRotationHorizontal,
+            "tip": app.trText("hexRotationHorizontalTip")
+        },
+        {
+            "label": app.trText("hexRotationHorizontalTranspose"),
+            "value": app.hexRotationHorizontalTranspose,
+            "tip": app.trText("hexRotationHorizontalTransposeTip")
+        },
+        {
+            "label": app.trText("hexRotationVertical"),
+            "value": app.hexRotationVertical,
+            "tip": app.trText("hexRotationVerticalTip")
+        },
+        {
+            "label": app.trText("hexRotationVerticalTranspose"),
+            "value": app.hexRotationVerticalTranspose,
+            "tip": app.trText("hexRotationVerticalTransposeTip")
         }
     ]
 }

@@ -3,6 +3,14 @@
 var RULE_GO = 0
 var RULE_GOMOKU = 1
 var RULE_HEX = 2
+var RULE_SQUARE_FREE = 3
+var RULE_REVERSI = 4
+var RULE_CONNECT6 = 5
+var RULE_HEX_GO_PARALLELOGRAM = 6
+var RULE_HEX_GO_HEXAGON = 7
+var RULE_HEX_GO_TRIANGLE = 8
+var RULE_ATAXX = 9
+var RULE_BREAKTHROUGH = 10
 
 var GOMOKU_RULE_CON5 = 0
 var GOMOKU_RULE_STDCON5 = 1
@@ -34,12 +42,59 @@ var GOMOKU_DIRECTIONS = [
     { "dx": 1, "dy": -1 }
 ]
 
+var SQUARE_DIRECTIONS = [
+    { "dx": 1, "dy": 0 },
+    { "dx": -1, "dy": 0 },
+    { "dx": 0, "dy": 1 },
+    { "dx": 0, "dy": -1 },
+    { "dx": 1, "dy": 1 },
+    { "dx": -1, "dy": -1 },
+    { "dx": 1, "dy": -1 },
+    { "dx": -1, "dy": 1 }
+]
+
 function keyFor(x, y) {
     return x + "," + y
 }
 
 function pointInBoard(dims, x, y) {
     return x >= 0 && x < dims.x && y >= 0 && y < dims.y
+}
+
+function isHexGoRule(ruleMode) {
+    return ruleMode === RULE_HEX_GO_PARALLELOGRAM
+           || ruleMode === RULE_HEX_GO_HEXAGON
+           || ruleMode === RULE_HEX_GO_TRIANGLE
+}
+
+function isGoCaptureRule(ruleMode) {
+    return ruleMode === RULE_GO || isHexGoRule(ruleMode)
+}
+
+function isHexGridRule(ruleMode) {
+    return ruleMode === RULE_HEX || isHexGoRule(ruleMode)
+}
+
+function pointInRuleBoard(dims, x, y, ruleMode) {
+    if (!pointInBoard(dims, x, y))
+        return false
+    if (ruleMode === RULE_HEX_GO_HEXAGON) {
+        if (dims.x !== dims.y || dims.x % 2 === 0)
+            return false
+        var half = Math.floor(dims.x / 2)
+        return x + y >= half
+               && (dims.x - x - 1) + (dims.y - y - 1) >= half
+    }
+    if (ruleMode === RULE_HEX_GO_TRIANGLE) {
+        if (dims.x !== dims.y)
+            return false
+        return x + y >= dims.x - 1
+    }
+    return true
+}
+
+function neighborOffsetsForRule(ruleMode) {
+    return isHexGridRule(ruleMode) ? HEX_NEIGHBOR_OFFSETS : NEIGHBOR_OFFSETS
 }
 
 function stoneMapDataAt(map, x, y) {
@@ -79,11 +134,12 @@ function copyStoneItem(stone) {
     }
 }
 
-function collectGroupInMap(map, dims, x, y, visited) {
+function collectGroupInMap(map, dims, x, y, visited, ruleMode) {
     var start = stoneMapDataAt(map, x, y)
     if (!start)
         return []
 
+    var offsets = neighborOffsetsForRule(ruleMode)
     var group = []
     var stack = [start]
     var player = start.player
@@ -94,11 +150,11 @@ function collectGroupInMap(map, dims, x, y, visited) {
 
         visited[stone.key] = true
         group.push(stone)
-        for (var i = 0; i < NEIGHBOR_OFFSETS.length; ++i) {
-            var offset = NEIGHBOR_OFFSETS[i]
+        for (var i = 0; i < offsets.length; ++i) {
+            var offset = offsets[i]
             var nx = stone.x + offset.dx
             var ny = stone.y + offset.dy
-            if (!pointInBoard(dims, nx, ny))
+            if (!pointInRuleBoard(dims, nx, ny, ruleMode))
                 continue
 
             var neighbor = stoneMapDataAt(map, nx, ny)
@@ -109,30 +165,32 @@ function collectGroupInMap(map, dims, x, y, visited) {
     return group
 }
 
-function groupHasLibertyInMap(map, dims, group) {
+function groupHasLibertyInMap(map, dims, group, ruleMode) {
+    var offsets = neighborOffsetsForRule(ruleMode)
     for (var i = 0; i < group.length; ++i) {
         var stone = group[i]
-        for (var n = 0; n < NEIGHBOR_OFFSETS.length; ++n) {
-            var offset = NEIGHBOR_OFFSETS[n]
+        for (var n = 0; n < offsets.length; ++n) {
+            var offset = offsets[n]
             var nx = stone.x + offset.dx
             var ny = stone.y + offset.dy
-            if (pointInBoard(dims, nx, ny) && stoneMapPlayerAt(map, nx, ny) === 0)
+            if (pointInRuleBoard(dims, nx, ny, ruleMode) && stoneMapPlayerAt(map, nx, ny) === 0)
                 return true
         }
     }
     return false
 }
 
-function groupLibertyCountInMap(map, dims, group) {
+function groupLibertyCountInMap(map, dims, group, ruleMode) {
+    var offsets = neighborOffsetsForRule(ruleMode)
     var liberties = ({})
     var count = 0
     for (var i = 0; i < group.length; ++i) {
         var stone = group[i]
-        for (var n = 0; n < NEIGHBOR_OFFSETS.length; ++n) {
-            var offset = NEIGHBOR_OFFSETS[n]
+        for (var n = 0; n < offsets.length; ++n) {
+            var offset = offsets[n]
             var nx = stone.x + offset.dx
             var ny = stone.y + offset.dy
-            if (!pointInBoard(dims, nx, ny) || stoneMapPlayerAt(map, nx, ny) !== 0)
+            if (!pointInRuleBoard(dims, nx, ny, ruleMode) || stoneMapPlayerAt(map, nx, ny) !== 0)
                 continue
 
             var libertyKey = keyFor(nx, ny)
@@ -161,7 +219,8 @@ function goMoveResult(ok, captured, reason, capturedStones, ownGroupSize, ownLib
     }
 }
 
-function simulateGoMoveOnMap(map, dims, stoneItem, collectKoInfo) {
+function simulateGoMoveOnMap(map, dims, stoneItem, collectKoInfo, ruleMode) {
+    ruleMode = ruleMode === undefined ? RULE_GO : ruleMode
     if (map[stoneItem.key] !== undefined)
         return goMoveResult(false, 0, "occupied")
 
@@ -171,18 +230,19 @@ function simulateGoMoveOnMap(map, dims, stoneItem, collectKoInfo) {
     var capturedStones = []
     var opponent = stoneItem.player === 1 ? 2 : 1
     var checked = ({})
-    for (var i = 0; i < NEIGHBOR_OFFSETS.length; ++i) {
-        var offset = NEIGHBOR_OFFSETS[i]
+    var offsets = neighborOffsetsForRule(ruleMode)
+    for (var i = 0; i < offsets.length; ++i) {
+        var offset = offsets[i]
         var nx = stoneItem.x + offset.dx
         var ny = stoneItem.y + offset.dy
-        var neighbor = pointInBoard(dims, nx, ny) ? stoneMapDataAt(map, nx, ny) : null
+        var neighbor = pointInRuleBoard(dims, nx, ny, ruleMode) ? stoneMapDataAt(map, nx, ny) : null
         if (!neighbor || neighbor.player !== opponent || checked[neighbor.key])
             continue
 
-        var group = collectGroupInMap(map, dims, nx, ny, ({}))
+        var group = collectGroupInMap(map, dims, nx, ny, ({}), ruleMode)
         for (var g = 0; g < group.length; ++g)
             checked[group[g].key] = true
-        if (!groupHasLibertyInMap(map, dims, group)) {
+        if (!groupHasLibertyInMap(map, dims, group, ruleMode)) {
             captured += group.length
             if (collectKoInfo) {
                 for (var c = 0; c < group.length; ++c)
@@ -192,23 +252,100 @@ function simulateGoMoveOnMap(map, dims, stoneItem, collectKoInfo) {
         }
     }
 
-    var ownGroup = collectGroupInMap(map, dims, stoneItem.x, stoneItem.y, ({}))
-    if (!groupHasLibertyInMap(map, dims, ownGroup)) {
+    var ownGroup = collectGroupInMap(map, dims, stoneItem.x, stoneItem.y, ({}), ruleMode)
+    if (!groupHasLibertyInMap(map, dims, ownGroup, ruleMode)) {
         delete map[stoneItem.key]
         for (var r = 0; r < capturedStones.length; ++r)
             map[capturedStones[r].key] = capturedStones[r]
         return goMoveResult(false, captured, "suicide", capturedStones, ownGroup.length, 0)
     }
 
-    var ownLibertyCount = collectKoInfo ? groupLibertyCountInMap(map, dims, ownGroup) : 0
+    var ownLibertyCount = collectKoInfo ? groupLibertyCountInMap(map, dims, ownGroup, ruleMode) : 0
     return goMoveResult(true, captured, "", capturedStones, ownGroup.length, ownLibertyCount)
 }
 
-function pointLegalInMap(map, dims, x, y, player, activeKoLocKey, ruleMode) {
+function reversiFlipsForMove(map, dims, x, y, player) {
     if (!pointInBoard(dims, x, y) || stoneMapPlayerAt(map, x, y) !== 0)
+        return []
+    var opponent = player === 1 ? 2 : 1
+    var flips = []
+    for (var d = 0; d < SQUARE_DIRECTIONS.length; ++d) {
+        var direction = SQUARE_DIRECTIONS[d]
+        var run = []
+        var nx = x + direction.dx
+        var ny = y + direction.dy
+        while (pointInBoard(dims, nx, ny) && stoneMapPlayerAt(map, nx, ny) === opponent) {
+            run.push(stoneMapDataAt(map, nx, ny))
+            nx += direction.dx
+            ny += direction.dy
+        }
+        if (run.length > 0 && pointInBoard(dims, nx, ny) && stoneMapPlayerAt(map, nx, ny) === player) {
+            for (var r = 0; r < run.length; ++r)
+                flips.push(run[r])
+        }
+    }
+    return flips
+}
+
+function ataxxMoveKind(map, dims, x, y, player, source) {
+    if (!pointInBoard(dims, x, y))
+        return ""
+    if (source && source.x >= 0 && source.y >= 0) {
+        if (stoneMapPlayerAt(map, source.x, source.y) !== player || stoneMapPlayerAt(map, x, y) !== 0)
+            return ""
+        var dx = Math.abs(x - source.x)
+        var dy = Math.abs(y - source.y)
+        var distance = Math.max(dx, dy)
+        return distance === 2 ? "jump" : ""
+    }
+    if (stoneMapPlayerAt(map, x, y) !== 0)
+        return stoneMapPlayerAt(map, x, y) === player ? "source" : ""
+    for (var sy = Math.max(0, y - 1); sy <= Math.min(dims.y - 1, y + 1); ++sy) {
+        for (var sx = Math.max(0, x - 1); sx <= Math.min(dims.x - 1, x + 1); ++sx) {
+            if ((sx !== x || sy !== y) && stoneMapPlayerAt(map, sx, sy) === player)
+                return "clone"
+        }
+    }
+    return ""
+}
+
+function breakthroughForward(player) {
+    return player === 1 ? -1 : 1
+}
+
+function breakthroughMoveKind(map, dims, x, y, player, source) {
+    if (!pointInBoard(dims, x, y))
+        return ""
+    if (!source || source.x < 0 || source.y < 0)
+        return stoneMapPlayerAt(map, x, y) === player ? "source" : ""
+    if (stoneMapPlayerAt(map, source.x, source.y) !== player)
+        return ""
+    var dy = y - source.y
+    var dx = x - source.x
+    var forward = breakthroughForward(player)
+    if (dy !== forward || Math.abs(dx) > 1)
+        return ""
+    var target = stoneMapPlayerAt(map, x, y)
+    if (dx === 0)
+        return target === 0 ? "move" : ""
+    return target !== player ? "capture" : ""
+}
+
+function pointLegalInMap(map, dims, x, y, player, activeKoLocKey, ruleMode, source) {
+    if (!pointInRuleBoard(dims, x, y, ruleMode))
         return false
 
-    if (ruleMode !== RULE_GO)
+    if (ruleMode === RULE_SQUARE_FREE)
+        return true
+    if (ruleMode === RULE_ATAXX)
+        return ataxxMoveKind(map, dims, x, y, player, source) !== ""
+    if (ruleMode === RULE_BREAKTHROUGH)
+        return breakthroughMoveKind(map, dims, x, y, player, source) !== ""
+    if (stoneMapPlayerAt(map, x, y) !== 0)
+        return false
+    if (ruleMode === RULE_REVERSI)
+        return reversiFlipsForMove(map, dims, x, y, player).length > 0
+    if (!isGoCaptureRule(ruleMode))
         return true
 
     var pointKey = keyFor(x, y)
@@ -223,14 +360,14 @@ function pointLegalInMap(map, dims, x, y, player, activeKoLocKey, ruleMode) {
         "moveNumber": 0,
         "nodeId": -1
     }
-    return simulateGoMoveOnMap(cloneStoneMap(map), dims, item, false).ok
+    return simulateGoMoveOnMap(cloneStoneMap(map), dims, item, false, ruleMode).ok
 }
 
-function buildPointLegalityMap(map, dims, player, activeKoLocKey, ruleMode) {
+function buildPointLegalityMap(map, dims, player, activeKoLocKey, ruleMode, source) {
     var result = ({})
     for (var y = 0; y < dims.y; ++y) {
         for (var x = 0; x < dims.x; ++x)
-            result[keyFor(x, y)] = pointLegalInMap(map, dims, x, y, player, activeKoLocKey, ruleMode)
+            result[keyFor(x, y)] = pointLegalInMap(map, dims, x, y, player, activeKoLocKey, ruleMode, source)
     }
     return result
 }
@@ -240,7 +377,7 @@ function emptyKoLoc() {
 }
 
 function koLocFromGoMoveResult(ruleMode, result) {
-    if (ruleMode !== RULE_GO || !result || !result.ok
+    if (!isGoCaptureRule(ruleMode) || !result || !result.ok
             || result.captured !== 1
             || result.capturedStones.length !== 1
             || result.ownGroupSize !== 1
@@ -277,8 +414,10 @@ function gomokuRunWins(length, gomokuRuleMode) {
 }
 
 function buildGomokuWinRuns(map, dims, ruleMode, gomokuRuleMode) {
-    if (ruleMode !== RULE_GOMOKU)
+    if (ruleMode !== RULE_GOMOKU && ruleMode !== RULE_CONNECT6)
         return []
+    if (ruleMode === RULE_CONNECT6)
+        gomokuRuleMode = GOMOKU_RULE_FREESTYLE
 
     var lines = []
     for (var key in map) {
@@ -408,4 +547,134 @@ function buildHexWinPath(map, dims, ruleMode) {
         return { "player": 2, "path": whitePath }
 
     return { "player": 0, "path": [] }
+}
+
+function ataxxFlippedNeighbors(map, dims, x, y, player) {
+    var opponent = player === 1 ? 2 : 1
+    var flipped = []
+    for (var dy = -1; dy <= 1; ++dy) {
+        for (var dx = -1; dx <= 1; ++dx) {
+            if (dx === 0 && dy === 0)
+                continue
+            var nx = x + dx
+            var ny = y + dy
+            var neighbor = pointInBoard(dims, nx, ny) ? stoneMapDataAt(map, nx, ny) : null
+            if (neighbor && neighbor.player === opponent)
+                flipped.push(neighbor)
+        }
+    }
+    return flipped
+}
+
+function applyReversiMoveOnMap(map, dims, stoneItem) {
+    var flips = reversiFlipsForMove(map, dims, stoneItem.x, stoneItem.y, stoneItem.player)
+    if (flips.length <= 0)
+        return { "ok": false, "capturedStones": [] }
+    map[stoneItem.key] = stoneItem
+    for (var i = 0; i < flips.length; ++i)
+        flips[i].player = stoneItem.player
+    return { "ok": true, "capturedStones": [] }
+}
+
+function applyAtaxxMoveOnMap(map, dims, stoneItem, source) {
+    var kind = ataxxMoveKind(map, dims, stoneItem.x, stoneItem.y, stoneItem.player, source)
+    if (kind !== "clone" && kind !== "jump")
+        return { "ok": false, "capturedStones": [] }
+    if (kind === "jump")
+        delete map[keyFor(source.x, source.y)]
+    map[stoneItem.key] = stoneItem
+    var flipped = ataxxFlippedNeighbors(map, dims, stoneItem.x, stoneItem.y, stoneItem.player)
+    for (var i = 0; i < flipped.length; ++i)
+        flipped[i].player = stoneItem.player
+    return { "ok": true, "capturedStones": [] }
+}
+
+function applyBreakthroughMoveOnMap(map, dims, stoneItem, source) {
+    var kind = breakthroughMoveKind(map, dims, stoneItem.x, stoneItem.y, stoneItem.player, source)
+    if (kind !== "move" && kind !== "capture")
+        return { "ok": false, "capturedStones": [] }
+    var sourceKey = keyFor(source.x, source.y)
+    var moving = stoneMapDataAt(map, source.x, source.y)
+    var captured = []
+    var target = stoneMapDataAt(map, stoneItem.x, stoneItem.y)
+    if (target && target.player !== stoneItem.player)
+        captured.push(copyStoneItem(target))
+    delete map[sourceKey]
+    map[stoneItem.key] = {
+        "x": stoneItem.x,
+        "y": stoneItem.y,
+        "key": stoneItem.key,
+        "player": stoneItem.player,
+        "moveNumber": moving ? moving.moveNumber : stoneItem.moveNumber,
+        "nodeId": stoneItem.nodeId
+    }
+    return { "ok": true, "capturedStones": captured }
+}
+
+function initialStoneMap(dims, ruleMode) {
+    var map = ({})
+    function put(x, y, player) {
+        if (!pointInRuleBoard(dims, x, y, ruleMode))
+            return
+        var key = keyFor(x, y)
+        map[key] = { "x": x, "y": y, "key": key, "player": player, "moveNumber": 0, "nodeId": 0 }
+    }
+    if (ruleMode === RULE_REVERSI) {
+        if (dims.x < 2 || dims.y < 2)
+            return map
+        var cx = Math.floor(dims.x / 2) - 1
+        var cy = Math.floor(dims.y / 2) - 1
+        put(cx, cy, 2)
+        put(cx + 1, cy + 1, 2)
+        put(cx + 1, cy, 1)
+        put(cx, cy + 1, 1)
+    } else if (ruleMode === RULE_ATAXX) {
+        if (dims.x < 2 || dims.y < 2)
+            return map
+        put(0, 0, 1)
+        put(dims.x - 1, dims.y - 1, 1)
+        put(dims.x - 1, 0, 2)
+        put(0, dims.y - 1, 2)
+    } else if (ruleMode === RULE_BREAKTHROUGH) {
+        for (var x = 0; x < dims.x; ++x) {
+            put(x, dims.y - 1, 1)
+            put(x, dims.y - 2, 1)
+            put(x, 0, 2)
+            put(x, 1, 2)
+        }
+    }
+    return map
+}
+
+function countPlayerStones(map, player) {
+    var count = 0
+    for (var key in map) {
+        if (map[key].player === player)
+            count += 1
+    }
+    return count
+}
+
+function buildBreakthroughWin(map, dims, ruleMode) {
+    if (ruleMode !== RULE_BREAKTHROUGH)
+        return { "player": 0, "reason": "" }
+    var black = 0
+    var white = 0
+    for (var key in map) {
+        var stone = map[key]
+        if (stone.player === 1) {
+            black += 1
+            if (stone.y === 0)
+                return { "player": 1, "reason": "goal" }
+        } else if (stone.player === 2) {
+            white += 1
+            if (stone.y === dims.y - 1)
+                return { "player": 2, "reason": "goal" }
+        }
+    }
+    if (black <= 0 && white > 0)
+        return { "player": 2, "reason": "captured" }
+    if (white <= 0 && black > 0)
+        return { "player": 1, "reason": "captured" }
+    return { "player": 0, "reason": "" }
 }

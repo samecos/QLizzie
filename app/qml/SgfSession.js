@@ -11,21 +11,26 @@ function parse(app, text) {
         "minBoardSize": app.minBoardSize,
         "maxBoardSize": app.maxBoardSize,
         "defaultRuleMode": app.gameRuleMode,
+        "ignoreRuleMode": true,
         "gameRuleGo": app.gameRuleGo,
         "gameRuleGomoku": app.gameRuleGomoku,
         "gameRuleHex": app.gameRuleHex
     })
 }
 
+function sgfGameIdNumber(value) {
+    var number = parseInt(String(value).trim(), 10)
+    return isNaN(number) ? -1 : number
+}
+
+function sgfGameIdMismatch(app, parsed) {
+    if (!parsed || parsed.gameId === undefined || String(parsed.gameId).trim() === "")
+        return false
+    return sgfGameIdNumber(parsed.gameId) !== SgfUtils.sgfGameInfo(app.gameRuleMode).gameId
+}
+
 function applyParsed(app, parsed, url) {
     app.resetEngineSyncState()
-    var parsedRuleMode = parsed.ruleMode === undefined ? app.gameRuleMode : parsed.ruleMode
-    if (!app.ruleModeAllowedForPackage(parsedRuleMode)) {
-        app.statusMode = "message"
-        app.statusMessage = app.trText("sgfLoadFailed") + ": " + app.trText("packageRuleRejected")
-        app.focusBoardInput()
-        return
-    }
     if (!app.boardDimensionsAllowedForPackage(parsed.boardSizeX, parsed.boardSizeY)) {
         app.statusMode = "message"
         app.statusMessage = app.trText("sgfLoadFailed") + ": "
@@ -33,7 +38,15 @@ function applyParsed(app, parsed, url) {
         app.focusBoardInput()
         return
     }
-    app.gameRuleMode = parsedRuleMode
+    if (!app.boardDimensionsAllowedForRule(app.gameRuleMode, parsed.boardSizeX, parsed.boardSizeY)) {
+        app.statusMode = "message"
+        app.statusMessage = app.trText("sgfLoadFailed") + ": "
+                            + app.ruleBoardSizeRejectText(app.gameRuleMode,
+                                                          parsed.boardSizeX,
+                                                          parsed.boardSizeY)
+        app.focusBoardInput()
+        return
+    }
     app.boardSizeX = parsed.boardSizeX
     app.boardSizeY = parsed.boardSizeY
     app.gameTreeGeneration += 1
@@ -47,7 +60,10 @@ function applyParsed(app, parsed, url) {
     app.gameDirty = false
     app.statusMode = "message"
     app.statusMessage = app.trText("sgfLoaded") + ": " + url
-    app.focusBoardInput()
+    if (sgfGameIdMismatch(app, parsed))
+        app.openSgfGameTypeWarning(parsed.gameId, SgfUtils.sgfGameInfo(app.gameRuleMode).gameId)
+    else
+        app.focusBoardInput()
 }
 
 function saveToFile(app, fileIo, url) {

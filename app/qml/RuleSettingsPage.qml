@@ -127,19 +127,23 @@ ColumnLayout {
 
                 GameRuleComboBox {
                     app: ruleSettingsPage.app
-                    Layout.preferredWidth: 170
+                    Layout.preferredWidth: 250
+                    Layout.minimumWidth: 220
                     implicitHeight: 32
                 }
 
                 Label {
                     text: app.trText("ruleVariant")
+                    visible: app.ruleVariantComboVisible()
                     color: "#24313a"
                     Layout.preferredWidth: 86
                 }
 
                 RuleVariantComboBox {
                     app: ruleSettingsPage.app
-                    Layout.preferredWidth: 230
+                    visible: app.ruleVariantComboVisible()
+                    Layout.preferredWidth: 300
+                    Layout.minimumWidth: 240
                     implicitHeight: 32
                 }
 
@@ -149,61 +153,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-
-                Label {
-                    text: app.trText("ruleVisibility")
-                    color: "#24313a"
-                    Layout.preferredWidth: 110
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: ruleVisibilityColumn.implicitHeight + 12
-                    radius: 6
-                    color: "#ffffff"
-                    border.color: "#c7d4dc"
-
-                    ColumnLayout {
-                        id: ruleVisibilityColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        anchors.topMargin: 6
-                        spacing: 4
-
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 12
-
-                            Repeater {
-                                model: app.gameRuleOptions()
-
-                                delegate: CheckBox {
-                                    text: modelData.label
-                                    checked: app.ruleModeVisible(modelData.value)
-                                    enabled: modelData.value !== app.gameRuleMode
-                                    onClicked: app.setRuleModeVisible(modelData.value, checked)
-                                }
-                            }
-                        }
-
-                        Label {
-                            text: app.trText("ruleVisibilityTip")
-                            color: "#61727c"
-                            font.pixelSize: 12
-                            wrapMode: Text.WordWrap
-                            Layout.fillWidth: true
-                        }
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                visible: app.gameRuleMode !== app.gameRuleHex
+                visible: app.boardPresentationOptions().length > 1
 
                 Label {
                     text: app.trText("boardPresentation")
@@ -232,7 +182,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                visible: app.gameRuleMode === app.gameRuleHex
+                visible: app.hexBoardStyleOptions().length > 1
 
                 Label {
                     text: app.trText("hexBoardStyle")
@@ -261,7 +211,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                visible: app.gameRuleMode === app.gameRuleHex
+                visible: app.hexBoardRotationOptions().length > 1
 
                 Label {
                     text: app.trText("hexBoardRotation")
@@ -356,17 +306,132 @@ ColumnLayout {
                 }
 
                 SpinBox {
-                    from: -200
-                    to: 200
+                    from: -Math.round(app.maxKomiMagnitude * 2)
+                    to: Math.round(app.maxKomiMagnitude * 2)
                     value: Math.round(app.effectiveKomi() * 2)
                     editable: true
-                    Layout.preferredWidth: 96
+                    Layout.preferredWidth: 116
                     textFromValue: function(value) { return (value / 2).toFixed(1) }
                     valueFromText: function(text) { return Math.round(Number(text) * 2) }
                     onValueModified: app.setKomiValue(value / 2)
                 }
 
                 Item { Layout.fillWidth: true }
+            }
+        }
+    }
+
+    Rectangle {
+        Layout.fillWidth: true
+        implicitHeight: ruleVisibilityContent.implicitHeight + 28
+        radius: 7
+        color: "#f8fbfd"
+        border.color: "#c7d4dc"
+
+        ColumnLayout {
+            id: ruleVisibilityContent
+            anchors.fill: parent
+            anchors.margins: 14
+            spacing: 10
+
+            Label {
+                text: app.trText("ruleVisibility")
+                color: "#17212a"
+                font.pixelSize: 16
+                font.bold: true
+                Layout.fillWidth: true
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: ruleVisibilityColumn.implicitHeight + 12
+                radius: 6
+                color: "#ffffff"
+                border.color: "#c7d4dc"
+
+                ColumnLayout {
+                    id: ruleVisibilityColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    anchors.topMargin: 6
+                    spacing: 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Label {
+                            text: app.trText("ruleName")
+                            color: "#52636d"
+                            font.pixelSize: 12
+                            Layout.preferredWidth: 150
+                        }
+
+                        Label {
+                            text: app.trText("ruleDescription")
+                            color: "#52636d"
+                            font.pixelSize: 12
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: app.trText("ruleVisible")
+                            color: "#52636d"
+                            font.pixelSize: 12
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.preferredWidth: 72
+                        }
+                    }
+
+                    Repeater {
+                        model: app.gameRuleOptions()
+
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: ruleRow.implicitHeight + 8
+                            color: modelData.value === app.gameRuleMode ? "#edf7fb" : "#ffffff"
+                            border.color: "#d9e4ea"
+                            radius: 3
+
+                            RowLayout {
+                                id: ruleRow
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Label {
+                                    text: modelData.label
+                                    color: "#17212a"
+                                    font.pixelSize: 13
+                                    font.bold: modelData.value === app.gameRuleMode
+                                    elide: Text.ElideRight
+                                    Layout.preferredWidth: 150
+                                }
+
+                                Label {
+                                    text: modelData.tip
+                                    color: "#61727c"
+                                    font.pixelSize: 12
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+
+                                CheckBox {
+                                    checked: app.ruleModeVisible(modelData.value)
+                                    enabled: modelData.value !== app.gameRuleMode
+                                    Layout.preferredWidth: 72
+                                    onClicked: app.setRuleModeVisible(modelData.value, checked)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

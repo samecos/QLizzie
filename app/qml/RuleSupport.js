@@ -48,6 +48,22 @@ function gameRuleText(app) {
         return app.trText("gameRuleGo")
     if (app.gameRuleMode === app.gameRuleHex)
         return app.trText("gameRuleHex")
+    if (app.gameRuleMode === app.gameRuleSquareFree)
+        return app.trText("gameRuleSquareFree")
+    if (app.gameRuleMode === app.gameRuleReversi)
+        return app.trText("gameRuleReversi")
+    if (app.gameRuleMode === app.gameRuleConnect6)
+        return app.trText("gameRuleConnect6")
+    if (app.gameRuleMode === app.gameRuleHexGoParallelogram)
+        return app.trText("gameRuleHexGoParallelogram")
+    if (app.gameRuleMode === app.gameRuleHexGoHexagon)
+        return app.trText("gameRuleHexGoHexagon")
+    if (app.gameRuleMode === app.gameRuleHexGoTriangle)
+        return app.trText("gameRuleHexGoTriangle")
+    if (app.gameRuleMode === app.gameRuleAtaxx)
+        return app.trText("gameRuleAtaxx")
+    if (app.gameRuleMode === app.gameRuleBreakthrough)
+        return app.trText("gameRuleBreakthrough")
     return gomokuRuleLabel(app, app.gomokuRuleMode)
 }
 
@@ -55,8 +71,70 @@ function gameRuleOptions(app) {
     return [
         { "label": app.trText("gameRuleGo"), "value": app.gameRuleGo, "tip": app.trText("gameRuleGoTip") },
         { "label": app.trText("gameRuleGomoku"), "value": app.gameRuleGomoku, "tip": app.trText("gameRuleGomokuTip") },
-        { "label": app.trText("gameRuleHex"), "value": app.gameRuleHex, "tip": app.trText("gameRuleHexTip") }
+        { "label": app.trText("gameRuleHex"), "value": app.gameRuleHex, "tip": app.trText("gameRuleHexTip") },
+        { "label": app.trText("gameRuleSquareFree"), "value": app.gameRuleSquareFree, "tip": app.trText("gameRuleSquareFreeTip") },
+        { "label": app.trText("gameRuleReversi"), "value": app.gameRuleReversi, "tip": app.trText("gameRuleReversiTip") },
+        { "label": app.trText("gameRuleConnect6"), "value": app.gameRuleConnect6, "tip": app.trText("gameRuleConnect6Tip") },
+        { "label": app.trText("gameRuleHexGoParallelogram"), "value": app.gameRuleHexGoParallelogram, "tip": app.trText("gameRuleHexGoParallelogramTip") },
+        { "label": app.trText("gameRuleHexGoHexagon"), "value": app.gameRuleHexGoHexagon, "tip": app.trText("gameRuleHexGoHexagonTip") },
+        { "label": app.trText("gameRuleHexGoTriangle"), "value": app.gameRuleHexGoTriangle, "tip": app.trText("gameRuleHexGoTriangleTip") },
+        { "label": app.trText("gameRuleAtaxx"), "value": app.gameRuleAtaxx, "tip": app.trText("gameRuleAtaxxTip") },
+        { "label": app.trText("gameRuleBreakthrough"), "value": app.gameRuleBreakthrough, "tip": app.trText("gameRuleBreakthroughTip") }
     ]
+}
+
+function validRuleMode(app, mode) {
+    var options = gameRuleOptions(app)
+    for (var i = 0; i < options.length; ++i) {
+        if (options[i].value === mode)
+            return true
+    }
+    return false
+}
+
+function ruleUsesHexGrid(app, mode) {
+    return mode === app.gameRuleHex
+           || mode === app.gameRuleHexGoParallelogram
+           || mode === app.gameRuleHexGoHexagon
+           || mode === app.gameRuleHexGoTriangle
+}
+
+function ruleUsesGoCapture(app, mode) {
+    return mode === app.gameRuleGo
+           || mode === app.gameRuleHexGoParallelogram
+           || mode === app.gameRuleHexGoHexagon
+           || mode === app.gameRuleHexGoTriangle
+}
+
+function ruleUsesSquareCells(app, mode) {
+    return (mode === app.gameRuleGomoku && app.boardPresentationMode === app.boardPresentationCells)
+           || mode === app.gameRuleReversi
+           || mode === app.gameRuleAtaxx
+           || mode === app.gameRuleBreakthrough
+}
+
+function ruleUsesHexCellStyle(app, mode) {
+    return mode === app.gameRuleHex && app.hexBoardStyle === app.hexBoardStyleCells
+}
+
+function ruleAllowsOccupiedMoves(app, mode) {
+    return mode === app.gameRuleSquareFree
+}
+
+function ruleUsesMoveSource(app, mode) {
+    return mode === app.gameRuleAtaxx || mode === app.gameRuleBreakthrough
+}
+
+function ruleHasBoardPresentation(app, mode) {
+    return RuleCatalog.boardPresentationOptions(app, mode).length > 1
+}
+
+function ruleHasHexBoardStyle(app, mode) {
+    return mode === app.gameRuleHex && RuleCatalog.hexBoardStyleOptions(app, mode).length > 1
+}
+
+function ruleHasHexRotation(app, mode) {
+    return ruleUsesHexGrid(app, mode) && RuleCatalog.hexBoardRotationOptions(app, mode).length > 1
 }
 
 function ruleVisibilityKey(app, mode) {
@@ -155,9 +233,11 @@ function gomokuRuleOptions(app) {
 }
 
 function ruleVariantOptions(app) {
-    if (app.gameRuleMode === app.gameRuleHex)
-        return [{ "label": app.trText("gameRuleHex"), "value": -1, "tip": app.trText("gameRuleHexTip") }]
-    return app.gameRuleMode === app.gameRuleGo ? goRuleOptions(app) : gomokuRuleOptions(app)
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        return gomokuRuleOptions(app)
+    if (app.gameRuleMode === app.gameRuleGo)
+        return goRuleOptions(app)
+    return [{ "label": gameRuleText(app), "value": -1, "tip": "" }]
 }
 
 function ruleVariantCurrentIndex(app) {
@@ -194,11 +274,11 @@ function ruleModeButtonsVisible(app) {
 }
 
 function ruleVariantComboVisible(app) {
-    return true
+    return app.gameRuleMode === app.gameRuleGo || app.gameRuleMode === app.gameRuleGomoku
 }
 
 function komiControlsVisible(app) {
-    return app.gameRuleMode === app.gameRuleGo && app.packageMode !== app.packageModeSix
+    return ruleUsesGoCapture(app, app.gameRuleMode) && app.packageMode !== app.packageModeSix
 }
 
 function boardPresentationOptions(app) {
@@ -229,7 +309,7 @@ function boardPresentationText(app, mode) {
 }
 
 function hexBoardStyleOptions(app) {
-    return RuleCatalog.hexBoardStyleOptions(app)
+    return RuleCatalog.hexBoardStyleOptions(app, app.gameRuleMode)
 }
 
 function hexBoardStyleCurrentIndex(app) {
@@ -248,7 +328,7 @@ function setHexBoardStyleFromIndex(app, index) {
 }
 
 function hexBoardRotationOptions(app) {
-    return RuleCatalog.hexBoardRotationOptions(app)
+    return RuleCatalog.hexBoardRotationOptions(app, app.gameRuleMode)
 }
 
 function hexBoardRotationCurrentIndex(app) {
@@ -295,7 +375,7 @@ function ruleModeAllowedForPackage(app, mode) {
         return mode === app.gameRuleGo
     if (app.packageMode === app.packageModeSix)
         return mode === app.gameRuleGomoku
-    return mode === app.gameRuleGo || mode === app.gameRuleGomoku || mode === app.gameRuleHex
+    return validRuleMode(app, mode)
 }
 
 function packageDefaultBoardSize(app) {
@@ -348,11 +428,14 @@ function requestRuleModeChange(app, mode, dialog) {
 }
 
 function applyRuleModeChange(app, mode) {
-    if (mode !== app.gameRuleGo && mode !== app.gameRuleGomoku && mode !== app.gameRuleHex)
+    if (!validRuleMode(app, mode))
         return
     if (!ruleModeAllowedForPackage(app, mode))
         return
     app.gameRuleMode = mode
+    var adjusted = adjustedBoardDimensionsForRule(app, mode, app.boardSizeX, app.boardSizeY)
+    app.boardSizeX = adjusted.x
+    app.boardSizeY = adjusted.y
     if (mode === app.gameRuleHex)
         app.coordinateDisplayMode = app.coordinateDisplayHex
     app.boardPresentationMode = RuleCatalog.normalizeBoardPresentationMode(
@@ -373,12 +456,43 @@ function applyRuleModeChange(app, mode) {
     app.focusBoardInput()
 }
 
+function adjustedBoardDimensionsForRule(app, mode, xSize, ySize) {
+    var nextX = Math.round(app.clamp(xSize, app.minBoardSize, app.maxBoardSize))
+    var nextY = Math.round(app.clamp(ySize, app.minBoardSize, app.maxBoardSize))
+    if (mode === app.gameRuleHexGoHexagon) {
+        if (nextX % 2 === 0)
+            nextX += 1
+        nextX = Math.round(app.clamp(nextX, app.minBoardSize, app.maxBoardSize))
+        nextY = nextX
+    } else if (mode === app.gameRuleHexGoTriangle) {
+        nextY = nextX
+    } else if (mode === app.gameRuleBreakthrough && nextY <= 3) {
+        nextY = 4
+    }
+    return { "x": nextX, "y": nextY }
+}
+
+function boardDimensionsAllowedForRule(app, mode, xSize, ySize) {
+    if (mode === app.gameRuleHexGoHexagon)
+        return xSize === ySize && xSize % 2 === 1
+    if (mode === app.gameRuleHexGoTriangle)
+        return xSize === ySize
+    if (mode === app.gameRuleBreakthrough)
+        return ySize > 3
+    return true
+}
+
 function requestBoardDimensionsChange(app, xSize, ySize, markDirty, dialog) {
     var nextX = Math.round(app.clamp(xSize, app.minBoardSize, app.maxBoardSize))
     var nextY = Math.round(app.clamp(ySize, app.minBoardSize, app.maxBoardSize))
     if (!boardDimensionsAllowedForPackage(app, nextX, nextY)) {
         app.statusMode = "message"
         app.statusMessage = packageBoardSizeRejectText(app, nextX, nextY)
+        return false
+    }
+    if (!boardDimensionsAllowedForRule(app, app.gameRuleMode, nextX, nextY)) {
+        app.statusMode = "message"
+        app.statusMessage = ruleBoardSizeRejectText(app, app.gameRuleMode, nextX, nextY)
         return false
     }
     if (nextX === app.boardSizeX && nextY === app.boardSizeY)
@@ -401,6 +515,11 @@ function setBoardDimensions(app, xSize, ySize, markDirty) {
         app.statusMessage = packageBoardSizeRejectText(app, nextX, nextY)
         return false
     }
+    if (!boardDimensionsAllowedForRule(app, app.gameRuleMode, nextX, nextY)) {
+        app.statusMode = "message"
+        app.statusMessage = ruleBoardSizeRejectText(app, app.gameRuleMode, nextX, nextY)
+        return false
+    }
     if (nextX === app.boardSizeX && nextY === app.boardSizeY)
         return true
     app.boardSizeX = nextX
@@ -416,6 +535,17 @@ function setBoardDimensions(app, xSize, ySize, markDirty) {
     return true
 }
 
+function ruleBoardSizeRejectText(app, mode, xSize, ySize) {
+    var dims = app.boardDimensionsTextForSize(xSize, ySize)
+    if (mode === app.gameRuleHexGoHexagon)
+        return app.trText("hexGoHexagonBoardSizeRejected") + ": " + dims
+    if (mode === app.gameRuleHexGoTriangle)
+        return app.trText("hexGoTriangleBoardSizeRejected") + ": " + dims
+    if (mode === app.gameRuleBreakthrough)
+        return app.trText("breakthroughBoardSizeRejected") + ": " + dims
+    return packageBoardSizeRejectText(app, xSize, ySize)
+}
+
 function resetBoardSize(app) {
     var size = packageDefaultBoardSize(app)
     setBoardDimensions(app, size, size)
@@ -427,7 +557,7 @@ function pendingClearMessage(app) {
     if (app.pendingClearAction === "boardSize")
         return app.trText("confirmBoardSizeChangeSave")
     if (app.pendingClearAction === "clearBoard")
-        return app.trText("confirmBoardSizeChangeSave")
+        return app.trText("confirmClearBoardSave")
     return app.trText("confirmRuleChangeSave")
 }
 

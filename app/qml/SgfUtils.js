@@ -76,11 +76,32 @@ function boardSizeText(xSize, ySize) {
     return xSize === ySize ? String(xSize) : xSize + ":" + ySize
 }
 
+function sgfGameInfo(ruleMode) {
+    if (ruleMode === 0)
+        return { "gameId": 1, "ruleName": "QLizzie-Go" }
+    if (ruleMode === 1)
+        return { "gameId": 4, "ruleName": "QLizzie-Gomoku" }
+    if (ruleMode === 2)
+        return { "gameId": 11, "ruleName": "QLizzie-Hex" }
+    if (ruleMode === 5)
+        return { "gameId": 4, "ruleName": "QLizzie-Connect6" }
+    if (ruleMode === 6)
+        return { "gameId": 1, "ruleName": "QLizzie-HexGo-Parallelogram" }
+    if (ruleMode === 7)
+        return { "gameId": 1, "ruleName": "QLizzie-HexGo-Hexagon" }
+    if (ruleMode === 8)
+        return { "gameId": 1, "ruleName": "QLizzie-HexGo-Triangle" }
+    if (ruleMode === 4)
+        return { "gameId": 2, "ruleName": "QLizzie-Reversi" }
+    if (ruleMode === 9)
+        return { "gameId": 10, "ruleName": "QLizzie-Ataxx" }
+    return { "gameId": 0, "ruleName": "QLizzie-Custom" }
+}
+
 function buildSgf(nodes, ruleMode, xSize, ySize, ruleText) {
-    var gameId = ruleMode === 0 ? 1 : ruleMode === 2 ? 11 : 4
-    var ruleName = ruleMode === 0 ? "QLizzie-Go" : ruleMode === 2 ? "QLizzie-Hex" : "QLizzie-Gomoku"
+    var gameInfo = sgfGameInfo(ruleMode)
     var numericCoordinates = useNumericSgfCoordinates(xSize, ySize)
-    var text = "(;FF[4]GM[" + gameId + "]CA[UTF-8]AP[QLizzie]RU[" + sgfEscape(ruleName) + "]"
+    var text = "(;FF[4]GM[" + gameInfo.gameId + "]CA[UTF-8]AP[QLizzie]RU[" + sgfEscape(gameInfo.ruleName) + "]"
                + "SZ[" + boardSizeText(xSize, ySize) + "]"
                + "C[" + sgfEscape("QLizzie " + ruleText) + "]"
     var rootNode = nodes[0]
@@ -115,9 +136,11 @@ function parseSgf(text, options) {
     var gameRuleGo = options.gameRuleGo
     var gameRuleGomoku = options.gameRuleGomoku
     var gameRuleHex = options.gameRuleHex
+    var ignoreRuleMode = options.ignoreRuleMode === true
     var parsedBoardSizeX = 19
     var parsedBoardSizeY = 19
     var parsedRuleMode = options.defaultRuleMode
+    var parsedGameId = ""
     var maxX = -1
     var maxY = -1
     var parseError = ""
@@ -227,6 +250,10 @@ function parseSgf(text, options) {
         parsedBoardSizeY = size.y
     }
 
+    function updateGameIdFromProperties(properties) {
+        parsedGameId = firstSgfValue(properties, "GM").trim()
+    }
+
     function updateRuleFromProperties(properties) {
         var gmValue = firstSgfValue(properties, "GM")
         var ruValue = firstSgfValue(properties, "RU").toUpperCase()
@@ -290,7 +317,9 @@ function parseSgf(text, options) {
                 var props = parseNodeProperties()
                 if (currentParent === 0 && lastId === 0) {
                     updateSizeFromProperties(props)
-                    updateRuleFromProperties(props)
+                    updateGameIdFromProperties(props)
+                    if (!ignoreRuleMode)
+                        updateRuleFromProperties(props)
                 }
                 var move = moveFromProperties(props)
                 if (!move)
@@ -362,6 +391,7 @@ function parseSgf(text, options) {
         "nodes": nodes,
         "nextNodeId": nextId,
         "ruleMode": parsedRuleMode,
+        "gameId": parsedGameId,
         "boardSizeX": targetBoardSizeX,
         "boardSizeY": targetBoardSizeY
     }

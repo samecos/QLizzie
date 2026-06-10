@@ -1,4 +1,5 @@
 .pragma library
+.import "GameRules.js" as GameRules
 
 function visitCount(candidate) {
     if (!candidate)
@@ -494,7 +495,7 @@ function buildCandidateItems(app, candidates) {
     for (var c = 0; c < sorted.length; ++c) {
         var candidate = sorted[c]
         var point = app.parseEngineCoordinate(candidate.move)
-        if (point && app.stoneAt(point.x, point.y) === 0) {
+        if (point) {
             var visits = visitCount(candidate)
             var visitRatio = maxVisits > 0 ? app.clamp(visits / maxVisits, 0, 1) : 1
             var rawWinrate = winrateValue(app, candidate)
@@ -667,20 +668,193 @@ function activeCandidateForVariationPreview(app) {
     if (!app.candidateVariationPreviewVisible || app.hoverKey === "" || !app.pointIsEngineCandidateKey(app.hoverKey))
         return null
     var candidate = app.engineCandidateItemMap[app.hoverKey]
-    if (!candidate || app.stoneAt(candidate.x, candidate.y) !== 0)
+    if (!candidate)
         return null
     return candidate
 }
 
 function activeCandidateVariationPreviewActive(app) {
     var candidate = activeCandidateForVariationPreview(app)
-    return !!candidate && candidate.pv && candidate.pv.length > 0
+    if (!candidate || !candidate.pv || candidate.pv.length <= 0)
+        return false
+    if (moveRuleVariationPreview(app))
+        return activeMoveRuleVariationItems(app, candidate, true).length > 0
+    return true
+}
+
+function moveRuleVariationPreview(app) {
+    return app.gameRuleMode === app.gameRuleAtaxx
+           || app.gameRuleMode === app.gameRuleBreakthrough
+}
+
+function parsedPvPoint(app, moveText) {
+    var point = app.parseEngineCoordinate(String(moveText || "").trim())
+    if (!point || !app.pointInRuleBoard(point.x, point.y))
+        return null
+    return point
+}
+
+function previewStoneItem(point, player, moveNumber) {
+    return {
+        "kind": "stone",
+        "x": point.x,
+        "y": point.y,
+        "key": point.x + "," + point.y,
+        "player": player,
+        "moveNumber": moveNumber,
+        "nodeId": -1
+    }
+}
+
+function previewArrowItem(fromPoint, toPoint, player, moveNumber) {
+    return {
+        "kind": "arrow",
+        "fromX": fromPoint.x,
+        "fromY": fromPoint.y,
+        "x": toPoint.x,
+        "y": toPoint.y,
+        "key": toPoint.x + "," + toPoint.y,
+        "player": player,
+        "moveNumber": moveNumber,
+        "nodeId": -1
+    }
+}
+
+function consumeAtaxxPreviewMove(app, map, moves, index, player, sourcePoint, moveNumber) {
+    if (index >= moves.length)
+        return null
+    var first = parsedPvPoint(app, moves[index])
+    if (!first)
+        return null
+
+    var dims = app.boardDims()
+    var item = {
+        "x": first.x,
+        "y": first.y,
+        "key": app.keyFor(first.x, first.y),
+        "player": player,
+        "moveNumber": moveNumber,
+        "nodeId": -1
+    }
+
+    if (sourcePoint) {
+        var sourceKind = GameRules.ataxxMoveKind(map, dims, first.x, first.y, player, sourcePoint)
+        if (sourceKind !== "clone" && sourceKind !== "jump")
+            return null
+        GameRules.applyAtaxxMoveOnMap(map, dims, item, sourcePoint)
+        return {
+            "item": previewArrowItem(sourcePoint, first, player, moveNumber),
+            "nextIndex": index + 1
+        }
+    }
+
+    var firstKind = GameRules.ataxxMoveKind(map, dims, first.x, first.y, player, null)
+    if (firstKind === "clone") {
+        GameRules.applyAtaxxMoveOnMap(map, dims, item, null)
+        return {
+            "item": previewStoneItem(first, player, moveNumber),
+            "nextIndex": index + 1
+        }
+    }
+
+    if (firstKind !== "source" || index + 1 >= moves.length)
+        return null
+
+    var second = parsedPvPoint(app, moves[index + 1])
+    if (!second)
+        return null
+    var moveKind = GameRules.ataxxMoveKind(map, dims, second.x, second.y, player, first)
+    if (moveKind !== "clone" && moveKind !== "jump")
+        return null
+
+    var targetItem = {
+        "x": second.x,
+        "y": second.y,
+        "key": app.keyFor(second.x, second.y),
+        "player": player,
+        "moveNumber": moveNumber,
+        "nodeId": -1
+    }
+    GameRules.applyAtaxxMoveOnMap(map, dims, targetItem, first)
+    return {
+        "item": previewArrowItem(first, second, player, moveNumber),
+        "nextIndex": index + 2
+    }
+}
+
+function consumeBreakthroughPreviewMove(app, map, moves, index, player, sourcePoint, moveNumber) {
+    if (index >= moves.length)
+        return null
+    var dims = app.boardDims()
+    var source = sourcePoint
+    var targetIndex = index
+    if (!source) {
+        source = parsedPvPoint(app, moves[index])
+        if (!source || GameRules.breakthroughMoveKind(map, dims, source.x, source.y, player, null) !== "source")
+            return null
+        targetIndex = index + 1
+    }
+    if (targetIndex >= moves.length)
+        return null
+    var target = parsedPvPoint(app, moves[targetIndex])
+    if (!target)
+        return null
+    var kind = GameRules.breakthroughMoveKind(map, dims, target.x, target.y, player, source)
+    if (kind !== "move" && kind !== "capture")
+        return null
+    var item = {
+        "x": target.x,
+        "y": target.y,
+        "key": app.keyFor(target.x, target.y),
+        "player": player,
+        "moveNumber": moveNumber,
+        "nodeId": -1
+    }
+    GameRules.applyBreakthroughMoveOnMap(map, dims, item, source)
+    return {
+        "item": previewArrowItem(source, target, player, moveNumber),
+        "nextIndex": targetIndex + 1
+    }
+}
+
+function activeMoveRuleVariationItems(app, candidate, respectMaxMoves) {
+    if (!candidate || !candidate.pv || candidate.pv.length <= 0)
+        return []
+
+    var maxMoves = respectMaxMoves !== false ? Math.round(Number(app.candidateVariationPreviewMaxMoves)) : 0
+    if (isNaN(maxMoves))
+        maxMoves = 0
+    maxMoves = Math.max(0, maxMoves)
+
+    var items = []
+    var map = GameRules.cloneStoneMap(app.stones)
+    var player = app.currentPlayer
+    var sourcePoint = app.currentMoveSourcePoint()
+    var moveNumber = 1
+    var consume = app.gameRuleMode === app.gameRuleAtaxx
+                  ? consumeAtaxxPreviewMove
+                  : consumeBreakthroughPreviewMove
+
+    var current = consume(app, map, candidate.pv, 0, player, sourcePoint, moveNumber)
+    if (!current)
+        return []
+    items.push(current.item)
+    if (maxMoves === 1)
+        return items
+
+    var opponent = player === 1 ? 2 : 1
+    var opponentMove = consume(app, map, candidate.pv, current.nextIndex, opponent, null, moveNumber + 1)
+    if (opponentMove && (maxMoves === 0 || maxMoves >= 2))
+        items.push(opponentMove.item)
+    return items
 }
 
 function activeCandidateVariationItems(app, respectMaxMoves) {
     var candidate = activeCandidateForVariationPreview(app)
     if (!candidate || !candidate.pv || candidate.pv.length <= 0)
         return []
+    if (moveRuleVariationPreview(app))
+        return activeMoveRuleVariationItems(app, candidate, respectMaxMoves)
 
     var items = []
     var player = app.currentPlayer

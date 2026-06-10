@@ -16,17 +16,23 @@ Item {
     readonly property real coordinateCharWidthRatio: 0.58
     readonly property real coordinateGapRatio: 0.10
     readonly property real coordinateOuterGapRatio: 0.10
+    readonly property real hexCellCoordinateExtraRatio: hexCellStyle ? 0.35 : 0
     readonly property real stoneRadiusRatio: app.stoneScale * 0.5
-    readonly property bool hexBoard: app.gameRuleMode === app.gameRuleHex
-    readonly property bool squareCellBoard: app.gameRuleMode === app.gameRuleGomoku
-                                            && app.boardPresentationMode === app.boardPresentationCells
-    readonly property bool hexCellStyle: hexBoard && app.hexBoardStyle === app.hexBoardStyleCells
+    readonly property bool hexBoard: app.ruleUsesHexGrid()
+    readonly property bool squareCellBoard: app.ruleUsesSquareCells()
+    readonly property bool hexCellStyle: app.ruleUsesHexCellStyle()
     readonly property bool hexTransposed: app.hexBoardRotation === app.hexRotationTranspose
                                           || app.hexBoardRotation === app.hexRotationFlipXTranspose
+                                          || app.hexBoardRotation === app.hexRotationHorizontalTranspose
+                                          || app.hexBoardRotation === app.hexRotationVerticalTranspose
+                                          || app.hexBoardRotation === app.hexRotationMirrorTranspose
     readonly property bool hexFlippedX: app.hexBoardRotation === app.hexRotationFlipX
                                         || app.hexBoardRotation === app.hexRotationFlipXTranspose
+    readonly property bool hexFlippedY: app.hexBoardRotation === app.hexRotationMirror
+                                        || app.hexBoardRotation === app.hexRotationMirrorTranspose
     readonly property real hexRowHeightRatio: 0.8660254037844386
     readonly property real hexCellRadiusRatio: 0.5773502691896258
+    readonly property var hexDisplayTransform: hexBoard ? BoardRenderer.hexDisplayTransform(rendererState()) : null
     readonly property real horizontalPointRadiusRatio: hexBoard
                                                    ? (hexCellStyle ? 0.5 : Math.max(stoneRadiusRatio, 0.5))
                                                    : stoneRadiusRatio
@@ -46,20 +52,21 @@ Item {
     readonly property real xCoordinateTextWidthRatio: maxXCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     readonly property real yCoordinateTextWidthRatio: maxYCoordinateChars * coordinateCharWidthRatio * coordinateFontRatio
     readonly property real horizontalPaddingRatio: coordinatesVisible
-                                                    ? horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio + coordinateOuterGapRatio
+                                                    ? horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio
+                                                      + coordinateOuterGapRatio + hexCellCoordinateExtraRatio
                                                     : horizontalPointRadiusRatio + coordinateOuterGapRatio
     readonly property real verticalPaddingRatio: coordinatesVisible
-                                                  ? verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio + coordinateOuterGapRatio
+                                                  ? verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio
+                                                    + coordinateOuterGapRatio + hexCellCoordinateExtraRatio
                                                   : verticalPointRadiusRatio + coordinateOuterGapRatio
     readonly property real availableWidth: Math.max(1, width - boardOuterMargin * 2)
     readonly property real availableHeight: Math.max(1, height - boardOuterMargin * 2)
     readonly property real gridUnitWidth: hexBoard
-                                           ? Math.max(1, Math.max(0, hexDisplaySizeX - 1)
-                                                         + Math.max(0, hexDisplaySizeY - 1) * 0.5)
+                                           ? BoardRenderer.gridUnitWidth(rendererState(), hexDisplayTransform)
                                            : squareCellBoard ? Math.max(1, app.boardSizeX)
                                                              : Math.max(1, app.boardSizeX - 1)
     readonly property real gridUnitHeight: hexBoard
-                                            ? Math.max(1, Math.max(0, hexDisplaySizeY - 1) * hexRowHeightRatio)
+                                            ? BoardRenderer.gridUnitHeight(rendererState(), hexDisplayTransform)
                                             : squareCellBoard ? Math.max(1, app.boardSizeY)
                                                               : Math.max(1, app.boardSizeY - 1)
     readonly property real cellSize: Math.max(0.1, Math.min(
@@ -68,8 +75,10 @@ Item {
     readonly property real boardPaddingX: horizontalPaddingRatio * cellSize
     readonly property real boardPaddingY: verticalPaddingRatio * cellSize
     readonly property real coordinateFontSize: coordinateFontRatio * cellSize
-    readonly property real xCoordinateLabelOffset: (verticalPointRadiusRatio + coordinateGapRatio + coordinateFontRatio * 0.5) * cellSize
-    readonly property real yCoordinateLabelOffset: (horizontalPointRadiusRatio + coordinateGapRatio + yCoordinateTextWidthRatio * 0.5) * cellSize
+    readonly property real xCoordinateLabelOffset: (verticalPointRadiusRatio + coordinateGapRatio
+                                                    + coordinateFontRatio * 0.5 + hexCellCoordinateExtraRatio) * cellSize
+    readonly property real yCoordinateLabelOffset: (horizontalPointRadiusRatio + coordinateGapRatio
+                                                    + yCoordinateTextWidthRatio * 0.5 + hexCellCoordinateExtraRatio) * cellSize
     readonly property real gridWidth: cellSize * gridUnitWidth
     readonly property real gridHeight: cellSize * gridUnitHeight
     readonly property real boardLeft: Math.round((width - gridWidth) / 2)
@@ -87,11 +96,8 @@ Item {
     }
 
     function hexDisplayPointLocal(x, y) {
-        var unitX = x + y * 0.5
-        if (hexFlippedX)
-            unitX = gridUnitWidth - unitX
-        return Qt.point(boardLeft + unitX * cellSize,
-                        boardTop + y * hexRowHeightRatio * cellSize)
+        var point = BoardRenderer.hexDisplayPointLocal(rendererState(), rendererGeometry(), x, y)
+        return Qt.point(point.x, point.y)
     }
 
     function boardPointLocal(x, y) {
@@ -112,7 +118,7 @@ Item {
         if (squareCellBoard) {
             var cellX = Math.floor((mouseX - boardLeft) / cellSize)
             var cellY = Math.floor((mouseY - boardTop) / cellSize)
-            if (!app.pointInBoard(cellX, cellY))
+            if (!app.pointInRuleBoard(cellX, cellY))
                 return null
             return { "x": cellX, "y": cellY, "key": app.keyFor(cellX, cellY) }
         }
@@ -120,11 +126,12 @@ Item {
         var y
         var x
         if (hexBoard) {
-            var displayY = Math.round((mouseY - boardTop) / (cellSize * hexRowHeightRatio))
-            var displayUnitX = (mouseX - boardLeft) / cellSize
-            if (hexFlippedX)
-                displayUnitX = gridUnitWidth - displayUnitX
-            var displayX = Math.round(displayUnitX - displayY * 0.5)
+            var display = BoardRenderer.hexDisplayCoordFromUnit(rendererState(),
+                                                                 (mouseX - boardLeft) / cellSize,
+                                                                 (mouseY - boardTop) / cellSize,
+                                                                 hexDisplayTransform)
+            var displayX = Math.round(display.x)
+            var displayY = Math.round(display.y)
             var board = boardCoordForHexDisplay(displayX, displayY)
             x = board.x
             y = board.y
@@ -132,7 +139,7 @@ Item {
             y = Math.round((mouseY - boardTop) / cellSize)
             x = Math.round((mouseX - boardLeft) / cellSize)
         }
-        if (!app.pointInBoard(x, y))
+        if (!app.pointInRuleBoard(x, y))
             return null
 
         var point = boardPointLocal(x, y)
@@ -194,6 +201,54 @@ Item {
             ctx.restore()
         }
 
+        function drawVariationArrow(ctx, move, radius, opacity) {
+            var from = boardScene.boardPointLocal(move.fromX, move.fromY)
+            var to = boardScene.boardPointLocal(move.x, move.y)
+            var dx = to.x - from.x
+            var dy = to.y - from.y
+            var length = Math.sqrt(dx * dx + dy * dy)
+            if (length <= 0.001)
+                return to
+
+            var ux = dx / length
+            var uy = dy / length
+            var startOffset = Math.min(radius * 0.62, length * 0.28)
+            var endOffset = Math.min(radius * 0.72, length * 0.34)
+            var sx = from.x + ux * startOffset
+            var sy = from.y + uy * startOffset
+            var ex = to.x - ux * endOffset
+            var ey = to.y - uy * endOffset
+            var head = Math.max(8, radius * 0.42)
+            var lineWidth = Math.max(4, radius * 0.16)
+            var stroke = move.player === 1 ? "#111820" : "#f8fbfd"
+            var outline = move.player === 1 ? "#f8fbfd" : "#13212b"
+
+            function strokeArrow(color, width) {
+                ctx.strokeStyle = color
+                ctx.fillStyle = color
+                ctx.lineWidth = width
+                ctx.lineCap = "round"
+                ctx.lineJoin = "round"
+                ctx.beginPath()
+                ctx.moveTo(sx, sy)
+                ctx.lineTo(ex, ey)
+                ctx.stroke()
+                ctx.beginPath()
+                ctx.moveTo(to.x - ux * endOffset * 0.20, to.y - uy * endOffset * 0.20)
+                ctx.lineTo(ex - uy * head * 0.55, ey + ux * head * 0.55)
+                ctx.lineTo(ex + uy * head * 0.55, ey - ux * head * 0.55)
+                ctx.closePath()
+                ctx.fill()
+            }
+
+            ctx.save()
+            ctx.globalAlpha = Math.max(0.55, Math.min(1, opacity))
+            strokeArrow(outline, lineWidth + Math.max(2, radius * 0.08))
+            strokeArrow(stroke, lineWidth)
+            ctx.restore()
+            return to
+        }
+
         onPaint: {
             var ctx = getContext("2d")
             ctx.clearRect(0, 0, width, height)
@@ -206,43 +261,26 @@ Item {
 
             var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
             var candidateRadius = stoneRadius
-            if (!boardScene.variationPreviewActive) {
-                for (var c = app.engineCandidateItems.length - 1; c >= 0; --c) {
-                    var candidate = app.engineCandidateItems[c]
-                    if (app.stoneAt(candidate.x, candidate.y) !== 0)
-                        continue
-                    if (!candidate.boardVisible)
-                        continue
-                    var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
-                    var showCandidateText = candidate.qualified
-                    var candidateLines = showCandidateText ? (candidate.labelLines || []) : []
-                    var isFirstCandidate = candidate.displayIndex === 1
-                    var isBestCandidate = app.bestCandidateRingVisible
-                                          && app.candidateRingVisible
-                                          && candidate.key === app.bestCandidateRingKey
-                    var markerOptions = {
-                        "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
-                                                                                  candidate.visitRatio),
-                        "fillOpacity": candidate.opacity,
-                        "drawOutline": !isFirstCandidate,
-                        "outlineOpacity": candidate.outlineOpacity,
-                        "drawRing": isBestCandidate,
-                        "ringColor": app.firstCandidateRingColor,
-                        "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
-                        "rankText": app.candidateRankLabelText(candidate.displayIndex)
-                    }
-                    if (showCandidateText) {
-                        markerOptions.fallbackText = String(candidate.displayIndex)
-                        markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
-                        markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
-                    }
-                    app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, markerOptions)
-                }
-            }
 
             for (var s = 0; s < app.stoneItems.length; ++s) {
                 var stone = app.stoneItems[s]
                 drawStone(ctx, stone.x, stone.y, stone.player, stoneRadius)
+            }
+
+            var sourceNode = app.currentMoveSourceNode()
+            if (sourceNode) {
+                var sp = boardScene.boardPointLocal(sourceNode.x, sourceNode.y)
+                var sourceSize = stoneRadius * 0.58
+                ctx.fillStyle = "#f39c12"
+                ctx.strokeStyle = "#7a3f00"
+                ctx.lineWidth = Math.max(1, cell * 0.035)
+                ctx.beginPath()
+                ctx.moveTo(sp.x, sp.y - sourceSize * 0.72)
+                ctx.lineTo(sp.x + sourceSize * 0.68, sp.y + sourceSize * 0.48)
+                ctx.lineTo(sp.x - sourceSize * 0.68, sp.y + sourceSize * 0.48)
+                ctx.closePath()
+                ctx.fill()
+                ctx.stroke()
             }
 
             for (var w = 0; w < app.gomokuWinLineItems.length; ++w) {
@@ -310,6 +348,38 @@ Item {
                                          moveNumberFontSize, true,
                                          app.stoneNumberMaxWidth(stoneRadius))
                     }
+                }
+            }
+
+            if (!boardScene.variationPreviewActive) {
+                for (var c = app.engineCandidateItems.length - 1; c >= 0; --c) {
+                    var candidate = app.engineCandidateItems[c]
+                    if (!candidate.boardVisible)
+                        continue
+                    var cp = boardScene.boardPointLocal(candidate.x, candidate.y)
+                    var showCandidateText = candidate.qualified
+                    var candidateLines = showCandidateText ? (candidate.labelLines || []) : []
+                    var isFirstCandidate = candidate.displayIndex === 1
+                    var isBestCandidate = app.bestCandidateRingVisible
+                                          && app.candidateRingVisible
+                                          && candidate.key === app.bestCandidateRingKey
+                    var markerOptions = {
+                        "fillColor": candidate.color || app.candidateMarkerColor(candidate.displayIndex,
+                                                                                  candidate.visitRatio),
+                        "fillOpacity": candidate.opacity,
+                        "drawOutline": !isFirstCandidate,
+                        "outlineOpacity": candidate.outlineOpacity,
+                        "drawRing": isBestCandidate,
+                        "ringColor": app.firstCandidateRingColor,
+                        "textColor": isFirstCandidate ? app.candidateFirstLabelTextColor : "",
+                        "rankText": app.candidateRankLabelText(candidate.displayIndex)
+                    }
+                    if (showCandidateText) {
+                        markerOptions.fallbackText = String(candidate.displayIndex)
+                        markerOptions.fallbackColor = isFirstCandidate ? app.candidateFirstLabelTextColor : "#104f29"
+                        markerOptions.fallbackFontSize = Math.max(10, Math.min(16, cell * 0.20))
+                    }
+                    app.drawCandidateMarker(ctx, cp.x, cp.y, candidateRadius, candidateLines, markerOptions)
                 }
             }
 
@@ -404,17 +474,22 @@ Item {
                 var previewOpacity = Number(app.candidateVariationPreviewOpacity)
                 if (isNaN(previewOpacity))
                     previewOpacity = app.defaultCandidateVariationPreviewOpacity
-                ctx.save()
-                ctx.globalAlpha = Math.max(0, Math.min(1, previewOpacity))
-                boardCanvas.drawStone(ctx, move.x, move.y, move.player, previewRadius)
-                ctx.restore()
+                if (move.kind === "arrow") {
+                    point = boardCanvas.drawVariationArrow(ctx, move, previewRadius, previewOpacity)
+                } else {
+                    ctx.save()
+                    ctx.globalAlpha = Math.max(0, Math.min(1, previewOpacity))
+                    boardCanvas.drawStone(ctx, move.x, move.y, move.player, previewRadius)
+                    ctx.restore()
+                }
 
                 if (i === 0 && activeCandidate) {
+                    var labelPoint = boardScene.boardPointLocal(activeCandidate.x, activeCandidate.y)
                     ctx.save()
                     app.drawCandidateLabelLines(ctx,
                                                 activeCandidate.labelLines || [],
-                                                point.x,
-                                                point.y,
+                                                labelPoint.x,
+                                                labelPoint.y,
                                                 previewRadius,
                                                 move.player === 1 ? "#ffffff" : "#000000")
                     ctx.restore()
@@ -471,7 +546,7 @@ Item {
                 return
 
             var candidate = app.engineCandidateItemMap[app.hoverKey]
-            if (!candidate || app.stoneAt(candidate.x, candidate.y) !== 0)
+            if (!candidate)
                 return
 
             var cell = boardScene.cellSize

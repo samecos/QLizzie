@@ -63,7 +63,7 @@ Basic.Dialog {
         spacing: 18
 
         Label {
-            text: app.engineFailureMessage()
+            text: app.engineFailureDialogText()
             color: "#4a201b"
             wrapMode: Text.WordWrap
             font.pixelSize: 14

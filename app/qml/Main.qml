@@ -129,6 +129,14 @@ ApplicationWindow {
     readonly property int gameRuleGo: 0
     readonly property int gameRuleGomoku: 1
     readonly property int gameRuleHex: 2
+    readonly property int gameRuleSquareFree: 3
+    readonly property int gameRuleReversi: 4
+    readonly property int gameRuleConnect6: 5
+    readonly property int gameRuleHexGoParallelogram: 6
+    readonly property int gameRuleHexGoHexagon: 7
+    readonly property int gameRuleHexGoTriangle: 8
+    readonly property int gameRuleAtaxx: 9
+    readonly property int gameRuleBreakthrough: 10
     property int gameRuleMode: gameRuleGo
     property var ruleVisibilityMap: ({})
     readonly property int gomokuRuleCon5: 0
@@ -141,8 +149,10 @@ ApplicationWindow {
     property var gomokuWinLineItems: []
     property var hexWinPathItems: []
     property int hexWinPathPlayer: 0
+    property var breakthroughWinInfo: ({ "player": 0, "reason": "" })
 
     property real komi: 6.5
+    readonly property real maxKomiMagnitude: 99999
     readonly property int playModeAnalysis: 0
     readonly property int playModeAiBlack: 1
     readonly property int playModeAiWhite: 2
@@ -179,6 +189,12 @@ ApplicationWindow {
     readonly property int hexRotationTranspose: 1
     readonly property int hexRotationFlipX: 2
     readonly property int hexRotationFlipXTranspose: 3
+    readonly property int hexRotationHorizontal: 4
+    readonly property int hexRotationHorizontalTranspose: 5
+    readonly property int hexRotationVertical: 6
+    readonly property int hexRotationVerticalTranspose: 7
+    readonly property int hexRotationMirror: 8
+    readonly property int hexRotationMirrorTranspose: 9
     property int hexBoardRotation: hexRotationCurrent
     readonly property int packageModeUniversal: 0
     readonly property int packageModeGo: 1
@@ -203,6 +219,7 @@ ApplicationWindow {
     property bool engineDisabled: false
     property bool engineLoading: false
     property bool engineNoticeDismissed: false
+    property string engineFailureNoticeText: ""
     property bool genmoveInFlight: false
     property int genmoveRequestSerial: 0
     property int activeGenmoveRequestId: 0
@@ -710,6 +727,44 @@ ApplicationWindow {
         return { "x": boardSizeX, "y": boardSizeY }
     }
 
+    function pointInRuleBoard(x, y) {
+        return GameRules.pointInRuleBoard(boardDims(), x, y, gameRuleMode)
+    }
+
+    function ruleUsesHexGrid() {
+        return RuleSupport.ruleUsesHexGrid(root, gameRuleMode)
+    }
+
+    function ruleUsesSquareCells() {
+        return RuleSupport.ruleUsesSquareCells(root, gameRuleMode)
+    }
+
+    function ruleUsesHexCellStyle() {
+        return RuleSupport.ruleUsesHexCellStyle(root, gameRuleMode)
+    }
+
+    function ruleUsesGoCapture() {
+        return RuleSupport.ruleUsesGoCapture(root, gameRuleMode)
+    }
+
+    function ruleAllowsOccupiedMoves() {
+        return RuleSupport.ruleAllowsOccupiedMoves(root, gameRuleMode)
+    }
+
+    function ruleUsesMoveSource() {
+        return RuleSupport.ruleUsesMoveSource(root, gameRuleMode)
+    }
+
+    function currentMoveSourceNode() {
+        var node = currentNode()
+        return node && node.moveRole === "source" ? node : null
+    }
+
+    function currentMoveSourcePoint() {
+        var source = currentMoveSourceNode()
+        return source ? { "x": source.x, "y": source.y } : null
+    }
+
     function stoneDataAt(x, y) {
         boardRevision
         var value = stones[keyFor(x, y)]
@@ -724,7 +779,7 @@ ApplicationWindow {
     function isLastMoveAt(x, y) {
         boardRevision
         var node = currentNode()
-        return !!node && !node.isPass && node.key === keyFor(x, y)
+        return !!node && !node.isPass && node.moveRole !== "source" && node.key === keyFor(x, y)
     }
 
     function nodeById(id) {
@@ -746,6 +801,7 @@ ApplicationWindow {
             "player": 0,
             "moveNumber": 0,
             "isPass": false,
+            "moveRole": "",
             "blackCaptures": 0,
             "whiteCaptures": 0,
             "koLocKey": "",
@@ -774,6 +830,15 @@ ApplicationWindow {
         if (stoneColorMode === stoneColorModeWhite)
             return 2
 
+        if (node && node.moveRole === "source")
+            return node.player
+        if (gameRuleMode === gameRuleConnect6) {
+            var moveNumber = node ? node.moveNumber : 0
+            if (moveNumber <= 0)
+                return 1
+            var pair = Math.floor((moveNumber - 1) / 2)
+            return pair % 2 === 0 ? 2 : 1
+        }
         if (node && node.player === 1)
             return 2
         if (node && node.player === 2)
@@ -785,12 +850,33 @@ ApplicationWindow {
         return playerToMoveAfterNode(currentNode())
     }
 
+    function setStoneColorMode(mode) {
+        var nextMode = Math.round(clamp(mode, stoneColorModeAuto, stoneColorModeWhite))
+        if (stoneColorMode === nextMode) {
+            currentPlayer = nextPlayerFromMode()
+            rebuildPointLegality()
+            boardRevision += 1
+            return
+        }
+        stoneColorMode = nextMode
+        currentPlayer = nextPlayerFromMode()
+        selectedPointLocked = false
+        selectedPointFromCandidateList = false
+        clearEngineCandidates()
+        rebuildPointLegality()
+        boardRevision += 1
+        scheduleAutoAnalysis()
+        requestAiMoveIfNeeded()
+    }
+
     function pointLegalInMap(map, x, y, player, activeKoLocKey) {
-        return GameRules.pointLegalInMap(map, boardDims(), x, y, player, activeKoLocKey, gameRuleMode)
+        return GameRules.pointLegalInMap(map, boardDims(), x, y, player, activeKoLocKey,
+                                         gameRuleMode, currentMoveSourcePoint())
     }
 
     function buildPointLegalityMap(map, player, activeKoLocKey) {
-        return GameRules.buildPointLegalityMap(map, boardDims(), player, activeKoLocKey, gameRuleMode)
+        return GameRules.buildPointLegalityMap(map, boardDims(), player, activeKoLocKey,
+                                               gameRuleMode, currentMoveSourcePoint())
     }
 
     function shouldCachePointLegality() {
@@ -882,11 +968,11 @@ ApplicationWindow {
     }
 
     function illegalPointMessage(x, y, fallback) {
-        if (stoneAt(x, y) !== 0)
+        if (stoneAt(x, y) !== 0 && !ruleAllowsOccupiedMoves() && !ruleUsesMoveSource())
             return trText("occupied") + ": " + coordinateText(x, y)
         if (koLocKey !== "" && keyFor(x, y) === koLocKey)
             return trText("koMove") + ": " + coordinateText(x, y)
-        if (gameRuleMode === gameRuleGo)
+        if (ruleUsesGoCapture())
             return trText("suicideMove") + ": " + coordinateText(x, y)
         return fallback
     }
@@ -901,14 +987,26 @@ ApplicationWindow {
 
     function rebuildPositionFromNode(id) {
         clearEngineCandidates()
-        var map = ({})
+        var map = GameRules.initialStoneMap(boardDims(), gameRuleMode)
         var blackCap = 0
         var whiteCap = 0
         var ko = GameRules.emptyKoLoc()
+        var pendingSource = null
         var path = nodePath(id)
         for (var i = 0; i < path.length; ++i) {
             var node = path[i]
             if (node.isPass) {
+                ko = GameRules.emptyKoLoc()
+                pendingSource = null
+                node.blackCaptures = blackCap
+                node.whiteCaptures = whiteCap
+                node.koLocKey = ko.key
+                node.koLocX = ko.x
+                node.koLocY = ko.y
+                continue
+            }
+            if (node.moveRole === "source") {
+                pendingSource = { "x": node.x, "y": node.y, "player": node.player }
                 ko = GameRules.emptyKoLoc()
                 node.blackCaptures = blackCap
                 node.whiteCaptures = whiteCap
@@ -926,8 +1024,8 @@ ApplicationWindow {
                 "moveNumber": node.moveNumber,
                 "nodeId": node.id
             }
-            if (gameRuleMode === gameRuleGo) {
-                var result = GameRules.simulateGoMoveOnMap(map, boardDims(), item, true)
+            if (ruleUsesGoCapture()) {
+                var result = GameRules.simulateGoMoveOnMap(map, boardDims(), item, true, gameRuleMode)
                 if (result.ok) {
                     if (node.player === 1)
                         blackCap += result.captured
@@ -935,6 +1033,23 @@ ApplicationWindow {
                         whiteCap += result.captured
                     ko = GameRules.koLocFromGoMoveResult(gameRuleMode, result)
                 }
+            } else if (gameRuleMode === gameRuleReversi) {
+                GameRules.applyReversiMoveOnMap(map, boardDims(), item)
+                ko = GameRules.emptyKoLoc()
+            } else if (gameRuleMode === gameRuleAtaxx) {
+                GameRules.applyAtaxxMoveOnMap(map, boardDims(), item, pendingSource)
+                pendingSource = null
+                ko = GameRules.emptyKoLoc()
+            } else if (gameRuleMode === gameRuleBreakthrough && pendingSource) {
+                var breakthrough = GameRules.applyBreakthroughMoveOnMap(map, boardDims(), item, pendingSource)
+                if (breakthrough.ok) {
+                    if (node.player === 1)
+                        blackCap += breakthrough.capturedStones.length
+                    else
+                        whiteCap += breakthrough.capturedStones.length
+                }
+                pendingSource = null
+                ko = GameRules.emptyKoLoc()
             } else {
                 map[item.key] = item
                 ko = GameRules.emptyKoLoc()
@@ -968,9 +1083,10 @@ ApplicationWindow {
         gameNodes = [rootNode()]
         currentNodeId = 0
         nextNodeId = 1
-        stones = ({})
+        stones = GameRules.initialStoneMap(boardDims(), gameRuleMode)
         stoneItems = []
-        stoneCount = 0
+        stoneItems = mapStoneItems(stones)
+        stoneCount = stoneItems.length
         blackCaptures = 0
         whiteCaptures = 0
         koLocKey = ""
@@ -981,6 +1097,7 @@ ApplicationWindow {
         gomokuWinLineItems = []
         hexWinPathItems = []
         hexWinPathPlayer = 0
+        breakthroughWinInfo = ({ "player": 0, "reason": "" })
         currentPlayer = 1
         clearHover(true)
         clearEngineCandidates()
@@ -989,25 +1106,30 @@ ApplicationWindow {
         boardRevision += 1
     }
 
-    function branchChildMatching(parent, key, player, isPass) {
+    function branchChildMatching(parent, key, player, isPass, moveRole) {
+        moveRole = moveRole || ""
         var children = parent ? (parent.children || []) : []
         for (var i = 0; i < children.length; ++i) {
             var child = nodeById(children[i])
-            if (child && child.key === key && child.player === player && child.isPass === isPass)
+            if (child && child.key === key && child.player === player && child.isPass === isPass
+                    && (child.moveRole || "") === moveRole)
                 return child
         }
         return null
     }
 
-    function addMoveNode(player, x, y, isPass, capturedStones, koLoc, skipPositionRebuild, deferTreeLayoutRebuild) {
+    function addMoveNode(player, x, y, isPass, capturedStones, koLoc, skipPositionRebuild, deferTreeLayoutRebuild, moveRole) {
         var parent = currentNode()
         if (!parent)
             return null
         var key = isPass ? passKey() : keyFor(x, y)
-        var existing = branchChildMatching(parent, key, player, isPass)
-        if (existing) {
-            gotoNode(existing.id)
-            return existing
+        moveRole = moveRole || ""
+        if (isPass || moveRole !== "" || !ruleAllowsOccupiedMoves()) {
+            var existing = branchChildMatching(parent, key, player, isPass, moveRole)
+            if (existing) {
+                gotoNode(existing.id)
+                return existing
+            }
         }
 
         var id = nextNodeId++
@@ -1021,6 +1143,7 @@ ApplicationWindow {
             "player": player,
             "moveNumber": parent.moveNumber + 1,
             "isPass": isPass,
+            "moveRole": moveRole,
             "capturedStones": capturedStones || [],
             "blackCaptures": blackCaptures,
             "whiteCaptures": whiteCaptures,
@@ -1053,17 +1176,20 @@ ApplicationWindow {
     }
 
     function placeStone(x, y) {
-        if (!pointInBoard(x, y))
+        if (!pointInRuleBoard(x, y))
             return false
 
-        if (stoneAt(x, y) !== 0) {
+        if (ruleUsesMoveSource())
+            return placeMoveRulePoint(x, y)
+
+        if (stoneAt(x, y) !== 0 && !ruleAllowsOccupiedMoves()) {
             statusMode = "occupied"
             statusMessage = illegalPointMessage(x, y, "")
             return false
         }
 
         var pointKey = keyFor(x, y)
-        if (gameRuleMode === gameRuleGo && koLocKey !== "" && pointKey === koLocKey) {
+        if (ruleUsesGoCapture() && koLocKey !== "" && pointKey === koLocKey) {
             statusMode = "message"
             statusMessage = illegalPointMessage(x, y, "ko")
             return false
@@ -1089,8 +1215,8 @@ ApplicationWindow {
         var captured = []
         var ko = GameRules.emptyKoLoc()
         var working = GameRules.cloneStoneMap(stones)
-        if (gameRuleMode === gameRuleGo) {
-            var result = GameRules.simulateGoMoveOnMap(working, boardDims(), item, true)
+        if (ruleUsesGoCapture()) {
+            var result = GameRules.simulateGoMoveOnMap(working, boardDims(), item, true, gameRuleMode)
             if (!result.ok) {
                 statusMode = "message"
                 statusMessage = illegalPointMessage(x, y, result.reason)
@@ -1098,6 +1224,13 @@ ApplicationWindow {
             }
             captured = result.capturedStones
             ko = GameRules.koLocFromGoMoveResult(gameRuleMode, result)
+        } else if (gameRuleMode === gameRuleReversi) {
+            var reversi = GameRules.applyReversiMoveOnMap(working, boardDims(), item)
+            if (!reversi.ok) {
+                statusMode = "message"
+                statusMessage = illegalPointMessage(x, y, "")
+                return false
+            }
         } else {
             working[item.key] = item
         }
@@ -1110,6 +1243,67 @@ ApplicationWindow {
         applyIncrementalMovePosition(node, working, captured.length, ko)
         statusMode = "turn"
         statusMessage = captured.length > 0 ? trText("captureMessage") + ": " + captured.length : ""
+        checkGameOverAfterMove(node)
+        scheduleAutoAnalysis()
+        requestAiMoveIfNeeded()
+        return true
+    }
+
+    function placeMoveRulePoint(x, y) {
+        var player = currentPlayer
+        var sourceNode = currentMoveSourceNode()
+        var sourcePoint = sourceNode ? { "x": sourceNode.x, "y": sourceNode.y } : null
+        var pointKey = keyFor(x, y)
+        var kind = gameRuleMode === gameRuleAtaxx
+                   ? GameRules.ataxxMoveKind(stones, boardDims(), x, y, player, sourcePoint)
+                   : GameRules.breakthroughMoveKind(stones, boardDims(), x, y, player, sourcePoint)
+        if (kind === "" || kind === "source" && sourceNode) {
+            statusMode = "message"
+            statusMessage = illegalPointMessage(x, y, "")
+            return false
+        }
+
+        selectedPointLocked = false
+        selectedPointFromCandidateList = false
+
+        if (kind === "source") {
+            var source = addMoveNode(player, x, y, false, [], GameRules.emptyKoLoc(), true, true, "source")
+            if (!source)
+                return false
+            currentPlayer = player
+            rebuildPointLegality()
+            boardRevision += 1
+            resetEngineSyncState()
+            scheduleAutoAnalysis()
+            statusMode = "message"
+            statusMessage = trText("moveSourceSelected") + ": " + coordinateText(x, y)
+            return true
+        }
+
+        var item = {
+            "x": x,
+            "y": y,
+            "key": pointKey,
+            "player": player,
+            "moveNumber": currentMoveNumberValue() + 1,
+            "nodeId": -1
+        }
+        var working = GameRules.cloneStoneMap(stones)
+        var result = gameRuleMode === gameRuleAtaxx
+                     ? GameRules.applyAtaxxMoveOnMap(working, boardDims(), item, sourcePoint)
+                     : GameRules.applyBreakthroughMoveOnMap(working, boardDims(), item, sourcePoint)
+        if (!result.ok) {
+            statusMode = "message"
+            statusMessage = illegalPointMessage(x, y, "")
+            return false
+        }
+        var node = addMoveNode(player, x, y, false, result.capturedStones || [],
+                               GameRules.emptyKoLoc(), true, true, "target")
+        if (!node)
+            return false
+        applyIncrementalMovePosition(node, working, (result.capturedStones || []).length, GameRules.emptyKoLoc())
+        statusMode = "turn"
+        statusMessage = ""
         checkGameOverAfterMove(node)
         scheduleAutoAnalysis()
         requestAiMoveIfNeeded()
@@ -1179,12 +1373,16 @@ ApplicationWindow {
             var parent = nodeById(node.parent)
             if (parent && parent.isPass)
                 nextReason = trText("gameOverDoublePass")
-        } else if (gameRuleMode === gameRuleGomoku && gomokuWinLineItems.length > 0) {
+        } else if ((gameRuleMode === gameRuleGomoku || gameRuleMode === gameRuleConnect6)
+                   && gomokuWinLineItems.length > 0) {
             nextWinner = gomokuWinLineItems[0].player
             nextReason = trText("gameOverFive")
         } else if (gameRuleMode === gameRuleHex && hexWinPathPlayer !== 0) {
             nextWinner = hexWinPathPlayer
             nextReason = trText("gameOverHex")
+        } else if (gameRuleMode === gameRuleBreakthrough && breakthroughWinInfo.player !== 0) {
+            nextWinner = breakthroughWinInfo.player
+            nextReason = trText("gameOverBreakthrough")
         }
 
         gameWinner = nextWinner
@@ -1292,6 +1490,8 @@ ApplicationWindow {
         var node = currentNode()
         if (!node || node.id === 0)
             return trText("rootMove")
+        if (node.moveRole === "source")
+            return node.moveNumber + " " + trText("moveSource") + " " + coordinateText(node.x, node.y)
         return node.moveNumber + " " + (node.isPass ? trText("passMove") : coordinateText(node.x, node.y))
     }
 
@@ -1441,6 +1641,10 @@ ApplicationWindow {
         return RuleSupport.gameRuleOptions(root)
     }
 
+    function validRuleMode(mode) {
+        return RuleSupport.validRuleMode(root, mode)
+    }
+
     function visibleGameRuleOptions() {
         return RuleSupport.visibleGameRuleOptions(root)
     }
@@ -1521,8 +1725,20 @@ ApplicationWindow {
         return RuleSupport.boardDimensionsAllowedForPackage(root, xSize, ySize)
     }
 
+    function adjustedBoardDimensionsForRule(mode, xSize, ySize) {
+        return RuleSupport.adjustedBoardDimensionsForRule(root, mode, xSize, ySize)
+    }
+
+    function boardDimensionsAllowedForRule(mode, xSize, ySize) {
+        return RuleSupport.boardDimensionsAllowedForRule(root, mode, xSize, ySize)
+    }
+
     function ruleModeAllowedForPackage(mode) {
         return RuleSupport.ruleModeAllowedForPackage(root, mode)
+    }
+
+    function ruleBoardSizeRejectText(mode, xSize, ySize) {
+        return RuleSupport.ruleBoardSizeRejectText(root, mode, xSize, ySize)
     }
 
     function packageDefaultBoardSize() {
@@ -1712,7 +1928,7 @@ ApplicationWindow {
         next[index] = EnginePresets.normalizePreset(root, preset, index)
         setEnginePresetList(next)
         if (activeEngineId === next[index].id) {
-            komi = Number(next[index].komi)
+            komi = clampKomiValue(next[index].komi)
             legacyHexEngineCoordinates = next[index].legacyHexEngineCoordinates
             if (engineController && engineController.command !== next[index].command)
                 engineController.command = next[index].command
@@ -1780,7 +1996,7 @@ ApplicationWindow {
     }
 
     function boardTreeEmptyForEngineSwitch() {
-        if (currentNodeId !== 0 || stoneCount !== 0)
+        if (currentNodeId !== 0)
             return false
         var rootNode = nodeById(0)
         return !rootNode || !rootNode.children || rootNode.children.length === 0
@@ -1807,11 +2023,13 @@ ApplicationWindow {
             goBoardPresentationMode = boardPresentationIntersections
         boardPresentationMode = preset.ruleMode === gameRuleGomoku
                                 ? gomokuBoardPresentationMode : goBoardPresentationMode
-        boardSizeX = preset.boardSizeX
-        boardSizeY = preset.boardSizeY
+        var adjusted = RuleSupport.adjustedBoardDimensionsForRule(root, preset.ruleMode,
+                                                                  preset.boardSizeX, preset.boardSizeY)
+        boardSizeX = adjusted.x
+        boardSizeY = adjusted.y
         if (preset.ruleMode === gameRuleHex)
             coordinateDisplayMode = coordinateDisplayHex
-        komi = Number(preset.komi)
+        komi = clampKomiValue(preset.komi)
         legacyHexEngineCoordinates = preset.legacyHexEngineCoordinates
         clearHover(true)
         resetGameTree()
@@ -1829,7 +2047,7 @@ ApplicationWindow {
         if (emptyBoard)
             applyEnginePresetBoardDefaults(preset)
         else {
-            komi = Number(preset.komi)
+            komi = clampKomiValue(preset.komi)
             legacyHexEngineCoordinates = preset.legacyHexEngineCoordinates
         }
 
@@ -1838,6 +2056,7 @@ ApplicationWindow {
         engineDisabled = false
         engineLoading = true
         engineNoticeDismissed = false
+        engineFailureNoticeText = ""
         if (engineController.command !== preset.command)
             engineController.command = preset.command
         resetEngineSyncState()
@@ -1932,7 +2151,7 @@ ApplicationWindow {
     }
 
     function legacyHexEngineCoordinateMode() {
-        return gameRuleMode === gameRuleHex && legacyHexEngineCoordinates
+        return legacyHexEngineCoordinates
     }
 
     function engineCommunicationBoardWidth() {
@@ -1981,7 +2200,7 @@ ApplicationWindow {
         if (!point)
             return null
         var boardPoint = boardPointFromEngineCommunication(point.x, point.y)
-        if (!boardPoint || !pointInBoard(boardPoint.x, boardPoint.y))
+        if (!boardPoint || !pointInRuleBoard(boardPoint.x, boardPoint.y))
             return null
         return boardPoint
     }
@@ -2104,6 +2323,7 @@ ApplicationWindow {
         engineDisabled = false
         engineLoading = true
         engineNoticeDismissed = false
+        engineFailureNoticeText = ""
         if (!engineController.running)
             engineInitialCommandsSentForId = ""
         engineController.ensureStarted()
@@ -2116,6 +2336,7 @@ ApplicationWindow {
         engineController.stop()
         engineInitialCommandsSentForId = ""
         engineLoading = false
+        engineFailureNoticeText = ""
         stopAnalysisLimitTimer()
         clearEngineCandidates()
         showCachedAnalysisForCurrentNode()
@@ -2127,6 +2348,7 @@ ApplicationWindow {
         engineDisabled = false
         engineLoading = true
         engineNoticeDismissed = false
+        engineFailureNoticeText = ""
         engineInitialCommandsSentForId = ""
         resetEngineSyncState()
         engineController.restart()
@@ -2448,7 +2670,7 @@ ApplicationWindow {
             return
         }
         var best = items[0]
-        if (!best || best.displayIndex !== 1 || stoneAt(best.x, best.y) !== 0) {
+        if (!best || best.displayIndex !== 1) {
             bestCandidateRingVisible = false
             bestCandidateRingKey = ""
             return
@@ -2465,10 +2687,10 @@ ApplicationWindow {
             engineController.clearCandidates()
     }
 
-    function enterNoEngineMode(message) {
+    function enterNoEngineMode(message, keepEngineNotice) {
         engineDisabled = true
         engineLoading = false
-        engineNoticeDismissed = true
+        engineNoticeDismissed = keepEngineNotice === true ? false : true
         genmoveInFlight = false
         activeGenmoveRequestId = 0
         genmovePlayer = 0
@@ -2480,6 +2702,16 @@ ApplicationWindow {
         statusMode = "message"
         statusMessage = message && message.length > 0 ? message + " - " + trText("engineNoEngineMode")
                                                        : trText("engineNoEngineMode")
+    }
+
+    function handleEngineLoadFailure(message) {
+        var text = trText("engineFailedNotice")
+        engineFailureNoticeText = text
+        engineNoticeDismissed = false
+        enterNoEngineMode(text, true)
+        Qt.callLater(function() {
+            engineFailureDialog.open()
+        })
     }
 
     function selectEngineCandidateRow(row) {
@@ -2551,40 +2783,43 @@ ApplicationWindow {
     }
 
     function engineNoticeFillColor() {
-        return AnalysisStatus.engineNoticeFillColor(engineController)
+        return AnalysisStatus.engineNoticeFillColor(root, engineController)
     }
 
     function engineNoticeBorderColor() {
-        return AnalysisStatus.engineNoticeBorderColor(engineController)
+        return AnalysisStatus.engineNoticeBorderColor(root, engineController)
     }
 
     function engineNoticeTextColor() {
-        return AnalysisStatus.engineNoticeTextColor(engineController)
+        return AnalysisStatus.engineNoticeTextColor(root, engineController)
     }
 
     function engineFailureMessage() {
         return AnalysisStatus.engineFailureMessage(root, engineController)
     }
 
+    function engineFailureDialogText() {
+        return engineFailureNoticeText.length > 0 ? engineFailureNoticeText : engineFailureMessage()
+    }
+
     function effectiveKomi() {
         return komi
     }
 
+    function clampKomiValue(value) {
+        var number = Number(value)
+        if (isNaN(number))
+            return komi
+        return clamp(number, -maxKomiMagnitude, maxKomiMagnitude)
+    }
+
     function setKomiValue(value) {
-        var nextKomi = Math.round(Number(value) * 10) / 10
+        var nextKomi = Math.round(clampKomiValue(value) * 10) / 10
         if (isNaN(nextKomi))
             return
         if (Math.abs(komi - nextKomi) < 0.0001)
             return
         komi = nextKomi
-        var presetIndex = enginePresetIndexById(activeEngineId)
-        if (presetIndex >= 0) {
-            var next = EnginePresets.cloneList(enginePresets)
-            next[presetIndex].komi = komi
-            enginePresets = next
-            if (persistentSettingsLoaded)
-                savePersistentSettings()
-        }
         resetEngineSyncState()
         scheduleAutoAnalysis()
     }
@@ -2606,6 +2841,7 @@ ApplicationWindow {
         var hex = buildHexWinPath(map)
         hexWinPathItems = hex.path || []
         hexWinPathPlayer = hex.player || 0
+        breakthroughWinInfo = GameRules.buildBreakthroughWin(map, boardDims(), gameRuleMode)
     }
 
     function stoneOverlayVisible(moveNumber, lastMove) {
@@ -2722,6 +2958,12 @@ ApplicationWindow {
             return
         }
         loadSgfDialog.open()
+    }
+
+    function openSgfGameTypeWarning(gameId, expectedGameId) {
+        Qt.callLater(function() {
+            engineRuleWarningDialog.openForSgf(gameId, expectedGameId)
+        })
     }
 
     function buildSgf() {
@@ -2844,20 +3086,7 @@ ApplicationWindow {
         }
 
         function onCommandChanged() {
-            var presetIndex = root.enginePresetIndexById(root.activeEngineId)
-            if (presetIndex >= 0) {
-                var next = EnginePresets.cloneList(root.enginePresets)
-                if (next[presetIndex].command !== engineController.command) {
-                    next[presetIndex].command = engineController.command
-                    root.enginePresets = next
-                }
-                if (root.persistentSettingsLoaded)
-                    root.savePersistentSettings()
-            } else if (root.packageMode === root.packageModeUniversal) {
-                root.persistedEngineCommand = engineController.command
-                if (root.persistentSettingsLoaded)
-                    root.savePersistentSettings()
-            }
+            root.resetEngineSyncState()
         }
 
         function onCandidatesChanged() {
@@ -2876,7 +3105,7 @@ ApplicationWindow {
 
         function onFailedChanged() {
             if (engineController.failed) {
-                root.enterNoEngineMode(root.engineFailureMessage())
+                root.handleEngineLoadFailure(root.engineFailureMessage())
             }
         }
 

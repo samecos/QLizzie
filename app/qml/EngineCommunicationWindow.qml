@@ -25,6 +25,11 @@ Window {
     property bool logFollowsTail: true
     property bool rebuildingLog: false
 
+    function clearCommandFocus() {
+        engineCommunicationCommandField.focus = false
+        engineCommunicationFocusSink.forceActiveFocus()
+    }
+
     function logAtTail() {
         if (!engineCommunicationList || engineCommunicationList.contentHeight <= engineCommunicationList.height)
             return true
@@ -87,7 +92,7 @@ Window {
         engineCommunicationCommandField.forceActiveFocus()
     }
 
-    function openWindow() {
+    function openWindow(focusCommand) {
         if (!positionedOnce) {
             width = Math.min(860, Math.max(minimumWidth, app.width - 80))
             height = Math.min(560, Math.max(minimumHeight, app.height - 90))
@@ -101,13 +106,21 @@ Window {
         logFollowsTail = true
         Qt.callLater(function() {
             engineCommunicationDialog.scrollLogToEnd()
-            engineCommunicationCommandField.forceActiveFocus()
+            if (focusCommand === true && engineCommunicationDialog.active)
+                engineCommunicationCommandField.forceActiveFocus()
         })
     }
 
     onVisibleChanged: {
-        if (!visible)
+        if (!visible) {
+            clearCommandFocus()
             app.focusBoardInput()
+        }
+    }
+
+    onActiveChanged: {
+        if (!active)
+            clearCommandFocus()
     }
 
     Shortcut {
@@ -129,6 +142,13 @@ Window {
         function onShowEngineCommunicationStderrChanged() {
             engineCommunicationDialog.queueScrollLogToEnd()
         }
+    }
+
+    Item {
+        id: engineCommunicationFocusSink
+        width: 0
+        height: 0
+        focus: true
     }
 
     ColumnLayout {
