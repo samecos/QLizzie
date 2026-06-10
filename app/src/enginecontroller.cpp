@@ -15,9 +15,6 @@
 #endif
 
 namespace {
-constexpr auto kDefaultEngineCommand =
-    "D:\\katago\\engine2024\\go.exe gtp -config ./engine2024.cfg -model \"D:\\Downloads\\model (68).bin.gz\" -override-config useUncertainty=false";
-
 QString portableRootPath()
 {
     const QString environmentRoot = qEnvironmentVariable("QLIZZIE_PORTABLE_ROOT");
@@ -47,17 +44,7 @@ QString resolvedConfigPath(const QString &configPath)
     if (configInfo.isAbsolute())
         return configPath;
 
-    const QString portablePath = QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(configPath));
-    if (QFileInfo::exists(portablePath))
-        return portablePath;
-
-#ifdef Q_OS_WIN
-    const QString lizziePath = QDir::cleanPath(QDir(QStringLiteral("C:/lizzie")).absoluteFilePath(configPath));
-    if (QFileInfo::exists(lizziePath))
-        return lizziePath;
-#endif
-
-    return portablePath;
+    return QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(configPath));
 }
 
 QStringList resolvedEngineArguments(QStringList arguments)
@@ -133,7 +120,6 @@ qsizetype nextInfoSeparator(QStringView text, qsizetype from)
 
 EngineController::EngineController(QObject *parent)
     : QObject(parent)
-    , m_command(QString::fromUtf8(kDefaultEngineCommand))
     , m_statusText(QStringLiteral("Engine not started"))
 {
 #ifdef Q_OS_WIN

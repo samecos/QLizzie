@@ -117,10 +117,6 @@ function settingNumberEquals(value, expected) {
 }
 
 function migratePersistentSettings(app) {
-    if (app.loadedSettingsVersion < 2) {
-        app.persistedEngineCommand = app.defaultGo7EngineCommand
-        app.settingsMigrated = true
-    }
     app.loadedSettingsVersion = app.currentSettingsVersion
 }
 

@@ -17,6 +17,8 @@ Basic.Dialog {
     property bool listTooltipReady: false
     property real listTooltipX: 0
     property real listTooltipY: 0
+    readonly property real defaultColumnWidth: startupMode ? 0 : 58
+    readonly property real legacyHexColumnWidth: startupMode ? 0 : 82
 
     modal: true
     title: startupMode ? app.trText("loadEngineTitle") : app.trText("engineSettingsTitle")
@@ -503,8 +505,18 @@ Basic.Dialog {
                         HeaderCell { text: app.trText("engineWidthShort"); widthValue: 50; alignCenter: true }
                         HeaderCell { text: app.trText("engineHeightShort"); widthValue: 50; alignCenter: true }
                         HeaderCell { text: app.trText("komi"); widthValue: 58; alignCenter: true }
-                        HeaderCell { text: app.trText("engineDefault"); widthValue: 58; alignCenter: true }
-                        HeaderCell { text: app.trText("legacyHexEngineCoordinatesShort"); widthValue: 82; alignCenter: true }
+                        HeaderCell {
+                            visible: !engineListDialog.startupMode
+                            text: app.trText("engineDefault")
+                            widthValue: engineListDialog.defaultColumnWidth
+                            alignCenter: true
+                        }
+                        HeaderCell {
+                            visible: !engineListDialog.startupMode
+                            text: app.trText("legacyHexEngineCoordinatesShort")
+                            widthValue: engineListDialog.legacyHexColumnWidth
+                            alignCenter: true
+                        }
                     }
                 }
 
@@ -528,7 +540,9 @@ Basic.Dialog {
                         readonly property bool selected: index === engineListDialog.selectedIndex
                         readonly property real nameColumnStart: 52
                         readonly property real nameColumnEnd: 252
-                        readonly property real trailingColumnsWidth: 392
+                        readonly property real trailingColumnsWidth: 252
+                                                                    + engineListDialog.defaultColumnWidth
+                                                                    + engineListDialog.legacyHexColumnWidth
                         readonly property real commandColumnStart: nameColumnEnd
                         readonly property real commandColumnEnd: Math.max(commandColumnStart, width - trailingColumnsWidth)
                         property string tooltipKey: ""
@@ -571,8 +585,20 @@ Basic.Dialog {
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeX) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeY) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? Number(rowItem.preset.komi).toFixed(1) : ""; widthValue: 58; alignCenter: true; selected: rowItem.selected }
-                            DataCell { text: rowItem.preset && app.defaultEngineId === rowItem.preset.id ? app.trText("yes") : app.trText("no"); widthValue: 58; alignCenter: true; selected: rowItem.selected }
-                            DataCell { text: rowItem.preset && rowItem.preset.legacyHexEngineCoordinates ? app.trText("yes") : app.trText("no"); widthValue: 82; alignCenter: true; selected: rowItem.selected }
+                            DataCell {
+                                visible: !engineListDialog.startupMode
+                                text: rowItem.preset && app.defaultEngineId === rowItem.preset.id ? app.trText("yes") : app.trText("no")
+                                widthValue: engineListDialog.defaultColumnWidth
+                                alignCenter: true
+                                selected: rowItem.selected
+                            }
+                            DataCell {
+                                visible: !engineListDialog.startupMode
+                                text: rowItem.preset && rowItem.preset.legacyHexEngineCoordinates ? app.trText("yes") : app.trText("no")
+                                widthValue: engineListDialog.legacyHexColumnWidth
+                                alignCenter: true
+                                selected: rowItem.selected
+                            }
                         }
 
                         MouseArea {

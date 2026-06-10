@@ -52,7 +52,6 @@ ApplicationWindow {
     readonly property int maxCachedLegalPoints: 40000
     readonly property int currentSettingsVersion: 2
     property int loadedSettingsVersion: 0
-    property bool settingsMigrated: false
     readonly property int defaultBoardSize: 19
     property int boardSizeX: defaultBoardSize
     property int boardSizeY: defaultBoardSize
@@ -2884,8 +2883,6 @@ ApplicationWindow {
         loadPersistentSettings()
         normalizePersistentSettings()
         persistentSettingsLoaded = true
-        if (settingsMigrated)
-            savePersistentSettings()
         resetGameTree()
         setSelectedPoint(0, 0)
         appReady = true
