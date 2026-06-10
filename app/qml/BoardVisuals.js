@@ -17,6 +17,10 @@ function buildGomokuWinLineItems(app, map) {
     return items
 }
 
+function buildHexWinPath(app, map) {
+    return GameRules.buildHexWinPath(map, app.boardDims(), app.gameRuleMode)
+}
+
 function stoneOverlayVisible(app, moveNumber, lastMove) {
     if (app.moveNumberDisplayMode === app.moveNumberModeHidden)
         return lastMove

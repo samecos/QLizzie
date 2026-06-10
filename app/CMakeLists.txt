@@ -34,6 +34,7 @@ qt_add_qml_module(qlizzie
         qml/BoardSizeDialog.qml
         qml/BoardSizeStepper.qml
         qml/BoardInteraction.js
+        qml/BoardRenderer.js
         qml/BoardVisuals.js
         qml/BoardInputLayer.qml
         qml/BoardScene.qml

@@ -2,6 +2,7 @@
 
 var RULE_GO = 0
 var RULE_GOMOKU = 1
+var RULE_HEX = 2
 
 var GOMOKU_RULE_CON5 = 0
 var GOMOKU_RULE_STDCON5 = 1
@@ -15,6 +16,15 @@ var NEIGHBOR_OFFSETS = [
     { "dx": -1, "dy": 0 },
     { "dx": 0, "dy": 1 },
     { "dx": 0, "dy": -1 }
+]
+
+var HEX_NEIGHBOR_OFFSETS = [
+    { "dx": 1, "dy": 0 },
+    { "dx": -1, "dy": 0 },
+    { "dx": 0, "dy": 1 },
+    { "dx": 0, "dy": -1 },
+    { "dx": 1, "dy": -1 },
+    { "dx": -1, "dy": 1 }
 ]
 
 var GOMOKU_DIRECTIONS = [
@@ -309,4 +319,93 @@ function buildGomokuWinRuns(map, dims, ruleMode, gomokuRuleMode) {
         }
     }
     return lines
+}
+
+function hexPlayerReachedGoal(player, dims, stone) {
+    if (player === 1)
+        return stone.y === dims.y - 1
+    return stone.x === dims.x - 1
+}
+
+function reconstructHexPath(map, parentByKey, endKey) {
+    var keys = []
+    var key = endKey
+    while (key !== "") {
+        keys.push(key)
+        key = parentByKey[key] || ""
+    }
+    keys.reverse()
+
+    var path = []
+    for (var i = 0; i < keys.length; ++i) {
+        var stone = map[keys[i]]
+        if (stone)
+            path.push(copyStoneItem(stone))
+    }
+    return path
+}
+
+function buildHexWinPathForPlayer(map, dims, player) {
+    var queue = []
+    var visited = ({})
+    var parentByKey = ({})
+
+    if (player === 1) {
+        for (var x = 0; x < dims.x; ++x) {
+            var blackStart = stoneMapDataAt(map, x, 0)
+            if (!blackStart || blackStart.player !== player)
+                continue
+            queue.push(blackStart)
+            visited[blackStart.key] = true
+            parentByKey[blackStart.key] = ""
+        }
+    } else {
+        for (var y = 0; y < dims.y; ++y) {
+            var whiteStart = stoneMapDataAt(map, 0, y)
+            if (!whiteStart || whiteStart.player !== player)
+                continue
+            queue.push(whiteStart)
+            visited[whiteStart.key] = true
+            parentByKey[whiteStart.key] = ""
+        }
+    }
+
+    var head = 0
+    while (head < queue.length) {
+        var stone = queue[head++]
+        if (hexPlayerReachedGoal(player, dims, stone))
+            return reconstructHexPath(map, parentByKey, stone.key)
+
+        for (var n = 0; n < HEX_NEIGHBOR_OFFSETS.length; ++n) {
+            var offset = HEX_NEIGHBOR_OFFSETS[n]
+            var nx = stone.x + offset.dx
+            var ny = stone.y + offset.dy
+            if (!pointInBoard(dims, nx, ny))
+                continue
+
+            var neighbor = stoneMapDataAt(map, nx, ny)
+            if (!neighbor || neighbor.player !== player || visited[neighbor.key])
+                continue
+
+            visited[neighbor.key] = true
+            parentByKey[neighbor.key] = stone.key
+            queue.push(neighbor)
+        }
+    }
+    return []
+}
+
+function buildHexWinPath(map, dims, ruleMode) {
+    if (ruleMode !== RULE_HEX)
+        return { "player": 0, "path": [] }
+
+    var blackPath = buildHexWinPathForPlayer(map, dims, 1)
+    if (blackPath.length > 0)
+        return { "player": 1, "path": blackPath }
+
+    var whitePath = buildHexWinPathForPlayer(map, dims, 2)
+    if (whitePath.length > 0)
+        return { "player": 2, "path": whitePath }
+
+    return { "player": 0, "path": [] }
 }

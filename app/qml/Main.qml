@@ -139,6 +139,8 @@ ApplicationWindow {
     readonly property int gomokuRuleDirectCon5: 5
     property int gomokuRuleMode: gomokuRuleCon5
     property var gomokuWinLineItems: []
+    property var hexWinPathItems: []
+    property int hexWinPathPlayer: 0
 
     property real komi: 6.5
     readonly property int playModeAnalysis: 0
@@ -471,12 +473,14 @@ ApplicationWindow {
         Menu {
             id: engineMenu
             title: root.engineMenuTitle()
+            width: root.compactLayout ? 520 : 600
             font.pixelSize: root.compactLayout ? 14 : 16
 
             Instantiator {
                 model: Math.min(20, root.enginePresets.length)
 
                 delegate: MenuItem {
+                    width: engineMenu.width
                     text: root.engineMenuPresetText(index)
                     checkable: true
                     checked: {
@@ -956,7 +960,8 @@ ApplicationWindow {
         koLocY = ko.y
         currentPlayer = nextPlayerFromMode()
         rebuildPointLegality()
-        gomokuWinLineItems = buildGomokuWinLineItems(map)
+        refreshWinVisuals(map)
+        refreshGameOutcomeFromCurrentNode(false)
         boardRevision += 1
         showCachedAnalysisForCurrentNode()
     }
@@ -977,6 +982,9 @@ ApplicationWindow {
         koLocY = -1
         gameWinner = 0
         gameOverReason = ""
+        gomokuWinLineItems = []
+        hexWinPathItems = []
+        hexWinPathPlayer = 0
         currentPlayer = 1
         clearHover(true)
         clearEngineCandidates()
@@ -1139,7 +1147,7 @@ ApplicationWindow {
         node.koLocY = koLocY
         currentPlayer = nextPlayerFromMode()
         rebuildPointLegality()
-        gomokuWinLineItems = buildGomokuWinLineItems(nextMap)
+        refreshWinVisuals(nextMap)
         boardRevision += 1
     }
 
@@ -1158,20 +1166,36 @@ ApplicationWindow {
     function checkGameOverAfterMove(node) {
         if (!node)
             return
-        if (analysisModeActive())
-            return
-        if (gameRuleMode === gameRuleGo && node.isPass) {
-            var parent = nodeById(node.parent)
-            if (parent && parent.isPass) {
-                gameWinner = 0
-                gameOverReason = trText("gameOverDoublePass")
-                gameOverDialog.open()
-            }
-        } else if (gameRuleMode === gameRuleGomoku && gomokuWinLineItems.length > 0) {
-            gameWinner = node.player
-            gameOverReason = trText("gameOverFive")
-            gameOverDialog.open()
+        refreshGameOutcomeFromCurrentNode(true)
+    }
+
+    function refreshGameOutcomeFromCurrentNode(openDialog) {
+        if (analysisModeActive()) {
+            gameWinner = 0
+            gameOverReason = ""
+            return false
         }
+
+        var nextWinner = 0
+        var nextReason = ""
+        var node = currentNode()
+        if (gameRuleMode === gameRuleGo && node && node.isPass) {
+            var parent = nodeById(node.parent)
+            if (parent && parent.isPass)
+                nextReason = trText("gameOverDoublePass")
+        } else if (gameRuleMode === gameRuleGomoku && gomokuWinLineItems.length > 0) {
+            nextWinner = gomokuWinLineItems[0].player
+            nextReason = trText("gameOverFive")
+        } else if (gameRuleMode === gameRuleHex && hexWinPathPlayer !== 0) {
+            nextWinner = hexWinPathPlayer
+            nextReason = trText("gameOverHex")
+        }
+
+        gameWinner = nextWinner
+        gameOverReason = nextReason
+        if (nextReason !== "" && openDialog)
+            gameOverDialog.open()
+        return nextReason !== ""
     }
 
     function undoMove() {
@@ -2143,10 +2167,12 @@ ApplicationWindow {
             return
         playMode = mode
         if (analysisModeActive()) {
+            refreshGameOutcomeFromCurrentNode(false)
             genmoveInFlight = false
             scheduleAutoAnalysis()
         } else {
             enginePaused = false
+            refreshGameOutcomeFromCurrentNode(false)
             requestAiMoveIfNeeded()
         }
     }
@@ -2553,6 +2579,17 @@ ApplicationWindow {
 
     function buildGomokuWinLineItems(map) {
         return BoardVisuals.buildGomokuWinLineItems(root, map)
+    }
+
+    function buildHexWinPath(map) {
+        return BoardVisuals.buildHexWinPath(root, map)
+    }
+
+    function refreshWinVisuals(map) {
+        gomokuWinLineItems = buildGomokuWinLineItems(map)
+        var hex = buildHexWinPath(map)
+        hexWinPathItems = hex.path || []
+        hexWinPathPlayer = hex.player || 0
     }
 
     function stoneOverlayVisible(moveNumber, lastMove) {

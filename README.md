@@ -1,20 +1,23 @@
 # QLizzie | [中文版](README.zh-CN.md)
 
-QLizzie is a Qt 6 AI analysis interface for Go and Gomoku, with functionality and visual style inspired by LizzieYZY.
+QLizzie is a Qt 6 AI analysis interface for Go, Gomoku, Hex, and similar board games, mainly targeting KataGo/KataGomo-style engines, with functionality and visual style inspired by LizzieYZY.
 
 ![QLizzie screenshot](docs/images/screenshot-main.png)
 
 ## Overview
 
-QLizzie is a desktop analysis board built with Qt 6. It focuses on a clean 2D board, engine candidate visualization, a Lizzie-like left analysis panel, and a game tree workflow for reviewing variations.
+QLizzie is a desktop analysis board built with Qt 6. It focuses on a clean 2D board, engine candidate visualization, a Lizzie-like left analysis panel, and a game tree workflow for reviewing variations across multiple grid-based board games.
 
 The project references LizzieYZY for feature direction and visual behavior, but it is a separate Qt 6 implementation. It was built through an iterative Codex vibe-coding workflow.
 
 ## Features
 
-- Go and Gomoku analysis modes
-- Fixed 2D board with scalable coordinates, stones, move numbers, and candidate markers
-- GTP engine integration, including KataGo-style `kata-analyze`
+- Go, Gomoku, and Hex analysis modes
+- Scalable 2D board with multiple coordinate formats, stones, move numbers, and candidate markers
+- Hex triangle-grid and filled-hex-cell board presentations, including rotated/flipped display modes
+- Win-line/path highlighting for Gomoku and Hex
+- GTP engine integration, including KataGo/KataGomo-style `kata-analyze`
+- Engine preset list for switching between multiple engine commands and rule defaults
 - Candidate list, winrate, visits, score/draw-rate display, ranking labels, and variation preview
 - Per-node analysis cache in the game tree for previously analyzed positions
 - Game tree navigation, node deletion, branch handling, and SGF loading/saving
@@ -44,9 +47,9 @@ build/qlizzie/app/Release/qlizzie.exe
 
 ## Engine
 
-QLizzie communicates with a GTP-compatible AI engine. The default command can be edited from the engine settings panel.
+QLizzie communicates with GTP-compatible AI engines. Engine presets can store a name, command line, rule type, default board size, komi, and Hex coordinate compatibility settings.
 
-For KataGo-style analysis, use an engine command that starts GTP mode and points to your config and model files.
+For KataGo/KataGomo-style analysis, use an engine command that starts GTP mode and points to your config and model files. QLizzie is primarily developed and tested around KataGo-family `kata-analyze` output.
 
 ## Relationship To LizzieYZY
 
