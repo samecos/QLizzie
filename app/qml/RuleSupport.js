@@ -2,50 +2,116 @@
 .import "rules/RuleCatalog.js" as RuleCatalog
 
 function gomokuRuleLabel(app, rule) {
-    if (rule === app.gomokuRuleStdCon5)
-        return app.trText("gomokuRuleStdCon5")
-    if (rule === app.gomokuRuleFreestyle)
-        return app.trText("gomokuRuleFreestyle")
     if (rule === app.gomokuRuleStandard)
         return app.trText("gomokuRuleStandard")
-    if (rule === app.gomokuRuleCon7)
-        return app.trText("gomokuRuleCon7")
-    if (rule === app.gomokuRuleDirectCon5)
-        return app.trText("gomokuRuleDirectCon5")
-    return app.trText("gomokuRuleCon5")
+    if (rule === app.gomokuRuleRenju)
+        return app.trText("gomokuRuleRenju")
+    if (rule === app.gomokuRuleCaro)
+        return app.trText("gomokuRuleCaro")
+    if (rule === app.gomokuRuleCaroNoSix)
+        return app.trText("gomokuRuleCaroNoSix")
+    if (rule === app.gomokuRuleDirectFour)
+        return app.trText("gomokuRuleDirectFour")
+    return app.trText("gomokuRuleFreestyle")
 }
 
 function gomokuRuleTip(app, rule) {
-    if (rule === app.gomokuRuleStdCon5)
-        return app.trText("gomokuRuleStdCon5Tip")
-    if (rule === app.gomokuRuleFreestyle)
-        return app.trText("gomokuRuleFreestyleTip")
     if (rule === app.gomokuRuleStandard)
         return app.trText("gomokuRuleStandardTip")
-    if (rule === app.gomokuRuleCon7)
-        return app.trText("gomokuRuleCon7Tip")
-    if (rule === app.gomokuRuleDirectCon5)
-        return app.trText("gomokuRuleDirectCon5Tip")
-    return app.trText("gomokuRuleCon5Tip")
+    if (rule === app.gomokuRuleRenju)
+        return app.trText("gomokuRuleRenjuTip")
+    if (rule === app.gomokuRuleCaro)
+        return app.trText("gomokuRuleCaroTip")
+    if (rule === app.gomokuRuleCaroNoSix)
+        return app.trText("gomokuRuleCaroNoSixTip")
+    if (rule === app.gomokuRuleDirectFour)
+        return app.trText("gomokuRuleDirectFourTip")
+    return app.trText("gomokuRuleFreestyleTip")
 }
 
 function gomokuRuleEngineValue(app, rule) {
-    if (rule === app.gomokuRuleStdCon5)
-        return "stdcon5"
-    if (rule === app.gomokuRuleFreestyle)
-        return "freestyle"
     if (rule === app.gomokuRuleStandard)
-        return "standard"
-    if (rule === app.gomokuRuleCon7)
-        return "con7"
-    if (rule === app.gomokuRuleDirectCon5)
-        return "dcon5"
-    return "con5"
+        return "STANDARD"
+    if (rule === app.gomokuRuleRenju)
+        return "RENJU"
+    if (rule === app.gomokuRuleCaro)
+        return "CARO"
+    if (rule === app.gomokuRuleCaroNoSix)
+        return "CARO_NOSIX"
+    if (rule === app.gomokuRuleDirectFour)
+        return "DIRECT_FOUR"
+    return "FREESTYLE"
+}
+
+function normalizedGomokuRuleMode(app, rule) {
+    var value = Math.round(Number(rule))
+    if (value === app.gomokuRuleStandard
+            || value === app.gomokuRuleRenju
+            || value === app.gomokuRuleCaro
+            || value === app.gomokuRuleCaroNoSix
+            || value === app.gomokuRuleDirectFour)
+        return value
+    return app.gomokuRuleFreestyle
+}
+
+function normalizedGomokuVcnRule(app, rule) {
+    var value = String(rule || "NOVC").toUpperCase()
+    if (value === "VCTB" || value === "VCTW" || value === "VC2B" || value === "VC2W")
+        return value
+    return "NOVC"
+}
+
+function goRulesObject(app) {
+    return {
+        "scoring": app.goScoringRule === app.goScoringTerritory ? "TERRITORY" : "AREA",
+        "ko": app.goKoRule === app.goKoSimple ? "SIMPLE"
+              : app.goKoRule === app.goKoSituational ? "SITUATIONAL" : "POSITIONAL",
+        "suicide": app.goSuicideAllowed === true,
+        "tax": app.goTaxRule === app.goTaxAll ? "ALL"
+               : app.goTaxRule === app.goTaxSeki ? "SEKI" : "NONE",
+        "whiteHandicapBonus": app.goWhiteHandicapBonus === "0" || app.goWhiteHandicapBonus === "N-1"
+                               ? app.goWhiteHandicapBonus : "N",
+        "hasButton": app.goButtonRule === true
+    }
+}
+
+function gomokuRulesObject(app) {
+    var firstPassWin = app.gomokuRuleFirstPassWin === true
+    return {
+        "basicrule": gomokuRuleEngineValue(app, app.gomokuRuleMode),
+        "maxmoves": Math.max(0, Math.round(Number(app.gomokuRuleMaxMoves))),
+        "firstpasswin": firstPassWin,
+        "vcnrule": firstPassWin ? "NOVC" : normalizedGomokuVcnRule(app, app.gomokuRuleVcn)
+    }
+}
+
+function goRuleLabel(app) {
+    var rules = goRulesObject(app)
+    if (rules.scoring === "AREA" && rules.ko === "POSITIONAL" && rules.suicide
+            && rules.tax === "NONE" && rules.whiteHandicapBonus === "N" && !rules.hasButton)
+        return app.trText("goRuleTrompTaylor")
+    if (rules.scoring === "AREA" && rules.tax === "NONE" && !rules.hasButton)
+        return app.trText("goRuleChinese")
+    if (rules.scoring === "AREA" && rules.tax === "ALL" && !rules.hasButton)
+        return app.trText("goRuleChineseAncient")
+    if (rules.scoring === "TERRITORY" && rules.tax === "SEKI")
+        return app.trText("goRuleJapanese")
+    return app.trText("customRule")
+}
+
+function ruleVariantText(app) {
+    if (app.gameRuleMode === app.gameRuleGo)
+        return goRuleLabel(app)
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        return gomokuRuleLabel(app, app.gomokuRuleMode)
+    return app.trText("noRuleVariantShort")
 }
 
 function gameRuleText(app) {
     if (app.gameRuleMode === app.gameRuleGo)
         return app.trText("gameRuleGo")
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        return app.trText("gameRuleGomoku")
     if (app.gameRuleMode === app.gameRuleHex)
         return app.trText("gameRuleHex")
     if (app.gameRuleMode === app.gameRuleSquareFree)
@@ -64,7 +130,7 @@ function gameRuleText(app) {
         return app.trText("gameRuleAtaxx")
     if (app.gameRuleMode === app.gameRuleBreakthrough)
         return app.trText("gameRuleBreakthrough")
-    return gomokuRuleLabel(app, app.gomokuRuleMode)
+    return app.trText("gameRuleGomoku")
 }
 
 function gameRuleOptions(app) {
@@ -214,22 +280,18 @@ function setVisibleGameRuleFromIndex(app, index) {
 }
 
 function goRuleOptions(app) {
-    return [{ "label": app.trText("goRuleTrompTaylor"), "value": -1, "tip": app.trText("goRuleTrompTaylorTip") }]
+    return [{ "label": goRuleLabel(app), "value": -1, "tip": app.trText("goRuleTrompTaylorTip") }]
 }
 
 function gomokuRuleOptions(app) {
-    var options = [
-        { "label": gomokuRuleLabel(app, app.gomokuRuleCon5), "value": app.gomokuRuleCon5, "tip": gomokuRuleTip(app, app.gomokuRuleCon5) },
-        { "label": gomokuRuleLabel(app, app.gomokuRuleStdCon5), "value": app.gomokuRuleStdCon5, "tip": gomokuRuleTip(app, app.gomokuRuleStdCon5) },
+    return [
         { "label": gomokuRuleLabel(app, app.gomokuRuleFreestyle), "value": app.gomokuRuleFreestyle, "tip": gomokuRuleTip(app, app.gomokuRuleFreestyle) },
         { "label": gomokuRuleLabel(app, app.gomokuRuleStandard), "value": app.gomokuRuleStandard, "tip": gomokuRuleTip(app, app.gomokuRuleStandard) },
-        { "label": gomokuRuleLabel(app, app.gomokuRuleCon7), "value": app.gomokuRuleCon7, "tip": gomokuRuleTip(app, app.gomokuRuleCon7) },
-        { "label": gomokuRuleLabel(app, app.gomokuRuleDirectCon5), "value": app.gomokuRuleDirectCon5, "tip": gomokuRuleTip(app, app.gomokuRuleDirectCon5) }
+        { "label": gomokuRuleLabel(app, app.gomokuRuleRenju), "value": app.gomokuRuleRenju, "tip": gomokuRuleTip(app, app.gomokuRuleRenju) },
+        { "label": gomokuRuleLabel(app, app.gomokuRuleCaro), "value": app.gomokuRuleCaro, "tip": gomokuRuleTip(app, app.gomokuRuleCaro) },
+        { "label": gomokuRuleLabel(app, app.gomokuRuleCaroNoSix), "value": app.gomokuRuleCaroNoSix, "tip": gomokuRuleTip(app, app.gomokuRuleCaroNoSix) },
+        { "label": gomokuRuleLabel(app, app.gomokuRuleDirectFour), "value": app.gomokuRuleDirectFour, "tip": gomokuRuleTip(app, app.gomokuRuleDirectFour) }
     ]
-    if (app.packageMode !== app.packageModeSix)
-        return options
-    return [options[app.gomokuRuleFreestyle], options[app.gomokuRuleStandard],
-            options[app.gomokuRuleCon7], options[app.gomokuRuleDirectCon5]]
 }
 
 function ruleVariantOptions(app) {
@@ -262,7 +324,7 @@ function setRuleVariantFromIndex(app, index) {
     if (index < 0 || index >= options.length)
         return
     if (app.gameRuleMode === app.gameRuleGomoku) {
-        app.gomokuRuleMode = options[index].value
+        app.gomokuRuleMode = normalizedGomokuRuleMode(app, options[index].value)
         app.rebuildPositionFromNode(app.currentNodeId)
         app.resetEngineSyncState()
         app.scheduleAutoAnalysis()
@@ -274,7 +336,7 @@ function ruleModeButtonsVisible(app) {
 }
 
 function ruleVariantComboVisible(app) {
-    return app.gameRuleMode === app.gameRuleGo || app.gameRuleMode === app.gameRuleGomoku
+    return true
 }
 
 function komiControlsVisible(app) {
@@ -406,10 +468,13 @@ function packageBoardSizeRejectText(app, xSize, ySize) {
 function normalizeGomokuRuleForCurrentMode(app) {
     if (app.gameRuleMode !== app.gameRuleGomoku)
         return
+    app.gomokuRuleMode = normalizedGomokuRuleMode(app, app.gomokuRuleMode)
     if (app.packageMode === app.packageModeSix && app.gomokuRuleMode !== app.gomokuRuleFreestyle
             && app.gomokuRuleMode !== app.gomokuRuleStandard
-            && app.gomokuRuleMode !== app.gomokuRuleCon7
-            && app.gomokuRuleMode !== app.gomokuRuleDirectCon5)
+            && app.gomokuRuleMode !== app.gomokuRuleRenju
+            && app.gomokuRuleMode !== app.gomokuRuleCaro
+            && app.gomokuRuleMode !== app.gomokuRuleCaroNoSix
+            && app.gomokuRuleMode !== app.gomokuRuleDirectFour)
         app.gomokuRuleMode = app.gomokuRuleFreestyle
 }
 

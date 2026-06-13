@@ -18,7 +18,14 @@ function normalizePersistentSettings(app) {
     app.boardSizeX = adjustedRuleSize.x
     app.boardSizeY = adjustedRuleSize.y
     app.ruleVisibilityMap = normalizeRuleVisibilityMap(app, app.ruleVisibilityMap)
-    app.gomokuRuleMode = Math.round(app.clamp(app.gomokuRuleMode, app.gomokuRuleCon5, app.gomokuRuleDirectCon5))
+    app.gomokuRuleMode = app.normalizedGomokuRuleMode(app.gomokuRuleMode)
+    app.gomokuRuleMaxMoves = Math.round(app.clamp(Number(app.gomokuRuleMaxMoves), 0, app.maxLargeIntegerSetting))
+    app.gomokuRuleVcn = app.normalizedGomokuVcnRule(app.gomokuRuleVcn)
+    app.goScoringRule = Math.round(app.clamp(Number(app.goScoringRule), app.goScoringArea, app.goScoringTerritory))
+    app.goKoRule = Math.round(app.clamp(Number(app.goKoRule), app.goKoSimple, app.goKoSituational))
+    app.goTaxRule = Math.round(app.clamp(Number(app.goTaxRule), app.goTaxNone, app.goTaxAll))
+    if (app.goWhiteHandicapBonus !== "0" && app.goWhiteHandicapBonus !== "N-1")
+        app.goWhiteHandicapBonus = "N"
     if (app.stoneColorMode !== app.stoneColorModeAuto
             && app.stoneColorMode !== app.stoneColorModeBlack
             && app.stoneColorMode !== app.stoneColorModeWhite)
@@ -159,6 +166,15 @@ function loadPersistentSettings(app, settings) {
     app.ruleVisibilityMap = normalizeRuleVisibilityMap(app,
                 parseJsonObject(settingValue(settings, "ruleVisibilityJson", "{}"), app.ruleVisibilityMap))
     app.gomokuRuleMode = Number(settingValue(settings, "gomokuRuleMode", app.gomokuRuleMode))
+    app.gomokuRuleMaxMoves = Number(settingValue(settings, "gomokuRuleMaxMoves", app.gomokuRuleMaxMoves))
+    app.gomokuRuleVcn = String(settingValue(settings, "gomokuRuleVcn", app.gomokuRuleVcn))
+    app.gomokuRuleFirstPassWin = settingBool(settings, "gomokuRuleFirstPassWin", app.gomokuRuleFirstPassWin)
+    app.goScoringRule = Number(settingValue(settings, "goScoringRule", app.goScoringRule))
+    app.goKoRule = Number(settingValue(settings, "goKoRule", app.goKoRule))
+    app.goSuicideAllowed = settingBool(settings, "goSuicideAllowed", app.goSuicideAllowed)
+    app.goTaxRule = Number(settingValue(settings, "goTaxRule", app.goTaxRule))
+    app.goWhiteHandicapBonus = String(settingValue(settings, "goWhiteHandicapBonus", app.goWhiteHandicapBonus))
+    app.goButtonRule = settingBool(settings, "goButtonRule", app.goButtonRule)
     app.stoneColorMode = Number(settingValue(settings, "stoneColorMode", app.stoneColorMode))
     app.komi = app.clampKomiValue(settingValue(settings, "komi", app.komi))
     app.moveNumberDisplayMode = Number(settingValue(settings, "moveNumberDisplayMode", app.moveNumberDisplayMode))
@@ -229,6 +245,15 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("gameRuleMode", app.gameRuleMode)
     settings.setValue("ruleVisibilityJson", JSON.stringify(normalizeRuleVisibilityMap(app, app.ruleVisibilityMap)))
     settings.setValue("gomokuRuleMode", app.gomokuRuleMode)
+    settings.setValue("gomokuRuleMaxMoves", app.gomokuRuleMaxMoves)
+    settings.setValue("gomokuRuleVcn", app.gomokuRuleVcn)
+    settings.setValue("gomokuRuleFirstPassWin", app.gomokuRuleFirstPassWin)
+    settings.setValue("goScoringRule", app.goScoringRule)
+    settings.setValue("goKoRule", app.goKoRule)
+    settings.setValue("goSuicideAllowed", app.goSuicideAllowed)
+    settings.setValue("goTaxRule", app.goTaxRule)
+    settings.setValue("goWhiteHandicapBonus", app.goWhiteHandicapBonus)
+    settings.setValue("goButtonRule", app.goButtonRule)
     settings.setValue("stoneColorMode", app.stoneColorMode)
     settings.setValue("komi", app.komi)
     settings.setValue("moveNumberDisplayMode", app.moveNumberDisplayMode)

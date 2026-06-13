@@ -262,6 +262,23 @@ Item {
             var stoneRadius = Math.max(8, cell * app.stoneScale * 0.5)
             var candidateRadius = stoneRadius
 
+            for (var f = 0; f < app.gomokuForbiddenPointItems.length; ++f) {
+                var forbidden = app.gomokuForbiddenPointItems[f]
+                var fp = boardScene.boardPointLocal(forbidden.x, forbidden.y)
+                var crossSize = Math.max(7, stoneRadius * 0.42)
+                ctx.save()
+                ctx.strokeStyle = "#f01818"
+                ctx.lineWidth = Math.max(2, cell * 0.055)
+                ctx.lineCap = "round"
+                ctx.beginPath()
+                ctx.moveTo(fp.x - crossSize, fp.y - crossSize)
+                ctx.lineTo(fp.x + crossSize, fp.y + crossSize)
+                ctx.moveTo(fp.x + crossSize, fp.y - crossSize)
+                ctx.lineTo(fp.x - crossSize, fp.y + crossSize)
+                ctx.stroke()
+                ctx.restore()
+            }
+
             for (var s = 0; s < app.stoneItems.length; ++s) {
                 var stone = app.stoneItems[s]
                 drawStone(ctx, stone.x, stone.y, stone.player, stoneRadius)
@@ -415,6 +432,7 @@ Item {
             function onEngineCandidateItemsChanged() { boardCanvas.requestPaint() }
             function onBestCandidateRingVisibleChanged() { boardCanvas.requestPaint() }
             function onGomokuWinLineItemsChanged() { boardCanvas.requestPaint() }
+            function onGomokuForbiddenPointItemsChanged() { boardCanvas.requestPaint() }
             function onHexWinPathItemsChanged() { boardCanvas.requestPaint() }
             function onStoneScaleChanged() { boardCanvas.requestPaint() }
             function onGridOpacityChanged() { boardCanvas.requestPaint() }

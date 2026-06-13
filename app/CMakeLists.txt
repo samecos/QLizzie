@@ -17,6 +17,8 @@ qt_add_executable(qlizzie
     src/main.cpp
     src/fileio.cpp
     src/fileio.h
+    src/gomokuforbidden.cpp
+    src/gomokuforbidden.h
 )
 
 set_target_properties(qlizzie PROPERTIES
@@ -53,6 +55,9 @@ qt_add_qml_module(qlizzie
         qml/EngineRuleWarningDialog.qml
         qml/BeginnerTutorialDialog.qml
         qml/GameOverDialog.qml
+        qml/GoRuleDialog.qml
+        qml/GomokuRuleDialog.qml
+        qml/NoRuleVariantDialog.qml
         qml/GameRuleComboBox.qml
         qml/GameRules.js
         qml/HelpKeysDialog.qml
@@ -79,6 +84,7 @@ qt_add_resources(qlizzie qlizzie_icons
     PREFIX "/"
     FILES
         resources/qlizzie-logo.png
+        resources/qlizzie-logo.svg
 )
 
 qt_add_resources(qlizzie qlizzie_fonts

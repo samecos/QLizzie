@@ -24,9 +24,9 @@ function defaultPresets(app) {
         makePreset("katago-go-9", "KataGo / KataGomo Go 9x9", command,
                    app.gameRuleGo, -1, 9, 9, 7.0, false),
         makePreset("katagomo-gomoku-15", "KataGomo Gomoku 15x15", command,
-                   app.gameRuleGomoku, app.gomokuRuleCon5, 15, 15, 0.0, false),
+                   app.gameRuleGomoku, app.gomokuRuleFreestyle, 15, 15, 0.0, false),
         makePreset("katagomo-gomoku-19", "KataGomo Gomoku 19x19", command,
-                   app.gameRuleGomoku, app.gomokuRuleCon5, 19, 19, 0.0, false),
+                   app.gameRuleGomoku, app.gomokuRuleFreestyle, 19, 19, 0.0, false),
         makePreset("katagomo-hex-5-legacy", "KataGomo Hex 5x5 legacy", command,
                    app.gameRuleHex, -1, 5, 5, 0.0, true),
         makePreset("katagomo-hex-11-legacy", "KataGomo Hex 11x11 legacy", command,
@@ -74,9 +74,7 @@ function normalizePreset(app, preset, index) {
     if (copy.ruleMode !== app.gameRuleGomoku)
         copy.ruleVariant = -1
     else
-        copy.ruleVariant = Math.round(app.clamp(copy.ruleVariant,
-                                                app.gomokuRuleCon5,
-                                                app.gomokuRuleDirectCon5))
+        copy.ruleVariant = app.normalizedGomokuRuleMode(copy.ruleVariant)
 
     copy.boardSizeX = Math.round(app.clamp(numeric(copy.boardSizeX, app.defaultBoardSize),
                                            app.minBoardSize,

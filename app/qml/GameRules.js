@@ -12,12 +12,12 @@ var RULE_HEX_GO_TRIANGLE = 8
 var RULE_ATAXX = 9
 var RULE_BREAKTHROUGH = 10
 
-var GOMOKU_RULE_CON5 = 0
-var GOMOKU_RULE_STDCON5 = 1
-var GOMOKU_RULE_FREESTYLE = 2
-var GOMOKU_RULE_STANDARD = 3
-var GOMOKU_RULE_CON7 = 4
-var GOMOKU_RULE_DIRECT_CON5 = 5
+var GOMOKU_RULE_FREESTYLE = 0
+var GOMOKU_RULE_STANDARD = 1
+var GOMOKU_RULE_RENJU = 2
+var GOMOKU_RULE_CARO = 3
+var GOMOKU_RULE_DIRECT_FOUR = 4
+var GOMOKU_RULE_CARO_NO_SIX = 5
 
 var NEIGHBOR_OFFSETS = [
     { "dx": 1, "dy": 0 },
@@ -388,37 +388,68 @@ function koLocFromGoMoveResult(ruleMode, result) {
     return { "key": captured.key, "x": captured.x, "y": captured.y }
 }
 
-function gomokuRuleTargetLength(gomokuRuleMode) {
-    if (gomokuRuleMode === GOMOKU_RULE_FREESTYLE || gomokuRuleMode === GOMOKU_RULE_STANDARD)
+function gomokuRuleTargetLength(gomokuRuleMode, ruleMode) {
+    if (ruleMode === RULE_CONNECT6)
         return 6
-    if (gomokuRuleMode === GOMOKU_RULE_CON7)
-        return 7
+    if (gomokuRuleMode === GOMOKU_RULE_DIRECT_FOUR)
+        return 4
     return 5
 }
 
-function gomokuRuleExactLength(gomokuRuleMode) {
-    return gomokuRuleMode === GOMOKU_RULE_STDCON5 || gomokuRuleMode === GOMOKU_RULE_STANDARD
+function gomokuRuleExactLength(gomokuRuleMode, player, ruleMode) {
+    if (ruleMode === RULE_CONNECT6)
+        return false
+    if (gomokuRuleMode === GOMOKU_RULE_STANDARD)
+        return true
+    if (gomokuRuleMode === GOMOKU_RULE_RENJU && player === 1)
+        return true
+    return false
 }
 
 function gomokuRuleUsesDirection(gomokuRuleMode, direction) {
-    if (gomokuRuleMode !== GOMOKU_RULE_DIRECT_CON5)
+    if (gomokuRuleMode !== GOMOKU_RULE_DIRECT_FOUR)
         return true
     return (Math.abs(direction.dx) + Math.abs(direction.dy)) === 1
 }
 
-function gomokuRunWins(length, gomokuRuleMode) {
-    var target = gomokuRuleTargetLength(gomokuRuleMode)
-    if (gomokuRuleExactLength(gomokuRuleMode))
-        return length === target
-    return length >= target
+function caroEndBlocked(map, dims, player, x, y) {
+    if (!pointInBoard(dims, x, y))
+        return false
+    var occupant = stoneMapPlayerAt(map, x, y)
+    return occupant !== 0 && occupant !== player
+}
+
+function caroRunWins(map, dims, run, direction, noSix) {
+    if (run.length < 5)
+        return false
+    if (run.length === 6 && noSix)
+        return false
+    if (run.length > 5)
+        return true
+
+    var start = run[0]
+    var end = run[run.length - 1]
+    var blockedBefore = caroEndBlocked(map, dims, start.player,
+                                       start.x - direction.dx, start.y - direction.dy)
+    var blockedAfter = caroEndBlocked(map, dims, start.player,
+                                      end.x + direction.dx, end.y + direction.dy)
+    return !(blockedBefore && blockedAfter)
+}
+
+function gomokuRunWins(map, dims, run, direction, gomokuRuleMode, player, ruleMode) {
+    var target = gomokuRuleTargetLength(gomokuRuleMode, ruleMode)
+    if (gomokuRuleMode === GOMOKU_RULE_CARO)
+        return caroRunWins(map, dims, run, direction, false)
+    if (gomokuRuleMode === GOMOKU_RULE_CARO_NO_SIX)
+        return caroRunWins(map, dims, run, direction, true)
+    if (gomokuRuleExactLength(gomokuRuleMode, player, ruleMode))
+        return run.length === target
+    return run.length >= target
 }
 
 function buildGomokuWinRuns(map, dims, ruleMode, gomokuRuleMode) {
     if (ruleMode !== RULE_GOMOKU && ruleMode !== RULE_CONNECT6)
         return []
-    if (ruleMode === RULE_CONNECT6)
-        gomokuRuleMode = GOMOKU_RULE_FREESTYLE
-
     var lines = []
     for (var key in map) {
         var stone = map[key]
@@ -441,7 +472,7 @@ function buildGomokuWinRuns(map, dims, ruleMode, gomokuRuleMode) {
                 y += direction.dy
             }
 
-            if (!gomokuRunWins(run.length, gomokuRuleMode))
+            if (!gomokuRunWins(map, dims, run, direction, gomokuRuleMode, stone.player, ruleMode))
                 continue
 
             var start = run[0]

@@ -20,6 +20,16 @@ Rectangle {
         anchors.rightMargin: app.compactLayout ? 8 : 12
         spacing: app.compactLayout ? 7 : 11
 
+        RuleSettingsButton {}
+
+        Rectangle {
+            Layout.preferredWidth: 1
+            Layout.fillHeight: true
+            Layout.topMargin: 7
+            Layout.bottomMargin: 7
+            color: "#c4cdd2"
+        }
+
         Label {
             visible: app.boardPresentationOptions().length > 1
             text: app.trText("boardPresentation")
@@ -327,6 +337,43 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
+    }
+
+    component RuleSettingsButton: Rectangle {
+        id: ruleSettingsButton
+
+        Layout.preferredWidth: app.compactLayout ? 84 : 104
+        Layout.preferredHeight: app.compactLayout ? 28 : 32
+        radius: 4
+        color: ruleSettingsMouse.pressed ? "#d5e1e8"
+             : ruleSettingsMouse.containsMouse ? "#eef5f8" : "#f8fafb"
+        border.color: "#2e8eb0"
+        border.width: 1
+
+        Text {
+            anchors.centerIn: parent
+            width: parent.width - 10
+            text: app.trText("ruleSettingsButton")
+            color: "#26333b"
+            font.pixelSize: app.compactLayout ? 12 : 13
+            font.bold: true
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+
+        ToolTip.visible: ruleSettingsMouse.containsMouse
+        ToolTip.text: app.ruleVariantText()
+
+        MouseArea {
+            id: ruleSettingsMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: {
+                app.openRuleVariantDialog()
+                app.focusBoardInput()
+            }
+        }
     }
 
     component StepButton: Rectangle {

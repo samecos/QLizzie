@@ -10,6 +10,8 @@ ColumnLayout {
     required property var app
 
     spacing: 14
+    readonly property bool inlineBoardPresentationControls: app.boardPresentationOptions().length > 1
+    readonly property bool inlineKomiControls: !inlineBoardPresentationControls && app.komiControlsVisible()
 
     component PresentationCombo: Basic.ComboBox {
         id: control
@@ -127,23 +129,8 @@ ColumnLayout {
 
                 GameRuleComboBox {
                     app: ruleSettingsPage.app
-                    Layout.preferredWidth: 250
+                    Layout.preferredWidth: 360
                     Layout.minimumWidth: 220
-                    implicitHeight: 32
-                }
-
-                Label {
-                    text: app.trText("ruleVariant")
-                    visible: app.ruleVariantComboVisible()
-                    color: "#24313a"
-                    Layout.preferredWidth: 86
-                }
-
-                RuleVariantComboBox {
-                    app: ruleSettingsPage.app
-                    visible: app.ruleVariantComboVisible()
-                    Layout.preferredWidth: 300
-                    Layout.minimumWidth: 240
                     implicitHeight: 32
                 }
 
@@ -153,30 +140,92 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                visible: app.boardPresentationOptions().length > 1
+
+                Label {
+                    text: app.trText("ruleVariant")
+                    color: "#24313a"
+                    Layout.preferredWidth: 100
+                }
+
+                Basic.Button {
+                    id: ruleVariantButton
+                    Layout.preferredWidth: 170
+                    Layout.minimumWidth: 150
+                    implicitHeight: 32
+                    text: app.ruleVariantText()
+                    onClicked: app.openRuleVariantDialog()
+
+                    contentItem: Text {
+                        text: ruleVariantButton.text
+                        color: "#17212a"
+                        font.pixelSize: ruleSettingsPage.app.compactLayout ? 13 : 14
+                        font.bold: true
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                    }
+
+                    background: Rectangle {
+                        radius: 5
+                        color: ruleVariantButton.pressed ? "#dcecf3"
+                             : ruleVariantButton.hovered ? "#eef7fa" : "#f8fbfd"
+                        border.color: ruleVariantButton.activeFocus ? "#2a91c9" : "#a8bac5"
+                        border.width: ruleVariantButton.activeFocus ? 2 : 1
+                    }
+                }
 
                 Label {
                     text: app.trText("boardPresentation")
+                    visible: ruleSettingsPage.inlineBoardPresentationControls
                     color: "#24313a"
                     Layout.preferredWidth: 110
                 }
 
                 PresentationCombo {
                     app: ruleSettingsPage.app
+                    visible: ruleSettingsPage.inlineBoardPresentationControls
                     options: app.boardPresentationOptions()
                     currentIndex: app.boardPresentationCurrentIndex()
-                    Layout.preferredWidth: 260
+                    Layout.preferredWidth: 190
+                    Layout.minimumWidth: 160
+                    Layout.fillWidth: true
                     onPicked: function(index) { app.setBoardPresentationFromIndex(index) }
                 }
 
                 Label {
-                    text: app.boardPresentationOptions()[app.boardPresentationCurrentIndex()]
-                          ? app.boardPresentationOptions()[app.boardPresentationCurrentIndex()].tip
-                          : ""
-                    color: "#61727c"
-                    wrapMode: Text.WordWrap
+                    text: app.trText("komi")
+                    visible: ruleSettingsPage.inlineKomiControls
+                    color: "#24313a"
+                    Layout.preferredWidth: 70
+                }
+
+                SpinBox {
+                    visible: ruleSettingsPage.inlineKomiControls
+                    from: -Math.round(app.maxKomiMagnitude * 2)
+                    to: Math.round(app.maxKomiMagnitude * 2)
+                    value: Math.round(app.effectiveKomi() * 2)
+                    editable: true
+                    Layout.preferredWidth: 116
+                    textFromValue: function(value) { return (value / 2).toFixed(1) }
+                    valueFromText: function(text) { return Math.round(Number(text) * 2) }
+                    onValueModified: app.setKomiValue(value / 2)
+                }
+
+                Item {
+                    visible: !ruleSettingsPage.inlineBoardPresentationControls
                     Layout.fillWidth: true
                 }
+            }
+
+            Label {
+                visible: ruleSettingsPage.inlineBoardPresentationControls
+                text: app.boardPresentationOptions()[app.boardPresentationCurrentIndex()]
+                      ? app.boardPresentationOptions()[app.boardPresentationCurrentIndex()].tip
+                      : ""
+                color: "#61727c"
+                wrapMode: Text.WordWrap
+                Layout.leftMargin: 278
+                Layout.fillWidth: true
             }
 
             RowLayout {
@@ -297,7 +346,7 @@ ColumnLayout {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                visible: app.komiControlsVisible()
+                visible: app.komiControlsVisible() && !ruleSettingsPage.inlineKomiControls
 
                 Label {
                     text: app.trText("komi")

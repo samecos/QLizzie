@@ -139,14 +139,32 @@ ApplicationWindow {
     readonly property int gameRuleBreakthrough: 10
     property int gameRuleMode: gameRuleGo
     property var ruleVisibilityMap: ({})
-    readonly property int gomokuRuleCon5: 0
-    readonly property int gomokuRuleStdCon5: 1
-    readonly property int gomokuRuleFreestyle: 2
-    readonly property int gomokuRuleStandard: 3
-    readonly property int gomokuRuleCon7: 4
-    readonly property int gomokuRuleDirectCon5: 5
-    property int gomokuRuleMode: gomokuRuleCon5
+    readonly property int gomokuRuleFreestyle: 0
+    readonly property int gomokuRuleStandard: 1
+    readonly property int gomokuRuleRenju: 2
+    readonly property int gomokuRuleCaro: 3
+    readonly property int gomokuRuleDirectFour: 4
+    readonly property int gomokuRuleCaroNoSix: 5
+    property int gomokuRuleMode: gomokuRuleFreestyle
+    property int gomokuRuleMaxMoves: 0
+    property string gomokuRuleVcn: "NOVC"
+    property bool gomokuRuleFirstPassWin: false
+    readonly property int goScoringArea: 0
+    readonly property int goScoringTerritory: 1
+    readonly property int goKoSimple: 0
+    readonly property int goKoPositional: 1
+    readonly property int goKoSituational: 2
+    readonly property int goTaxNone: 0
+    readonly property int goTaxSeki: 1
+    readonly property int goTaxAll: 2
+    property int goScoringRule: goScoringArea
+    property int goKoRule: goKoPositional
+    property bool goSuicideAllowed: true
+    property int goTaxRule: goTaxNone
+    property string goWhiteHandicapBonus: "N"
+    property bool goButtonRule: false
     property var gomokuWinLineItems: []
+    property var gomokuForbiddenPointItems: []
     property var hexWinPathItems: []
     property int hexWinPathPlayer: 0
     property var breakthroughWinInfo: ({ "player": 0, "reason": "" })
@@ -623,6 +641,9 @@ ApplicationWindow {
     BeginnerTutorialDialog { id: beginnerTutorialDialog; app: root }
     ConfirmDeleteNodeDialog { id: confirmDeleteNodeDialog; app: root }
     GameOverDialog { id: gameOverDialog; app: root }
+    GoRuleDialog { id: goRuleDialog; app: root }
+    GomokuRuleDialog { id: gomokuRuleDialog; app: root }
+    NoRuleVariantDialog { id: noRuleVariantDialog; app: root }
     UnsavedSgfDialog { id: unsavedSgfDialog; app: root }
     RuleChangeSaveDialog { id: ruleChangeSaveDialog; app: root }
     BoardSizeDialog { id: boardSizeDialog; app: root }
@@ -802,6 +823,7 @@ ApplicationWindow {
             "moveNumber": 0,
             "isPass": false,
             "moveRole": "",
+            "gomokuForbidden": false,
             "blackCaptures": 0,
             "whiteCaptures": 0,
             "koLocKey": "",
@@ -855,6 +877,7 @@ ApplicationWindow {
         if (stoneColorMode === nextMode) {
             currentPlayer = nextPlayerFromMode()
             rebuildPointLegality()
+            refreshWinVisuals(stones)
             boardRevision += 1
             return
         }
@@ -864,6 +887,7 @@ ApplicationWindow {
         selectedPointFromCandidateList = false
         clearEngineCandidates()
         rebuildPointLegality()
+        refreshWinVisuals(stones)
         boardRevision += 1
         scheduleAutoAnalysis()
         requestAiMoveIfNeeded()
@@ -1024,6 +1048,7 @@ ApplicationWindow {
                 "moveNumber": node.moveNumber,
                 "nodeId": node.id
             }
+            node.gomokuForbidden = pointIsGomokuForbidden(node.x, node.y, node.player, map)
             if (ruleUsesGoCapture()) {
                 var result = GameRules.simulateGoMoveOnMap(map, boardDims(), item, true, gameRuleMode)
                 if (result.ok) {
@@ -1095,6 +1120,7 @@ ApplicationWindow {
         gameWinner = 0
         gameOverReason = ""
         gomokuWinLineItems = []
+        gomokuForbiddenPointItems = []
         hexWinPathItems = []
         hexWinPathPlayer = 0
         breakthroughWinInfo = ({ "player": 0, "reason": "" })
@@ -1144,6 +1170,7 @@ ApplicationWindow {
             "moveNumber": parent.moveNumber + 1,
             "isPass": isPass,
             "moveRole": moveRole,
+            "gomokuForbidden": false,
             "capturedStones": capturedStones || [],
             "blackCaptures": blackCaptures,
             "whiteCaptures": whiteCaptures,
@@ -1196,6 +1223,7 @@ ApplicationWindow {
         }
 
         var player = currentPlayer
+        var forbiddenMove = pointIsGomokuForbidden(x, y, player, stones)
         var existingChild = branchChildMatching(currentNode(), pointKey, player, false)
         if (existingChild) {
             selectedPointLocked = false
@@ -1240,6 +1268,7 @@ ApplicationWindow {
         var node = addMoveNode(player, x, y, false, captured, ko, true, true)
         if (!node)
             return false
+        node.gomokuForbidden = forbiddenMove
         applyIncrementalMovePosition(node, working, captured.length, ko)
         statusMode = "turn"
         statusMessage = captured.length > 0 ? trText("captureMessage") + ": " + captured.length : ""
@@ -1373,6 +1402,9 @@ ApplicationWindow {
             var parent = nodeById(node.parent)
             if (parent && parent.isPass)
                 nextReason = trText("gameOverDoublePass")
+        } else if (gameRuleMode === gameRuleGomoku && node && node.gomokuForbidden === true) {
+            nextWinner = node.player === 1 ? 2 : 1
+            nextReason = trText("gameOverForbidden")
         } else if ((gameRuleMode === gameRuleGomoku || gameRuleMode === gameRuleConnect6)
                    && gomokuWinLineItems.length > 0) {
             nextWinner = gomokuWinLineItems[0].player
@@ -1633,6 +1665,14 @@ ApplicationWindow {
         return RuleSupport.gomokuRuleEngineValue(root, rule)
     }
 
+    function normalizedGomokuRuleMode(rule) {
+        return RuleSupport.normalizedGomokuRuleMode(root, rule)
+    }
+
+    function normalizedGomokuVcnRule(rule) {
+        return RuleSupport.normalizedGomokuVcnRule(root, rule)
+    }
+
     function gameRuleText() {
         return RuleSupport.gameRuleText(root)
     }
@@ -1695,6 +1735,45 @@ ApplicationWindow {
 
     function setRuleVariantFromIndex(index) {
         RuleSupport.setRuleVariantFromIndex(root, index)
+    }
+
+    function ruleVariantText() {
+        return RuleSupport.ruleVariantText(root)
+    }
+
+    function openRuleVariantDialog() {
+        if (gameRuleMode === gameRuleGo)
+            goRuleDialog.openWithCurrent()
+        else if (gameRuleMode === gameRuleGomoku)
+            gomokuRuleDialog.openWithCurrent()
+        else
+            noRuleVariantDialog.open()
+    }
+
+    function applyGoRuleSettings(scoring, ko, suicide, tax, handicapBonus, hasButton) {
+        goScoringRule = scoring
+        goKoRule = ko
+        goSuicideAllowed = suicide === true
+        goTaxRule = tax
+        goWhiteHandicapBonus = String(handicapBonus)
+        goButtonRule = hasButton === true
+        resetEngineSyncState()
+        scheduleAutoAnalysis()
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
+    }
+
+    function applyGomokuRuleSettings(ruleMode, maxMoves, vcn, firstPassWin) {
+        var useFirstPassWin = firstPassWin === true
+        gomokuRuleMode = RuleSupport.normalizedGomokuRuleMode(root, ruleMode)
+        gomokuRuleMaxMoves = Math.round(clamp(Number(maxMoves), 0, maxLargeIntegerSetting))
+        gomokuRuleVcn = useFirstPassWin ? "NOVC" : RuleSupport.normalizedGomokuVcnRule(root, vcn)
+        gomokuRuleFirstPassWin = useFirstPassWin
+        rebuildPositionFromNode(currentNodeId)
+        resetEngineSyncState()
+        scheduleAutoAnalysis()
+        if (persistentSettingsLoaded)
+            savePersistentSettings()
     }
 
     function ruleModeButtonsVisible() {
@@ -2138,10 +2217,12 @@ ApplicationWindow {
             engineController.sendCommand(commands[i])
     }
 
-    function engineRuleCommand() {
-        if (gameRuleMode !== gameRuleGomoku)
-            return ""
-        return "kata-set-rule basicrule " + gomokuRuleEngineValue(gomokuRuleMode)
+    function engineRuleCommands() {
+        if (gameRuleMode === gameRuleGo)
+            return [ "kata-set-rules " + JSON.stringify(RuleSupport.goRulesObject(root)) ]
+        if (gameRuleMode === gameRuleGomoku)
+            return [ "kata-set-rules " + JSON.stringify(RuleSupport.gomokuRulesObject(root)) ]
+        return []
     }
 
     function engineBoardSizeCommands() {
@@ -2211,7 +2292,8 @@ ApplicationWindow {
     }
 
     function engineBoardSignature() {
-        var ruleDetail = gameRuleMode === gameRuleGomoku ? gomokuRuleMode
+        var ruleDetail = gameRuleMode === gameRuleGomoku ? JSON.stringify(RuleSupport.gomokuRulesObject(root))
+                       : gameRuleMode === gameRuleGo ? JSON.stringify(RuleSupport.goRulesObject(root))
                        : gameRuleMode === gameRuleHex ? "hex" : "go"
         return [boardSizeX, boardSizeY, gameRuleMode, ruleDetail,
                 legacyHexEngineCoordinateMode() ? "legacyHex" : "normal"].join(":")
@@ -2232,9 +2314,9 @@ ApplicationWindow {
         if (engineNeedsFullSync || engineSyncedBoardSignature !== engineBoardSignature()) {
             commands = commands.concat(engineBoardSizeCommands())
             commands.push(engineKomiCommand())
-            var fullRuleCommand = engineRuleCommand()
-            if (fullRuleCommand.length > 0)
-                commands.push(fullRuleCommand)
+            var fullRuleCommands = engineRuleCommands()
+            for (var ruleCommandIndex = 0; ruleCommandIndex < fullRuleCommands.length; ++ruleCommandIndex)
+                commands.push(fullRuleCommands[ruleCommandIndex])
             commands.push("clear_board")
             for (var fullIndex = 0; fullIndex < path.length; ++fullIndex)
                 commands.push(enginePlayCommandForNode(path[fullIndex]))
@@ -2836,8 +2918,28 @@ ApplicationWindow {
         return BoardVisuals.buildHexWinPath(root, map)
     }
 
+    function gomokuForbiddenActiveForPlayer(player) {
+        return gameRuleMode === gameRuleGomoku && gomokuRuleMode === gomokuRuleRenju && player === 1
+    }
+
+    function pointIsGomokuForbidden(x, y, player, map) {
+        if (!gomokuForbiddenActiveForPlayer(player))
+            return false
+        var sourceMap = map || stones
+        return gomokuForbidden.isForbiddenMove(mapStoneItems(sourceMap), boardSizeX, boardSizeY, x, y)
+    }
+
+    function buildGomokuForbiddenPointItems(map) {
+        if (!gomokuForbiddenActiveForPlayer(currentPlayer))
+            return []
+        if (boardSizeX * boardSizeY > maxCachedLegalPoints)
+            return []
+        return gomokuForbidden.forbiddenPoints(mapStoneItems(map), boardSizeX, boardSizeY)
+    }
+
     function refreshWinVisuals(map) {
         gomokuWinLineItems = buildGomokuWinLineItems(map)
+        gomokuForbiddenPointItems = buildGomokuForbiddenPointItems(map)
         var hex = buildHexWinPath(map)
         hexWinPathItems = hex.path || []
         hexWinPathPlayer = hex.player || 0

@@ -14,6 +14,7 @@
 #include "appsettings.h"
 #include "enginecontroller.h"
 #include "fileio.h"
+#include "gomokuforbidden.h"
 
 namespace {
 
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("QLizzie"));
     QCoreApplication::setApplicationName(QStringLiteral("QLizzie"));
-    app.setWindowIcon(QIcon(QStringLiteral(":/resources/qlizzie-logo.png")));
+    app.setWindowIcon(QIcon(QStringLiteral(":/resources/qlizzie-logo.svg")));
 
     if (launchedInnerPortableAppDirectly()) {
         showLauncherRequiredMessage();
@@ -60,9 +61,11 @@ int main(int argc, char *argv[])
     AppSettings appSettings;
     FileIo fileIo;
     EngineController engineController;
+    GomokuForbidden gomokuForbidden;
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), &appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("fileIo"), &fileIo);
     engine.rootContext()->setContextProperty(QStringLiteral("engineController"), &engineController);
+    engine.rootContext()->setContextProperty(QStringLiteral("gomokuForbidden"), &gomokuForbidden);
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,
