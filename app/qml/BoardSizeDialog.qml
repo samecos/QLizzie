@@ -107,7 +107,7 @@ Basic.Dialog {
                 spacing: 12
 
                 Repeater {
-                    model: [5, 7, 9, 13, 19]
+                    model: [9, 13, 15, 19]
 
                     Basic.RadioButton {
                         text: modelData + "x" + modelData

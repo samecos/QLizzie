@@ -13,6 +13,202 @@ ColumnLayout {
     readonly property bool inlineBoardPresentationControls: app.boardPresentationOptions().length > 1
     readonly property bool inlineKomiControls: !inlineBoardPresentationControls && app.komiControlsVisible()
 
+    function previewStone(x, y, player, moveNumber) {
+        return {
+            "x": x,
+            "y": y,
+            "player": player,
+            "moveNumber": moveNumber === undefined ? 0 : moveNumber
+        }
+    }
+
+    function centerStoneConfig(sizeX, sizeY, x, y) {
+        var cx = x === undefined ? Math.floor(sizeX / 2) : x
+        var cy = y === undefined ? Math.floor(sizeY / 2) : y
+        return {
+            "boardSizeX": sizeX,
+            "boardSizeY": sizeY,
+            "stones": [previewStone(cx, cy, 1, 1)],
+            "lastMoveNumber": 0,
+            "path": []
+        }
+    }
+
+    function reversiPreviewConfig() {
+        return {
+            "boardSizeX": 4,
+            "boardSizeY": 4,
+            "stones": [
+                previewStone(1, 1, 2, 0),
+                previewStone(2, 2, 2, 0),
+                previewStone(2, 1, 1, 0),
+                previewStone(1, 2, 1, 0)
+            ],
+            "lastMoveNumber": 0,
+            "path": []
+        }
+    }
+
+    function ataxxPreviewConfig() {
+        return {
+            "boardSizeX": 4,
+            "boardSizeY": 4,
+            "stones": [
+                previewStone(0, 0, 1, 0),
+                previewStone(3, 3, 1, 0),
+                previewStone(3, 0, 2, 0),
+                previewStone(0, 3, 2, 0)
+            ],
+            "lastMoveNumber": 0,
+            "path": []
+        }
+    }
+
+    function breakthroughPreviewConfig() {
+        var stones = []
+        for (var x = 0; x < 6; ++x) {
+            stones.push(previewStone(x, 0, 2, 0))
+            stones.push(previewStone(x, 1, 2, 0))
+            stones.push(previewStone(x, 4, 1, 0))
+            stones.push(previewStone(x, 5, 1, 0))
+        }
+        return {
+            "boardSizeX": 6,
+            "boardSizeY": 6,
+            "stones": stones,
+            "lastMoveNumber": 0,
+            "path": []
+        }
+    }
+
+    function boardPreviewConfig() {
+        if (app.gameRuleMode === app.gameRuleGo) {
+            return {
+                "boardSizeX": 4,
+                "boardSizeY": 3,
+                "stones": [
+                    previewStone(0, 1, 1, 1),
+                    previewStone(3, 1, 2, 2),
+                    previewStone(1, 0, 1, 3),
+                    previewStone(2, 0, 2, 4),
+                    previewStone(1, 2, 1, 5),
+                    previewStone(2, 2, 2, 6),
+                    previewStone(2, 1, 1, 7)
+                ],
+                "lastMoveNumber": 7,
+                "path": []
+            }
+        }
+        if (app.gameRuleMode === app.gameRuleGomoku) {
+            return {
+                "boardSizeX": 5,
+                "boardSizeY": 5,
+                "stones": [
+                    previewStone(2, 2, 1, 1),
+                    previewStone(2, 1, 2, 2),
+                    previewStone(3, 1, 1, 3),
+                    previewStone(3, 2, 2, 4),
+                    previewStone(4, 0, 1, 5),
+                    previewStone(2, 3, 2, 6),
+                    previewStone(1, 3, 1, 7),
+                    previewStone(1, 2, 2, 8),
+                    previewStone(0, 4, 1, 9)
+                ],
+                "lastMoveNumber": 9,
+                "path": []
+            }
+        }
+        if (app.gameRuleMode === app.gameRuleHex) {
+            return {
+                "boardSizeX": 3,
+                "boardSizeY": 3,
+                "stones": [
+                    previewStone(1, 1, 1, 1),
+                    previewStone(1, 0, 2, 2),
+                    previewStone(2, 0, 1, 3),
+                    previewStone(1, 2, 2, 4),
+                    previewStone(0, 2, 1, 5)
+                ],
+                "lastMoveNumber": 5,
+                "path": [
+                    { "x": 0, "y": 2 },
+                    { "x": 1, "y": 1 },
+                    { "x": 2, "y": 0 }
+                ]
+            }
+        }
+        if (app.gameRuleMode === app.gameRuleHexGoParallelogram
+                || app.gameRuleMode === app.gameRuleHexGoHexagon)
+            return centerStoneConfig(3, 3, 1, 1)
+        if (app.gameRuleMode === app.gameRuleHexGoTriangle)
+            return centerStoneConfig(4, 4, 2, 2)
+        if (app.gameRuleMode === app.gameRuleReversi)
+            return reversiPreviewConfig()
+        if (app.gameRuleMode === app.gameRuleAtaxx)
+            return ataxxPreviewConfig()
+        if (app.gameRuleMode === app.gameRuleBreakthrough)
+            return breakthroughPreviewConfig()
+        return centerStoneConfig(3, 3)
+    }
+
+    function drawPreviewWinPath(ctx, state, geometry, path) {
+        if (!path || path.length < 2)
+            return
+        ctx.save()
+        ctx.strokeStyle = "#f01818"
+        ctx.lineWidth = Math.max(4, geometry.cellSize * 0.09)
+        ctx.lineCap = "round"
+        ctx.lineJoin = "round"
+        ctx.beginPath()
+        for (var i = 0; i < path.length; ++i) {
+            var point = geometry.point(path[i].x, path[i].y)
+            if (i === 0)
+                ctx.moveTo(point.x, point.y)
+            else
+                ctx.lineTo(point.x, point.y)
+        }
+        ctx.stroke()
+        ctx.restore()
+    }
+
+    function drawPreviewStoneOverlay(ctx, state, geometry, stone, lastMoveNumber) {
+        if (!stone.moveNumber || stone.moveNumber <= 0)
+            return
+        var last = stone.moveNumber === lastMoveNumber
+        if (!app.stoneOverlayVisible(stone.moveNumber, last))
+            return
+
+        var stoneRadius = Math.max(8, geometry.cellSize * state.stoneScale * 0.5)
+        var point = geometry.point(stone.x, stone.y)
+        if (last) {
+            var markerSize = stoneRadius * 0.62
+            ctx.save()
+            ctx.fillStyle = "#e3342f"
+            ctx.beginPath()
+            ctx.moveTo(point.x - stoneRadius, point.y - stoneRadius)
+            ctx.lineTo(point.x - stoneRadius + markerSize, point.y - stoneRadius)
+            ctx.lineTo(point.x - stoneRadius, point.y - stoneRadius + markerSize)
+            ctx.closePath()
+            ctx.fill()
+            ctx.restore()
+        }
+
+        if (!app.stoneNumberVisible(stone.moveNumber, last))
+            return
+        var text = String(stone.moveNumber)
+        var size = app.stoneNumberFontSize(ctx, text, stoneRadius)
+        ctx.save()
+        ctx.fillStyle = app.stoneNumberColor(stone.player, last)
+        ctx.font = app.stoneNumberCanvasFont(size, true)
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(text,
+                     point.x,
+                     point.y + app.stoneNumberOffsetY(size),
+                     app.stoneNumberMaxWidth(stoneRadius))
+        ctx.restore()
+    }
+
     component PresentationCombo: Basic.ComboBox {
         id: control
 
@@ -311,21 +507,23 @@ ColumnLayout {
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.clearRect(0, 0, width, height)
+                            var preview = ruleSettingsPage.boardPreviewConfig()
                             var state = BoardRenderer.stateFromApp(app, {
-                                "boardSizeX": 3,
-                                "boardSizeY": 3
+                                "boardSizeX": preview.boardSizeX,
+                                "boardSizeY": preview.boardSizeY
                             })
                             var geometry = BoardRenderer.createGeometry(state, width, height, { "outerMargin": 8 })
                             BoardRenderer.drawBoard(ctx, state, geometry, {
                                 "fillBackground": true,
                                 "width": width,
                                 "height": height,
-                                "stones": [
-                                    { "x": 0, "y": 0, "player": 1 },
-                                    { "x": 1, "y": 1, "player": 2 },
-                                    { "x": 2, "y": 2, "player": 1 }
-                                ]
+                                "stones": preview.stones
                             })
+                            ruleSettingsPage.drawPreviewWinPath(ctx, state, geometry, preview.path)
+                            for (var i = 0; i < preview.stones.length; ++i)
+                                ruleSettingsPage.drawPreviewStoneOverlay(ctx, state, geometry,
+                                                                         preview.stones[i],
+                                                                         preview.lastMoveNumber)
                         }
 
                         Connections {
@@ -335,6 +533,12 @@ ColumnLayout {
                             function onHexBoardStyleChanged() { previewCanvas.requestPaint() }
                             function onHexBoardRotationChanged() { previewCanvas.requestPaint() }
                             function onBoardWoodColorChanged() { previewCanvas.requestPaint() }
+                            function onCoordinateDisplayModeChanged() { previewCanvas.requestPaint() }
+                            function onStoneScaleChanged() { previewCanvas.requestPaint() }
+                            function onGridOpacityChanged() { previewCanvas.requestPaint() }
+                            function onGridLineWidthChanged() { previewCanvas.requestPaint() }
+                            function onMoveNumberDisplayModeChanged() { previewCanvas.requestPaint() }
+                            function onMoveNumberLabelScaleChanged() { previewCanvas.requestPaint() }
                         }
 
                         onWidthChanged: requestPaint()

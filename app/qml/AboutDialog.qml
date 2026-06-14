@@ -100,10 +100,16 @@ Basic.Dialog {
             linkColor: "#176ea3"
             font.pixelSize: 15
             wrapMode: Text.WordWrap
-            text: "<p>QLizzie</p>"
-                  + "<p>" + app.trText("aboutLicenseText") + " "
-                  + link("https://www.gnu.org/licenses/gpl-3.0.html", "GPLv3") + "</p>"
-                  + "<p>" + app.trText("aboutReferenceText") + " Lizzie-style Qt analysis UI</p>"
+            text: "<p>" + app.trText("aboutIntroBeforeAuthor") + " "
+                  + link("https://github.com/hzyhhzy", "hzyhhzy")
+                  + " " + app.trText("aboutIntroAfterAuthor") + "</p>"
+                  + "<p>" + app.trText("aboutReferenceBeforeLizzie")
+                  + " " + link("https://github.com/yzyray/lizzieyzy", "LizzieYZY")
+                  + app.trText("aboutReferenceAfterLizzie") + "</p>"
+                  + "<p>" + app.trText("aboutEngineBeforeKataGo")
+                  + " " + link("https://github.com/lightvector/KataGo", "KataGo")
+                  + " / " + link("https://github.com/hzyhhzy/KataGomo", "KataGomo")
+                  + " " + app.trText("aboutEngineAfterKataGomo") + "</p>"
             onLinkActivated: function(url) { Qt.openUrlExternally(url) }
         }
 

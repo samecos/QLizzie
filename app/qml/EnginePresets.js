@@ -17,21 +17,19 @@ function makePreset(id, name, command, ruleMode, ruleVariant, boardSizeX, boardS
 }
 
 function defaultPresets(app) {
-    var command = app.defaultGo7EngineCommand
-    return [
-        makePreset("katago-go-19", "KataGo / KataGomo Go 19x19", command,
-                   app.gameRuleGo, -1, 19, 19, 6.5, false),
-        makePreset("katago-go-9", "KataGo / KataGomo Go 9x9", command,
-                   app.gameRuleGo, -1, 9, 9, 7.0, false),
-        makePreset("katagomo-gomoku-15", "KataGomo Gomoku 15x15", command,
-                   app.gameRuleGomoku, app.gomokuRuleFreestyle, 15, 15, 0.0, false),
-        makePreset("katagomo-gomoku-19", "KataGomo Gomoku 19x19", command,
-                   app.gameRuleGomoku, app.gomokuRuleFreestyle, 19, 19, 0.0, false),
-        makePreset("katagomo-hex-5-legacy", "KataGomo Hex 5x5 legacy", command,
-                   app.gameRuleHex, -1, 5, 5, 0.0, true),
-        makePreset("katagomo-hex-11-legacy", "KataGomo Hex 11x11 legacy", command,
-                   app.gameRuleHex, -1, 11, 11, 0.0, true)
-    ]
+    return []
+}
+
+function fallbackPreset(app, index) {
+    return makePreset("engine-" + (index + 1),
+                      app.trText("newEngine"),
+                      "",
+                      app.gameRuleGo,
+                      -1,
+                      19,
+                      19,
+                      7.5,
+                      false)
 }
 
 function clonePreset(preset) {
@@ -56,12 +54,13 @@ function numeric(value, fallback) {
 }
 
 function normalizePreset(app, preset, index) {
-    var fallback = defaultPresets(app)[0]
+    var safeIndex = Math.max(0, Math.round(numeric(index, 0)))
+    var fallback = fallbackPreset(app, safeIndex)
     var copy = clonePreset(preset || fallback)
-    copy.id = String(copy.id || ("engine-" + (index + 1)))
-    copy.name = String(copy.name || ("Engine " + (index + 1)))
+    copy.id = String(copy.id || ("engine-" + (safeIndex + 1)))
+    copy.name = String(copy.name || ("Engine " + (safeIndex + 1)))
     copy.command = copy.command === undefined || copy.command === null
-                   ? app.defaultGo7EngineCommand
+                   ? ""
                    : String(copy.command)
     copy.initialCommands = String(copy.initialCommands || "")
     delete copy.preload
@@ -96,7 +95,7 @@ function normalizePreset(app, preset, index) {
 }
 
 function normalizeList(app, presets) {
-    var source = presets && presets.length > 0 ? presets : defaultPresets(app)
+    var source = presets && presets.length > 0 ? presets : []
     var list = []
     var used = ({})
     for (var i = 0; i < source.length; ++i) {
@@ -121,7 +120,7 @@ function parseList(app, text) {
             return normalizeList(app, parsed)
     } catch (error) {
     }
-    return normalizeList(app, [])
+    return []
 }
 
 function serializeList(presets) {

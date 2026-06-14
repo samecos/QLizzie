@@ -218,7 +218,7 @@ ApplicationWindow {
     readonly property int packageModeGo: 1
     readonly property int packageModeSix: 2
     property int packageMode: packageModeUniversal
-    property string defaultGo7EngineCommand: "D:\\katago\\engine2024\\go.exe gtp -config ./engine2024.cfg -model \"D:\\Downloads\\model (68).bin.gz\" -override-config useUncertainty=false"
+    property string defaultGo7EngineCommand: ""
     property string persistedEngineCommand: ""
     property bool legacyHexEngineCoordinates: false
     property var enginePresets: []
@@ -430,6 +430,7 @@ ApplicationWindow {
         }
 
         Menu {
+            id: settingsMenu
             title: root.trText("menuSettings")
             font.pixelSize: root.compactLayout ? 14 : 16
 
@@ -442,6 +443,15 @@ ApplicationWindow {
                 id: ruleSettingsMenu
                 title: root.trText("settingsPageRules")
 
+                function closeMenuChain() {
+                    if (ruleSettingsMenu.dismiss)
+                        ruleSettingsMenu.dismiss()
+                    else {
+                        ruleSettingsMenu.close()
+                        settingsMenu.close()
+                    }
+                }
+
                 MenuItem {
                     text: root.trText("settingsPageRules") + "..."
                     onTriggered: settingsDialog.openPage(1)
@@ -453,11 +463,44 @@ ApplicationWindow {
                     model: root.visibleGameRuleOptions()
 
                     delegate: MenuItem {
+                        id: ruleMenuItem
+
+                        width: Math.max(300, ruleSettingsMenu.width)
+                        leftPadding: 44
+                        rightPadding: 16
                         text: modelData.label
                         checkable: true
                         checked: root.gameRuleMode === modelData.value
                         enabled: root.ruleModeAllowedForPackage(modelData.value)
-                        onTriggered: root.requestRuleModeChange(modelData.value)
+                        onTriggered: {
+                            root.requestRuleModeChange(modelData.value)
+                            Qt.callLater(ruleSettingsMenu.closeMenuChain)
+                            root.queueFocusBoardInput()
+                        }
+
+                        contentItem: Text {
+                            text: ruleMenuItem.text
+                            color: ruleMenuItem.enabled ? "#17212a" : "#8a969d"
+                            font.pixelSize: root.compactLayout ? 14 : 16
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+
+                        indicator: Item {
+                            x: 10
+                            y: 0
+                            width: 24
+                            height: ruleMenuItem.height
+
+                            Text {
+                                anchors.centerIn: parent
+                                visible: ruleMenuItem.checked
+                                text: "\u2713"
+                                color: "#17212a"
+                                font.pixelSize: root.compactLayout ? 15 : 17
+                                font.bold: true
+                            }
+                        }
                     }
 
                     onObjectAdded: function(index, object) {
@@ -599,6 +642,13 @@ ApplicationWindow {
         interval: Math.max(1, root.maxAnalysisSeconds) * 1000
         repeat: false
         onTriggered: root.pauseEngineAnalysisByLimit()
+    }
+
+    Timer {
+        id: focusBoardInputTimer
+        interval: 0
+        repeat: false
+        onTriggered: root.focusBoardInput()
     }
 
     Timer {
@@ -2982,6 +3032,10 @@ ApplicationWindow {
         BoardInteraction.focusBoardInput(inputLayer)
     }
 
+    function queueFocusBoardInput() {
+        focusBoardInputTimer.restart()
+    }
+
     function itemContainsInputPoint(item, sourceItem, x, y) {
         return BoardInteraction.itemContainsInputPoint(item, sourceItem, x, y)
     }
@@ -3049,7 +3103,7 @@ ApplicationWindow {
     }
 
     function openSaveSgfDialog() {
-        saveSgfDialog.currentFile = "qlizzie-" + boardDimensionsText() + ".sgf"
+        saveSgfDialog.currentFile = ""
         saveSgfDialog.open()
     }
 

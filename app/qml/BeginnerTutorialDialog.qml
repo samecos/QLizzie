@@ -10,6 +10,7 @@ Basic.Dialog {
     property int pageIndex: 0
     readonly property var pages: [
         { "title": app.trText("tutorialPageViewTitle"), "body": app.trText("tutorialPageViewBody") },
+        { "title": app.trText("tutorialPageRulesTitle"), "body": app.trText("tutorialPageRulesBody") },
         { "title": app.trText("tutorialPageMoveTitle"), "body": app.trText("tutorialPageMoveBody") },
         { "title": app.trText("tutorialPageEngineTitle"), "body": app.trText("tutorialPageEngineBody") },
         { "title": app.trText("tutorialPageTreeTitle"), "body": app.trText("tutorialPageTreeBody") }
@@ -28,6 +29,10 @@ Basic.Dialog {
     function openFirstPage() {
         pageIndex = 0
         open()
+    }
+
+    function openTutorial() {
+        openFirstPage()
     }
 
     function currentPageTitle() {
@@ -145,13 +150,17 @@ Basic.Dialog {
                 width: Math.max(0, tutorialScroll.availableWidth - 14)
                 spacing: 14
 
-                Label {
+                TextEdit {
                     width: parent.width
                     text: tutorialDialog.currentPageBody()
+                    readOnly: true
+                    selectByMouse: true
+                    cursorVisible: false
                     color: "#1d2f39"
+                    selectionColor: "#2a91c9"
+                    selectedTextColor: "#ffffff"
                     font.pixelSize: 15
-                    lineHeight: 1.2
-                    wrapMode: Text.WordWrap
+                    wrapMode: TextEdit.WordWrap
                 }
 
                 Item {
@@ -254,13 +263,14 @@ Basic.Dialog {
     Basic.Dialog {
         id: skipTutorialDialog
 
+        parent: Overlay.overlay
         modal: true
         title: app.trText("skipTutorialTitle")
         closePolicy: Popup.NoAutoClose
         padding: 18
         width: Math.min(440, app.width - 80)
-        x: Math.round((app.width - width) / 2)
-        y: Math.round((app.height - height) / 2)
+        x: Math.round(((Overlay.overlay ? Overlay.overlay.width : app.width) - width) / 2)
+        y: Math.round(((Overlay.overlay ? Overlay.overlay.height : app.height) - height) / 2)
 
         background: Rectangle {
             radius: 10
@@ -307,12 +317,17 @@ Basic.Dialog {
             implicitWidth: 404
             spacing: 18
 
-            Label {
+            TextEdit {
                 Layout.fillWidth: true
                 text: app.trText("skipTutorialMessage")
+                readOnly: true
+                selectByMouse: true
+                cursorVisible: false
                 color: "#352609"
+                selectionColor: "#2a91c9"
+                selectedTextColor: "#ffffff"
                 font.pixelSize: 14
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.WordWrap
             }
 
             RowLayout {

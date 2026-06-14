@@ -122,26 +122,37 @@ Basic.Dialog {
                                 border.color: "#9fb3bf"
                                 border.width: 1
 
-                                Text {
-                                    anchors.centerIn: parent
+                                TextEdit {
+                                    anchors.fill: parent
+                                    anchors.margins: 4
                                     width: parent.width - 8
                                     text: modelData.keys
+                                    readOnly: true
+                                    selectByMouse: true
+                                    cursorVisible: false
                                     color: "#10242f"
+                                    selectionColor: "#2a91c9"
+                                    selectedTextColor: "#ffffff"
                                     font.pixelSize: 14
                                     font.bold: true
                                     font.family: "Consolas"
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
-                                    elide: Text.ElideRight
+                                    clip: true
                                 }
                             }
 
-                            Text {
+                            TextEdit {
                                 Layout.fillWidth: true
                                 text: app.trText(modelData.textKey)
+                                readOnly: true
+                                selectByMouse: true
+                                cursorVisible: false
                                 color: "#1e2d36"
+                                selectionColor: "#2a91c9"
+                                selectedTextColor: "#ffffff"
                                 font.pixelSize: 15
-                                wrapMode: Text.WordWrap
+                                wrapMode: TextEdit.WordWrap
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }

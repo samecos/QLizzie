@@ -500,7 +500,7 @@ Rectangle {
         }
 
         ToolTip.visible: passMouse.containsMouse
-        ToolTip.text: app.trText("passMove") + " (P)"
+        ToolTip.text: app.trText("passMoveTooltip")
 
         MouseArea {
             id: passMouse

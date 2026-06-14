@@ -18,13 +18,15 @@ Basic.Dialog {
     property real listTooltipX: 0
     property real listTooltipY: 0
     readonly property real legacyHexColumnWidth: startupMode ? 0 : 82
+    readonly property real ruleColumnWidth: startupMode ? 150 : 164
 
     modal: true
     title: startupMode ? app.trText("loadEngineTitle") : app.trText("engineSettingsTitle")
     closePolicy: startupMode ? Popup.NoAutoClose : Popup.CloseOnEscape
     padding: 8
     width: Math.min(1180, app.width - 36)
-    height: Math.min(820, app.height - 36)
+    height: startupMode ? Math.min(430, app.height - 80)
+                        : Math.min(820, app.height - 36)
     x: Math.round((app.width - width) / 2)
     y: Math.round((app.height - height) / 2)
 
@@ -494,7 +496,7 @@ Basic.Dialog {
             id: tablePanel
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: engineListDialog.startupMode ? 390 : 210
+            Layout.minimumHeight: engineListDialog.startupMode ? 190 : 210
             color: "#ffffff"
             border.color: "#b9ccd6"
 
@@ -517,7 +519,7 @@ Basic.Dialog {
                         HeaderCell { text: app.trText("candidateIndex"); widthValue: 52 }
                         HeaderCell { text: app.trText("engineName"); widthValue: 200 }
                         HeaderCell { text: app.trText("engineCommand"); fill: true }
-                        HeaderCell { text: app.trText("engineRule"); widthValue: 94 }
+                        HeaderCell { text: app.trText("engineRule"); widthValue: engineListDialog.ruleColumnWidth }
                         HeaderCell { text: app.trText("engineWidthShort"); widthValue: 50; alignCenter: true }
                         HeaderCell { text: app.trText("engineHeightShort"); widthValue: 50; alignCenter: true }
                         HeaderCell { text: app.trText("komi"); widthValue: 58; alignCenter: true }
@@ -550,7 +552,7 @@ Basic.Dialog {
                         readonly property bool selected: index === engineListDialog.selectedIndex
                         readonly property real nameColumnStart: 52
                         readonly property real nameColumnEnd: 252
-                        readonly property real trailingColumnsWidth: 252
+                        readonly property real trailingColumnsWidth: 158 + engineListDialog.ruleColumnWidth
                                                                     + engineListDialog.legacyHexColumnWidth
                         readonly property real commandColumnStart: nameColumnEnd
                         readonly property real commandColumnEnd: Math.max(commandColumnStart, width - trailingColumnsWidth)
@@ -590,7 +592,7 @@ Basic.Dialog {
                             DataCell { text: String(index + 1); widthValue: 52; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? rowItem.preset.name : ""; widthValue: 200; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? rowItem.preset.command : ""; fill: true; selected: rowItem.selected }
-                            DataCell { text: rowItem.preset ? app.enginePresetRuleDetailText(rowItem.preset) : ""; widthValue: 94; selected: rowItem.selected }
+                            DataCell { text: rowItem.preset ? app.enginePresetRuleDetailText(rowItem.preset) : ""; widthValue: engineListDialog.ruleColumnWidth; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeX) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeY) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? Number(rowItem.preset.komi).toFixed(1) : ""; widthValue: 58; alignCenter: true; selected: rowItem.selected }

@@ -145,7 +145,9 @@ Item {
         var point = boardPointLocal(x, y)
         var dx = mouseX - point.x
         var dy = mouseY - point.y
-        var hitRadius = Math.max(14, Math.min(30, cellSize * app.mouseHitRadiusScale * 2.8))
+        var hitRadiusRatio = hexBoard ? 0.62 : 0.50
+        var hitRadius = Math.max(14, cellSize * app.mouseHitRadiusScale * 1.35)
+        hitRadius = Math.min(hitRadius, cellSize * hitRadiusRatio)
         if (Math.sqrt(dx * dx + dy * dy) > hitRadius)
             return null
         return { "x": x, "y": y, "key": app.keyFor(x, y) }

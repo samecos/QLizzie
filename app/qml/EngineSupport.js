@@ -22,7 +22,7 @@ function applyPackageModeConstraints(app, restartIfChanged, engineController) {
 function applyUniversalEngineCommand(app, restartIfChanged, engineController) {
     if (!engineController || app.packageMode !== app.packageModeUniversal)
         return
-    var command = app.persistedEngineCommand.length > 0 ? app.persistedEngineCommand : app.defaultGo7EngineCommand
+    var command = app.persistedEngineCommand
     if (command.length <= 0 || engineController.command === command)
         return
     engineController.command = command

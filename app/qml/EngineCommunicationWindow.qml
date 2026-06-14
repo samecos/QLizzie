@@ -223,7 +223,7 @@ Window {
                     clip: true
                     color: index % 2 === 0 ? "#111820" : "#16212b"
 
-                    Text {
+                    TextEdit {
                         id: logText
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -231,10 +231,15 @@ Window {
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         text: model.line
+                        readOnly: true
+                        selectByMouse: true
+                        cursorVisible: false
                         color: app.engineCommunicationColor(model.stream)
+                        selectionColor: "#2a91c9"
+                        selectedTextColor: "#ffffff"
                         font.family: "Consolas"
                         font.pixelSize: app.compactLayout ? 11 : 12
-                        wrapMode: Text.WrapAnywhere
+                        wrapMode: TextEdit.WrapAnywhere
                     }
                 }
             }

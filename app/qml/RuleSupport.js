@@ -518,7 +518,10 @@ function applyRuleModeChange(app, mode) {
     app.resetEngineSyncState()
     app.scheduleAutoAnalysis()
     app.requestAiMoveIfNeeded()
-    app.focusBoardInput()
+    if (app.queueFocusBoardInput)
+        app.queueFocusBoardInput()
+    else
+        app.focusBoardInput()
 }
 
 function adjustedBoardDimensionsForRule(app, mode, xSize, ySize) {
