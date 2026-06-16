@@ -1,38 +1,60 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "CandidateAnalysis.js" as CandidateAnalysis
 
-Basic.Dialog {
+Window {
     id: tutorialDialog
 
     required property var app
     property int pageIndex: 0
+    property bool positionedOnce: false
     readonly property var pages: [
         { "title": app.trText("tutorialPageViewTitle"), "body": app.trText("tutorialPageViewBody") },
         { "title": app.trText("tutorialPageRulesTitle"), "body": app.trText("tutorialPageRulesBody") },
         { "title": app.trText("tutorialPageMoveTitle"), "body": app.trText("tutorialPageMoveBody") },
         { "title": app.trText("tutorialPageEngineTitle"), "body": app.trText("tutorialPageEngineBody") },
-        { "title": app.trText("tutorialPageTreeTitle"), "body": app.trText("tutorialPageTreeBody") }
+        { "title": app.trText("tutorialPageTreeTitle"), "body": app.trText("tutorialPageTreeBody") },
+        { "title": app.trText("tutorialPageMoreTitle"), "body": app.trText("tutorialPageMoreBody") }
     ]
     readonly property int pageCount: pages.length
 
-    modal: false
     title: app.trText("beginnerTutorialTitle")
-    closePolicy: Popup.NoAutoClose
-    padding: 18
-    width: Math.min(560, app.width - 70)
-    height: Math.min(430, app.height - 70)
-    x: Math.round((app.width - width) / 2)
-    y: Math.round((app.height - height) / 2)
+    flags: Qt.Window
+    color: "#f8fbfd"
+    minimumWidth: 620
+    minimumHeight: 430
+    width: 760
+    height: 640
+    visible: false
 
     function openFirstPage() {
         pageIndex = 0
-        open()
+        openTutorialWindow()
     }
 
     function openTutorial() {
         openFirstPage()
+    }
+
+    function openTutorialWindow() {
+        if (!positionedOnce) {
+            width = Math.min(760, Math.max(minimumWidth, app.width - 80))
+            height = Math.min(640, Math.max(minimumHeight, app.height - 90))
+            x = Math.round(app.x + (app.width - width) / 2)
+            y = Math.round(app.y + (app.height - height) / 2)
+            positionedOnce = true
+        }
+        visible = true
+        raise()
+        requestActivate()
+    }
+
+    function finishTutorial() {
+        visible = false
+        app.focusBoardInput()
     }
 
     function currentPageTitle() {
@@ -43,217 +65,305 @@ Basic.Dialog {
         return pages[pageIndex] ? pages[pageIndex].body : ""
     }
 
-    background: Rectangle {
-        radius: 10
+    function escapeHtml(text) {
+        return String(text).replace(/&/g, "&amp;")
+                           .replace(/</g, "&lt;")
+                           .replace(/>/g, "&gt;")
+                           .replace(/"/g, "&quot;")
+    }
+
+    function keyBadge(text) {
+        return "<span style=\"background-color:#e7f0f5;color:#123240;"
+               + "font-family:Consolas,monospace;font-weight:700;\">&nbsp;"
+               + text + "&nbsp;</span>"
+    }
+
+    function tutorialRichText(text) {
+        var escaped = escapeHtml(text)
+        escaped = escaped.replace(/\{key:([^}]+)\}/g, function(match, keyText) {
+            return keyBadge(keyText)
+        })
+        escaped = escaped.replace(/\{menu:([^}]+)\}/g, function(match, menuText) {
+            return keyBadge(menuText)
+        })
+        return "<p style=\"margin-top:0;margin-bottom:0;\">" + escaped.replace(/\n\n/g, "</p><p style=\"margin-top:0;margin-bottom:0;\">")
+                                                                     .replace(/\n/g, "<br>") + "</p>"
+    }
+
+    onClosing: function(closeEvent) {
+        closeEvent.accepted = false
+        skipTutorialDialog.open()
+    }
+
+    QtObject {
+        id: tutorialPreviewStyle
+
+        readonly property bool candidateWinrateLabelVisible: true
+        readonly property bool candidateVisitsLabelVisible: true
+        readonly property bool candidateScoreLabelVisible: true
+        readonly property int candidateWinrateFontSize: 57
+        readonly property int candidateVisitsFontSize: 42
+        readonly property int candidateScoreFontSize: 36
+        readonly property bool candidateWinrateBold: true
+        readonly property bool candidateVisitsBold: false
+        readonly property bool candidateScoreBold: true
+        readonly property int candidateWinrateOffsetY: -10
+        readonly property int candidateVisitsOffsetY: -5
+        readonly property int candidateScoreOffsetY: -5
+        readonly property int candidateWinrateDecimals: 1
+        readonly property int candidateScoreDecimals: 1
+        readonly property bool candidateWinrateShowPercent: false
+        readonly property bool candidateScoreShowPercent: false
+        readonly property int candidateScoreTitleDrawRate: 1
+        readonly property int candidateScoreTitleMode: 0
+        readonly property bool candidateRingVisible: true
+        readonly property int candidateRingLineWidth: 12
+        readonly property bool candidateRankLabelVisible: true
+        readonly property string candidateFirstLabelTextColor: "#ff0000"
+        readonly property string candidateLabelTextColor: "#000000"
+        readonly property string firstCandidateRingColor: "#003b8e"
+        readonly property int candidateYzyMinAlpha: 32
+        readonly property int candidateYzyMaxAlpha: 240
+        readonly property real candidateYzyAlphaFactor: 5.0
+        readonly property real candidateYzyColorRatio: 2.0
+        readonly property real stoneScale: 0.95
+        readonly property string coordinateFontFamily: "Arial"
+
+        function clamp(value, minValue, maxValue) {
+            return Math.max(minValue, Math.min(maxValue, value))
+        }
+
+        function trText(key) {
+            return tutorialDialog.app.trText(key)
+        }
+
+        function drawCandidateMarker(ctx, centerX, centerY, markerRadius, lines, options) {
+            CandidateAnalysis.drawMarker(tutorialPreviewStyle, ctx, centerX, centerY, markerRadius, lines, options)
+        }
+
+        function candidateMarkerRadius(widthValue, heightValue) {
+            return CandidateAnalysis.markerRadius(tutorialPreviewStyle, widthValue, heightValue)
+        }
+
+        function candidateMarkerColor(displayIndex, visitRatio) {
+            return CandidateAnalysis.markerColor(tutorialPreviewStyle, displayIndex, visitRatio)
+        }
+
+        function candidateMarkerOpacity(displayIndex, visitRatio) {
+            return CandidateAnalysis.markerOpacity(tutorialPreviewStyle, displayIndex, visitRatio)
+        }
+
+        function candidatePreviewLabelLines(digitText) {
+            return CandidateAnalysis.previewLabelLines(tutorialPreviewStyle, digitText)
+        }
+    }
+
+    Rectangle {
+        id: tutorialRoot
+        anchors.fill: parent
         color: "#f8fbfd"
         border.color: "#8ea5b1"
         border.width: 1
-    }
 
-    header: Rectangle {
-        height: 52
-        color: "#e6eff4"
-        radius: 10
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 18
+            spacing: 14
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: parent.radius
-            color: parent.color
-        }
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: "#c5d4dc"
-        }
-
-        Label {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 18
-            anchors.rightMargin: 54
-            text: tutorialDialog.title
-            color: "#14242e"
-            font.pixelSize: 17
-            font.bold: true
-            elide: Text.ElideRight
-        }
-
-        Basic.Button {
-            id: closeButton
-            width: 34
-            height: 34
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            padding: 0
-            onClicked: skipTutorialDialog.open()
-
-            contentItem: Text {
-                text: "×"
-                color: "#23343e"
-                font.pixelSize: 24
+            Label {
+                Layout.fillWidth: true
+                text: (tutorialDialog.pageIndex + 1) + "/" + tutorialDialog.pageCount
+                color: "#267fbb"
+                font.pixelSize: 16
+                font.bold: true
                 horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
             }
 
-            background: Rectangle {
-                radius: 6
-                color: closeButton.pressed ? "#d4e0e7" : closeButton.hovered ? "#edf4f8" : "transparent"
-                border.color: closeButton.hovered || closeButton.pressed ? "#9fb2bd" : "transparent"
-            }
-        }
-    }
-
-    contentItem: ColumnLayout {
-        implicitWidth: 524
-        spacing: 14
-
-        Label {
-            Layout.fillWidth: true
-            text: (tutorialDialog.pageIndex + 1) + "/" + tutorialDialog.pageCount
-            color: "#267fbb"
-            font.pixelSize: 16
-            font.bold: true
-            horizontalAlignment: Text.AlignHCenter
-        }
-
-        Label {
-            text: tutorialDialog.currentPageTitle()
-            color: "#14242e"
-            font.pixelSize: 21
-            font.bold: true
-            Layout.fillWidth: true
-        }
-
-        ScrollView {
-            id: tutorialScroll
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            ScrollBar.vertical: AppScrollBar {
-                parent: tutorialScroll
-                anchors.top: parent.top
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-            }
-            ScrollBar.horizontal: Basic.ScrollBar {
-                policy: ScrollBar.AlwaysOff
+            Label {
+                text: tutorialDialog.currentPageTitle()
+                color: "#14242e"
+                font.pixelSize: 21
+                font.bold: true
+                Layout.fillWidth: true
+                elide: Text.ElideRight
             }
 
-            Column {
-                width: Math.max(0, tutorialScroll.availableWidth - 14)
-                spacing: 14
-
-                TextEdit {
-                    width: parent.width
-                    text: tutorialDialog.currentPageBody()
-                    readOnly: true
-                    selectByMouse: true
-                    cursorVisible: false
-                    color: "#1d2f39"
-                    selectionColor: "#2a91c9"
-                    selectedTextColor: "#ffffff"
-                    font.pixelSize: 15
-                    wrapMode: TextEdit.WordWrap
+            ScrollView {
+                id: tutorialScroll
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                ScrollBar.vertical: AppScrollBar {
+                    parent: tutorialScroll
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                }
+                ScrollBar.horizontal: Basic.ScrollBar {
+                    policy: ScrollBar.AlwaysOff
                 }
 
-                Item {
-                    visible: tutorialDialog.pageIndex === 3
-                    width: parent.width
-                    height: visible ? 170 : 0
+                Column {
+                    width: Math.max(0, tutorialScroll.availableWidth - 14)
+                    spacing: 14
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 8
-                        color: "#e7f0f4"
-                        border.color: "#c3d2db"
+                    TextEdit {
+                        width: parent.width
+                        text: tutorialDialog.tutorialRichText(tutorialDialog.currentPageBody())
+                        textFormat: TextEdit.RichText
+                        readOnly: true
+                        selectByMouse: true
+                        cursorVisible: false
+                        color: "#1d2f39"
+                        selectionColor: "#2a91c9"
+                        selectedTextColor: "#ffffff"
+                        font.pixelSize: 15
+                        wrapMode: TextEdit.WordWrap
                     }
 
-                    Repeater {
-                        model: [
-                            { "x": 0.50, "y": 0.46, "rate": "60%", "index": "1", "size": 104, "color": "#00ffff", "opacity": 0.72, "ring": true },
-                            { "x": 0.25, "y": 0.32, "rate": "50%", "index": "2", "size": 72, "color": "#00ff36", "opacity": 0.58, "ring": false },
-                            { "x": 0.76, "y": 0.34, "rate": "40%", "index": "3", "size": 68, "color": "#00ff36", "opacity": 0.46, "ring": false },
-                            { "x": 0.32, "y": 0.74, "rate": "30%", "index": "4", "size": 62, "color": "#00ff36", "opacity": 0.34, "ring": false },
-                            { "x": 0.72, "y": 0.72, "rate": "20%", "index": "5", "size": 58, "color": "#00ff36", "opacity": 0.24, "ring": false }
-                        ]
+                    Item {
+                        visible: tutorialDialog.pageIndex === 3
+                        width: parent.width
+                        height: visible ? 300 : 0
+                        readonly property real markerSize: Math.max(130, Math.min(170, width * 0.26))
+                        readonly property real markerX: 30
+                        readonly property real markerY: 74
+                        readonly property real markerCenterX: markerX + markerSize * 0.45
+                        readonly property real markerCenterY: markerY + markerSize * 0.61
+                        readonly property real textX: markerX + markerSize + 72
+                        readonly property real rankY: 28
+                        readonly property real winrateY: 92
+                        readonly property real visitsY: 166
+                        readonly property real scoreY: 232
+                        readonly property real winrateTargetY: markerCenterY - markerSize * 0.21
+                        readonly property real visitsTargetY: markerCenterY + markerSize * 0.01
+                        readonly property real scoreTargetY: markerCenterY + markerSize * 0.22
+                        readonly property real rankTargetX: markerCenterX + markerSize * 0.34
+                        readonly property real rankTargetY: markerCenterY - markerSize * 0.31
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 8
+                            color: "#e7f0f4"
+                            border.color: "#c3d2db"
+                        }
+
+                        CandidateMarkerView {
+                            id: tutorialCandidatePreview
+                            x: parent.markerX
+                            y: parent.markerY
+                            width: parent.markerSize
+                            height: parent.markerSize
+                            app: tutorialPreviewStyle
+                            labelLines: tutorialPreviewStyle.candidatePreviewLabelLines("6")
+                            drawBackground: true
+                            drawRing: true
+                            rankText: "1"
+                            backgroundColor: tutorialPreviewStyle.candidateMarkerColor(1, 1.0)
+                            backgroundOpacity: tutorialPreviewStyle.candidateMarkerOpacity(1, 1.0)
+                        }
+
+                        Canvas {
+                            id: candidateArrowCanvas
+                            anchors.fill: parent
+
+                            function drawArrow(ctx, fromX, fromY, toX, toY) {
+                                var angle = Math.atan2(toY - fromY, toX - fromX)
+                                var head = 9
+                                ctx.beginPath()
+                                ctx.moveTo(fromX, fromY)
+                                ctx.lineTo(toX, toY)
+                                ctx.stroke()
+                                ctx.beginPath()
+                                ctx.moveTo(toX, toY)
+                                ctx.lineTo(toX - head * Math.cos(angle - Math.PI / 6),
+                                           toY - head * Math.sin(angle - Math.PI / 6))
+                                ctx.lineTo(toX - head * Math.cos(angle + Math.PI / 6),
+                                           toY - head * Math.sin(angle + Math.PI / 6))
+                                ctx.closePath()
+                                ctx.fill()
+                            }
+
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.clearRect(0, 0, width, height)
+                                ctx.strokeStyle = "#2c657f"
+                                ctx.fillStyle = "#2c657f"
+                                ctx.lineWidth = 2
+                                ctx.lineCap = "round"
+                                var fromX = parent.textX - 12
+                                drawArrow(ctx, fromX, parent.rankY + 12, parent.rankTargetX, parent.rankTargetY)
+                                drawArrow(ctx, fromX, parent.winrateY + 12, parent.markerCenterX, parent.winrateTargetY)
+                                drawArrow(ctx, fromX, parent.visitsY + 12, parent.markerCenterX, parent.visitsTargetY)
+                                drawArrow(ctx, fromX, parent.scoreY + 12, parent.markerCenterX, parent.scoreTargetY)
+                            }
+                        }
 
                         Item {
-                            width: modelData.size
-                            height: modelData.size
-                            x: Math.round(parent.width * modelData.x - width * 0.5)
-                            y: Math.round(parent.height * modelData.y - height * 0.5)
+                            x: parent.textX
+                            y: 0
+                            width: Math.max(220, parent.width - x - 20)
+                            height: parent.height
 
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: modelData.color
-                                opacity: modelData.opacity
+                            TutorialArrowLabel {
+                                y: parent.parent.rankY
+                                width: parent.width
+                                title: app.trText("candidateRankTitle")
+                                detail: app.trText("tutorialCandidateRankTip")
                             }
 
-                            Rectangle {
-                                visible: modelData.ring
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: "transparent"
-                                border.color: "#ff1818"
-                                border.width: 10
+                            TutorialArrowLabel {
+                                y: parent.parent.winrateY
+                                width: parent.width
+                                title: app.trText("candidateWinrate")
+                                detail: app.trText("tutorialCandidateWinrateTip")
                             }
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.rate
-                                color: "#000000"
-                                font.pixelSize: modelData.ring ? 30 : 20
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            TutorialArrowLabel {
+                                y: parent.parent.visitsY
+                                width: parent.width
+                                title: app.trText("candidateVisits")
+                                detail: app.trText("tutorialCandidateVisitsTip")
                             }
 
-                            Text {
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.topMargin: modelData.ring ? -2 : -4
-                                anchors.rightMargin: modelData.ring ? -2 : -4
-                                text: modelData.index
-                                color: "#ff1818"
-                                font.pixelSize: modelData.ring ? 26 : 21
-                                font.bold: true
+                            TutorialArrowLabel {
+                                y: parent.parent.scoreY
+                                width: parent.width
+                                title: app.trText("candidateScoreMean")
+                                detail: app.trText("tutorialCandidateScoreTip")
                             }
                         }
                     }
                 }
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
+            RowLayout {
+                Layout.fillWidth: true
 
-            Item { Layout.fillWidth: true }
+                SavePromptButton {
+                    text: app.trText("skipTutorial")
+                    onClicked: skipTutorialDialog.open()
+                }
 
-            SavePromptButton {
-                text: app.trText("previous")
-                enabled: tutorialDialog.pageIndex > 0
-                onClicked: tutorialDialog.pageIndex -= 1
-            }
+                Item { Layout.fillWidth: true }
 
-            SavePromptButton {
-                text: tutorialDialog.pageIndex + 1 >= tutorialDialog.pageCount
-                      ? app.trText("finish")
-                      : app.trText("next")
-                primary: true
-                onClicked: {
-                    if (tutorialDialog.pageIndex + 1 >= tutorialDialog.pageCount) {
-                        tutorialDialog.close()
-                        app.focusBoardInput()
-                    } else {
-                        tutorialDialog.pageIndex += 1
+                SavePromptButton {
+                    text: app.trText("previous")
+                    enabled: tutorialDialog.pageIndex > 0
+                    onClicked: tutorialDialog.pageIndex -= 1
+                }
+
+                SavePromptButton {
+                    text: tutorialDialog.pageIndex + 1 >= tutorialDialog.pageCount
+                          ? app.trText("finish")
+                          : app.trText("next")
+                    primary: true
+                    onClicked: {
+                        if (tutorialDialog.pageIndex + 1 >= tutorialDialog.pageCount) {
+                            tutorialDialog.finishTutorial()
+                        } else {
+                            tutorialDialog.pageIndex += 1
+                        }
                     }
                 }
             }
@@ -263,14 +373,14 @@ Basic.Dialog {
     Basic.Dialog {
         id: skipTutorialDialog
 
-        parent: Overlay.overlay
+        parent: tutorialRoot
         modal: true
         title: app.trText("skipTutorialTitle")
         closePolicy: Popup.NoAutoClose
         padding: 18
-        width: Math.min(440, app.width - 80)
-        x: Math.round(((Overlay.overlay ? Overlay.overlay.width : app.width) - width) / 2)
-        y: Math.round(((Overlay.overlay ? Overlay.overlay.height : app.height) - height) / 2)
+        width: Math.min(440, tutorialRoot.width - 80)
+        x: Math.round((tutorialRoot.width - width) / 2)
+        y: Math.round((tutorialRoot.height - height) / 2)
 
         background: Rectangle {
             radius: 10
@@ -345,11 +455,35 @@ Basic.Dialog {
                     primary: true
                     onClicked: {
                         skipTutorialDialog.close()
-                        tutorialDialog.close()
-                        app.focusBoardInput()
+                        tutorialDialog.finishTutorial()
                     }
                 }
             }
+        }
+    }
+
+    component TutorialArrowLabel: Column {
+        property string title: ""
+        property string detail: ""
+
+        spacing: 2
+
+        Label {
+            width: parent.width
+            text: title
+            color: "#123240"
+            font.pixelSize: 15
+            font.bold: true
+            elide: Text.ElideRight
+        }
+
+        Label {
+            width: parent.width
+            text: detail
+            textFormat: Text.RichText
+            color: "#51636d"
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
         }
     }
 }

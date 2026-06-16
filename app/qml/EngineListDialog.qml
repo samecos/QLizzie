@@ -10,6 +10,7 @@ Basic.Dialog {
     required property var app
     required property var controller
     property bool startupMode: false
+    property bool pickerMode: false
     property int selectedIndex: -1
     property bool syncingEditor: false
     property string listTooltipText: ""
@@ -17,16 +18,20 @@ Basic.Dialog {
     property bool listTooltipReady: false
     property real listTooltipX: 0
     property real listTooltipY: 0
-    readonly property real legacyHexColumnWidth: startupMode ? 0 : 82
-    readonly property real ruleColumnWidth: startupMode ? 150 : 164
+    property var editorGoRules: ({})
+    property var editorGomokuRules: ({})
+    property var pendingUnsavedAction: null
+    readonly property bool readOnlyMode: startupMode || pickerMode
+    readonly property real legacyHexColumnWidth: readOnlyMode ? 0 : 82
+    readonly property real ruleColumnWidth: readOnlyMode ? 150 : 164
 
     modal: true
-    title: startupMode ? app.trText("loadEngineTitle") : app.trText("engineSettingsTitle")
-    closePolicy: startupMode ? Popup.NoAutoClose : Popup.CloseOnEscape
+    title: readOnlyMode ? app.trText("loadEngineTitle") : app.trText("engineSettingsTitle")
+    closePolicy: Popup.NoAutoClose
     padding: 8
     width: Math.min(1180, app.width - 36)
-    height: startupMode ? Math.min(430, app.height - 80)
-                        : Math.min(820, app.height - 36)
+    height: readOnlyMode ? Math.min(430, app.height - 80)
+                         : Math.min(820, app.height - 36)
     x: Math.round((app.width - width) / 2)
     y: Math.round((app.height - height) / 2)
 
@@ -41,13 +46,24 @@ Basic.Dialog {
 
     function openStartup() {
         startupMode = true
+        pickerMode = false
         selectedIndex = app.enginePresets.length > 0 ? 0 : -1
+        syncEditor()
+        open()
+    }
+
+    function openPicker() {
+        startupMode = false
+        pickerMode = true
+        var activeIndex = app.enginePresetIndexById(app.activeEngineId)
+        selectedIndex = activeIndex >= 0 ? activeIndex : (app.enginePresets.length > 0 ? 0 : -1)
         syncEditor()
         open()
     }
 
     function openManage() {
         startupMode = false
+        pickerMode = false
         var activeIndex = app.enginePresetIndexById(app.activeEngineId)
         selectedIndex = activeIndex >= 0 ? activeIndex : (app.enginePresets.length > 0 ? 0 : -1)
         syncEditor()
@@ -62,23 +78,174 @@ Basic.Dialog {
         return presetAt(selectedIndex)
     }
 
-    function variantOptionsForRule(ruleMode) {
-        if (ruleMode === app.gameRuleGomoku)
-            return app.gomokuRuleOptions()
-        if (ruleMode === app.gameRuleGo)
-            return app.goRuleOptions()
-        var options = app.gameRuleOptions()
-        for (var i = 0; i < options.length; ++i) {
-            if (options[i].value === ruleMode)
-                return [{ "label": options[i].label, "value": -1, "tip": options[i].tip }]
-        }
-        return [{ "label": app.trText("gameRule"), "value": -1, "tip": "" }]
-    }
-
     function currentEditorRuleMode() {
         var options = app.gameRuleOptions()
         var option = options[ruleCombo.currentIndex]
         return option ? option.value : app.gameRuleGo
+    }
+
+    function editorRuleVariantText() {
+        var ruleMode = currentEditorRuleMode()
+        if (ruleMode === app.gameRuleGo)
+            return EnginePresets.goRuleLabelForRules(app, editorGoRules)
+        if (ruleMode === app.gameRuleGomoku)
+            return app.gomokuRuleLabel(EnginePresets.normalizeGomokuRules(
+                                           app, editorGomokuRules, app.gomokuRuleFreestyle).ruleMode)
+        return app.trText("noRuleVariantShort")
+    }
+
+    function openEditorRuleDialog() {
+        var ruleMode = currentEditorRuleMode()
+        if (ruleMode === app.gameRuleGo) {
+            var goRules = EnginePresets.normalizeGoRules(app, editorGoRules)
+            engineGoRuleDialog.applyToApp = false
+            engineGoRuleDialog.openWithRules(goRules.scoringRule, goRules.koRule,
+                                             goRules.suicideAllowed, goRules.taxRule,
+                                             goRules.handicapBonus, goRules.buttonRule)
+        } else if (ruleMode === app.gameRuleGomoku) {
+            var gomokuRules = EnginePresets.normalizeGomokuRules(
+                        app, editorGomokuRules, app.gomokuRuleFreestyle)
+            engineGomokuRuleDialog.applyToApp = false
+            engineGomokuRuleDialog.openWithRules(gomokuRules.ruleMode, gomokuRules.maxMoves,
+                                                 gomokuRules.vcnRule, gomokuRules.firstPassWin)
+        } else {
+            engineNoRuleVariantDialog.open()
+        }
+    }
+
+    function setEditorGoRules(scoringRule, koRule, suicideAllowed, taxRule, handicapBonus, buttonRule) {
+        editorGoRules = EnginePresets.normalizeGoRules(app, {
+            "scoringRule": scoringRule,
+            "koRule": koRule,
+            "suicideAllowed": suicideAllowed,
+            "taxRule": taxRule,
+            "handicapBonus": handicapBonus,
+            "buttonRule": buttonRule
+        })
+    }
+
+    function setEditorGomokuRules(ruleMode, maxMoves, vcnRule, firstPassWin) {
+        editorGomokuRules = EnginePresets.normalizeGomokuRules(app, {
+            "ruleMode": ruleMode,
+            "maxMoves": maxMoves,
+            "vcnRule": vcnRule,
+            "firstPassWin": firstPassWin
+        }, app.gomokuRuleFreestyle)
+    }
+
+    function boolEqual(a, b) {
+        return (a === true) === (b === true)
+    }
+
+    function numberEqual(a, b) {
+        return Math.abs(Number(a) - Number(b)) < 0.000001
+    }
+
+    function goRulesEqual(a, b) {
+        var left = EnginePresets.normalizeGoRules(app, a)
+        var right = EnginePresets.normalizeGoRules(app, b)
+        return left.scoringRule === right.scoringRule
+               && left.koRule === right.koRule
+               && boolEqual(left.suicideAllowed, right.suicideAllowed)
+               && left.taxRule === right.taxRule
+               && left.handicapBonus === right.handicapBonus
+               && boolEqual(left.buttonRule, right.buttonRule)
+    }
+
+    function gomokuRulesEqual(a, b, fallbackRule) {
+        var left = EnginePresets.normalizeGomokuRules(app, a, fallbackRule)
+        var right = EnginePresets.normalizeGomokuRules(app, b, fallbackRule)
+        return left.ruleMode === right.ruleMode
+               && left.maxMoves === right.maxMoves
+               && left.vcnRule === right.vcnRule
+               && boolEqual(left.firstPassWin, right.firstPassWin)
+    }
+
+    function presetsEqual(a, b) {
+        if (!a || !b)
+            return a === b
+        return a.id === b.id
+               && a.name === b.name
+               && a.command === b.command
+               && String(a.initialCommands || "") === String(b.initialCommands || "")
+               && a.ruleMode === b.ruleMode
+               && a.ruleVariant === b.ruleVariant
+               && a.boardSizeX === b.boardSizeX
+               && a.boardSizeY === b.boardSizeY
+               && numberEqual(a.komi, b.komi)
+               && boolEqual(a.legacyHexEngineCoordinates, b.legacyHexEngineCoordinates)
+               && goRulesEqual(a.goRules, b.goRules)
+               && gomokuRulesEqual(a.gomokuRules, b.gomokuRules, a.ruleVariant)
+    }
+
+    function editorDirty() {
+        if (readOnlyMode || syncingEditor || selectedIndex < 0)
+            return false
+        var original = selectedPreset()
+        if (!original)
+            return false
+        return !presetsEqual(collectPreset(), original)
+    }
+
+    function confirmUnsavedOrRun(action) {
+        if (!editorDirty()) {
+            action()
+            return
+        }
+        pendingUnsavedAction = action
+        unsavedEngineDialog.open()
+    }
+
+    function runPendingUnsavedAction(saveFirst) {
+        var action = pendingUnsavedAction
+        pendingUnsavedAction = null
+        if (saveFirst)
+            saveSelected()
+        if (action)
+            action()
+    }
+
+    function closeWithoutPrompt() {
+        pendingUnsavedAction = null
+        close()
+    }
+
+    function requestClose() {
+        confirmUnsavedOrRun(function() { engineListDialog.closeWithoutPrompt() })
+    }
+
+    function selectIndexNow(index) {
+        selectedIndex = Math.max(-1, Math.min(index, app.enginePresets.length - 1))
+        syncEditor()
+    }
+
+    function requestSelectIndex(index) {
+        if (index === selectedIndex)
+            return
+        if (readOnlyMode) {
+            selectIndexNow(index)
+            return
+        }
+        confirmUnsavedOrRun(function() { engineListDialog.selectIndexNow(index) })
+    }
+
+    function loadSelectedNow() {
+        var preset = selectedPreset()
+        if (!preset)
+            return
+        if (app.loadEnginePreset(preset.id, startupMode))
+            closeWithoutPrompt()
+    }
+
+    function requestLoadSelected() {
+        confirmUnsavedOrRun(function() { engineListDialog.loadSelectedNow() })
+    }
+
+    function requestLoadIndex(index) {
+        confirmUnsavedOrRun(function() {
+            engineListDialog.selectIndexNow(index)
+            engineListDialog.loadSelectedNow()
+        })
     }
 
     function syncEditor() {
@@ -103,30 +270,25 @@ Basic.Dialog {
             }
         }
         ruleCombo.currentIndex = ruleIndex
-
-        var variantOptions = variantOptionsForRule(hasPreset ? preset.ruleMode : app.gameRuleGo)
-        var variantIndex = 0
-        for (var v = 0; hasPreset && v < variantOptions.length; ++v) {
-            if (variantOptions[v].value === preset.ruleVariant) {
-                variantIndex = v
-                break
-            }
-        }
-        variantCombo.currentIndex = variantIndex
+        editorGoRules = EnginePresets.normalizeGoRules(app, hasPreset ? preset.goRules : null)
+        editorGomokuRules = EnginePresets.normalizeGomokuRules(
+                    app, hasPreset ? preset.gomokuRules : null,
+                    hasPreset ? preset.ruleVariant : app.gomokuRuleFreestyle)
         syncingEditor = false
     }
 
     function collectPreset() {
         var base = selectedPreset() || EnginePresets.newPreset(app)
         var ruleMode = currentEditorRuleMode()
-        var variantOptions = variantOptionsForRule(ruleMode)
-        var variantOption = variantOptions[variantCombo.currentIndex]
+        var gomokuRules = EnginePresets.normalizeGomokuRules(app, editorGomokuRules, app.gomokuRuleFreestyle)
         var preset = EnginePresets.clonePreset(base)
         preset.name = nameEdit.text.trim().length > 0 ? nameEdit.text.trim() : app.trText("newEngine")
         preset.command = commandEdit.text.trim()
         preset.initialCommands = initialCommandEdit.text.trim()
         preset.ruleMode = ruleMode
-        preset.ruleVariant = ruleMode === app.gameRuleGomoku && variantOption ? variantOption.value : -1
+        preset.goRules = EnginePresets.normalizeGoRules(app, editorGoRules)
+        preset.gomokuRules = gomokuRules
+        preset.ruleVariant = ruleMode === app.gameRuleGomoku ? gomokuRules.ruleMode : -1
         preset.boardSizeX = widthSpin.value
         preset.boardSizeY = heightSpin.value
         preset.komi = komiSpin.value / 2
@@ -144,49 +306,67 @@ Basic.Dialog {
     }
 
     function loadSelected() {
-        if (!startupMode)
-            saveSelected()
-        var preset = selectedPreset()
-        if (!preset)
-            return
-        if (app.loadEnginePreset(preset.id, startupMode))
-            close()
+        requestLoadSelected()
     }
 
-    function createPreset() {
+    function createPresetNow() {
         selectedIndex = app.addEnginePreset(EnginePresets.newPreset(app))
         syncEditor()
     }
 
-    function deleteSelected() {
+    function createPreset() {
+        confirmUnsavedOrRun(function() { engineListDialog.createPresetNow() })
+    }
+
+    function deleteSelectedNow() {
         selectedIndex = app.removeEnginePreset(selectedIndex)
         syncEditor()
     }
 
-    function moveSelected(delta) {
+    function deleteSelected() {
+        confirmUnsavedOrRun(function() { engineListDialog.deleteSelectedNow() })
+    }
+
+    function moveSelectedNow(delta) {
         if (selectedIndex < 0)
             return
-        saveSelected()
         selectedIndex = app.moveEnginePreset(selectedIndex, delta)
         syncEditor()
     }
 
-    function moveSelectedSteps(delta, steps) {
+    function moveSelected(delta) {
+        confirmUnsavedOrRun(function() { engineListDialog.moveSelectedNow(delta) })
+    }
+
+    function moveSelectedStepsNow(delta, steps) {
         if (selectedIndex < 0)
             return
-        saveSelected()
         var target = Math.max(0, Math.min(app.enginePresets.length - 1, selectedIndex + delta * steps))
         selectedIndex = app.moveEnginePresetTo(selectedIndex, target)
         syncEditor()
     }
 
-    function moveSelectedTo(target) {
+    function moveSelectedSteps(delta, steps) {
+        confirmUnsavedOrRun(function() { engineListDialog.moveSelectedStepsNow(delta, steps) })
+    }
+
+    function moveSelectedToNow(target) {
         if (selectedIndex < 0)
             return
-        saveSelected()
         selectedIndex = app.moveEnginePresetTo(selectedIndex,
                                                Math.max(0, Math.min(app.enginePresets.length - 1, target)))
         syncEditor()
+    }
+
+    function moveSelectedTo(target) {
+        confirmUnsavedOrRun(function() { engineListDialog.moveSelectedToNow(target) })
+    }
+
+    function chooseNoEngineMode() {
+        confirmUnsavedOrRun(function() {
+            app.chooseNoEngineFromList()
+            engineListDialog.closeWithoutPrompt()
+        })
     }
 
     function scheduleListTooltip(item, key, text, mouseX, mouseY) {
@@ -227,6 +407,7 @@ Basic.Dialog {
     onOpened: syncEditor()
     onClosed: {
         hideListTooltip("")
+        pendingUnsavedAction = null
         app.focusBoardInput()
     }
 
@@ -260,16 +441,17 @@ Basic.Dialog {
         spacing: 8
 
         Label {
-            visible: engineListDialog.startupMode
+            visible: engineListDialog.readOnlyMode
             Layout.fillWidth: true
-            text: app.trText("engineStartupManualHint")
+            text: engineListDialog.startupMode ? app.trText("engineStartupManualHint")
+                                                : app.trText("enginePickerHint")
             color: "#4e626e"
             font.pixelSize: 14
             wrapMode: Text.WordWrap
         }
 
         Rectangle {
-            visible: !engineListDialog.startupMode
+            visible: !engineListDialog.readOnlyMode
             Layout.fillWidth: true
             Layout.preferredHeight: 440
             color: "#f6fafc"
@@ -394,22 +576,39 @@ Basic.Dialog {
                         enabled: engineListDialog.selectedPreset() !== null
                         Layout.preferredWidth: 250
                         Layout.minimumWidth: 220
-                        onActivated: {
-                            if (!engineListDialog.syncingEditor)
-                                variantCombo.currentIndex = 0
-                        }
                     }
 
                     FieldLabel {
                         Layout.preferredWidth: 72
                         text: app.trText("ruleVariant")
                     }
-                    StyledComboBox {
-                        id: variantCombo
-                        model: engineListDialog.variantOptionsForRule(engineListDialog.currentEditorRuleMode())
+                    Basic.Button {
+                        id: variantButton
                         enabled: engineListDialog.selectedPreset() !== null
                         Layout.preferredWidth: 300
                         Layout.minimumWidth: 240
+                        implicitHeight: 34
+                        text: engineListDialog.editorRuleVariantText()
+                        onClicked: engineListDialog.openEditorRuleDialog()
+
+                        contentItem: Text {
+                            text: variantButton.text
+                            color: variantButton.enabled ? "#102532" : "#7a8b94"
+                            font.pixelSize: 14
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+
+                        background: Rectangle {
+                            radius: 5
+                            color: !variantButton.enabled ? "#eef3f6"
+                                  : variantButton.pressed ? "#dcecf3"
+                                  : variantButton.hovered ? "#eef7fa" : "#f8fbfd"
+                            border.color: variantButton.activeFocus ? "#2a91c9" : "#a8bac5"
+                            border.width: variantButton.activeFocus ? 2 : 1
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -496,7 +695,7 @@ Basic.Dialog {
             id: tablePanel
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: engineListDialog.startupMode ? 190 : 210
+            Layout.minimumHeight: engineListDialog.readOnlyMode ? 190 : 210
             color: "#ffffff"
             border.color: "#b9ccd6"
 
@@ -524,7 +723,7 @@ Basic.Dialog {
                         HeaderCell { text: app.trText("engineHeightShort"); widthValue: 50; alignCenter: true }
                         HeaderCell { text: app.trText("komi"); widthValue: 58; alignCenter: true }
                         HeaderCell {
-                            visible: !engineListDialog.startupMode
+                            visible: !engineListDialog.readOnlyMode
                             text: app.trText("legacyHexEngineCoordinatesShort")
                             widthValue: engineListDialog.legacyHexColumnWidth
                             alignCenter: true
@@ -597,7 +796,7 @@ Basic.Dialog {
                             DataCell { text: rowItem.preset ? String(rowItem.preset.boardSizeY) : ""; widthValue: 50; alignCenter: true; selected: rowItem.selected }
                             DataCell { text: rowItem.preset ? Number(rowItem.preset.komi).toFixed(1) : ""; widthValue: 58; alignCenter: true; selected: rowItem.selected }
                             DataCell {
-                                visible: !engineListDialog.startupMode
+                                visible: !engineListDialog.readOnlyMode
                                 text: rowItem.preset && rowItem.preset.legacyHexEngineCoordinates ? app.trText("yes") : app.trText("no")
                                 widthValue: engineListDialog.legacyHexColumnWidth
                                 alignCenter: true
@@ -617,13 +816,13 @@ Basic.Dialog {
                             }
                             onPositionChanged: rowItem.updateTooltipCandidate()
                             onClicked: {
-                                engineListDialog.selectedIndex = index
-                                engineListDialog.syncEditor()
+                                engineListDialog.requestSelectIndex(index)
                             }
                             onDoubleClicked: {
-                                engineListDialog.selectedIndex = index
-                                engineListDialog.syncEditor()
-                                engineListDialog.loadSelected()
+                                if (engineListDialog.readOnlyMode)
+                                    engineListDialog.requestLoadIndex(index)
+                                else
+                                    engineListDialog.requestSelectIndex(index)
                             }
                         }
                     }
@@ -652,37 +851,28 @@ Basic.Dialog {
             Item { Layout.fillWidth: true }
 
             SavePromptButton {
-                visible: !engineListDialog.startupMode
-                text: app.trText("switchEngine")
-                primary: true
-                enabled: engineListDialog.selectedPreset() !== null
-                Layout.preferredWidth: 116
-                onClicked: engineListDialog.loadSelected()
-            }
-
-            SavePromptButton {
-                visible: engineListDialog.startupMode
+                visible: engineListDialog.readOnlyMode
                 text: app.trText("loadSelectedEngine")
                 primary: true
                 enabled: engineListDialog.selectedPreset() !== null
                 Layout.preferredWidth: 144
-                onClicked: engineListDialog.loadSelected()
+                onClicked: engineListDialog.requestLoadSelected()
             }
 
             SavePromptButton {
+                visible: engineListDialog.startupMode
                 text: app.trText("engineNoEngineMode")
                 Layout.preferredWidth: 122
-                onClicked: {
-                    app.chooseNoEngineFromList()
-                    engineListDialog.close()
-                }
+                onClicked: engineListDialog.chooseNoEngineMode()
             }
 
             SavePromptButton {
                 text: app.trText("close")
                 visible: !engineListDialog.startupMode
                 Layout.preferredWidth: 86
-                onClicked: engineListDialog.close()
+                onClicked: engineListDialog.readOnlyMode
+                           ? engineListDialog.closeWithoutPrompt()
+                           : engineListDialog.requestClose()
             }
         }
     }
@@ -711,6 +901,158 @@ Basic.Dialog {
             color: "#fffff4"
             border.color: "#8fa5b0"
         }
+    }
+
+    Basic.Dialog {
+        id: unsavedEngineDialog
+
+        modal: true
+        title: app.trText("unsavedEngineTitle")
+        closePolicy: Popup.CloseOnEscape
+        padding: 18
+        width: Math.max(380, Math.min(480, engineListDialog.width - 80))
+        x: Math.round((engineListDialog.width - width) / 2)
+        y: Math.round((engineListDialog.height - height) / 2)
+
+        background: Rectangle {
+            radius: 10
+            color: "#f8fbfd"
+            border.color: "#8ea5b1"
+            border.width: 1
+        }
+
+        header: Rectangle {
+            height: 52
+            color: "#e6eff4"
+            radius: 10
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: parent.radius
+                color: parent.color
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: "#c5d4dc"
+            }
+
+            Label {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 18
+                anchors.rightMargin: 18
+                text: unsavedEngineDialog.title
+                color: "#14242e"
+                font.pixelSize: 17
+                font.bold: true
+                elide: Text.ElideRight
+            }
+        }
+
+        contentItem: Rectangle {
+            implicitWidth: 440
+            implicitHeight: Math.max(72, unsavedEngineMessage.implicitHeight + 24)
+            color: "#f8fbfd"
+
+            Label {
+                id: unsavedEngineMessage
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 2
+                anchors.rightMargin: 2
+                text: app.trText("confirmSaveEngineSettings")
+                color: "#17212a"
+                wrapMode: Text.WordWrap
+                font.pixelSize: 15
+                lineHeight: 1.12
+            }
+        }
+
+        footer: Rectangle {
+            implicitHeight: 68
+            color: "#f8fbfd"
+            radius: 10
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: "#d7e1e7"
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: parent.radius
+                color: parent.color
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 10
+
+                Item { Layout.fillWidth: true }
+
+                SavePromptButton {
+                    text: app.trText("save")
+                    primary: true
+                    onClicked: {
+                        unsavedEngineDialog.close()
+                        engineListDialog.runPendingUnsavedAction(true)
+                    }
+                }
+
+                SavePromptButton {
+                    text: app.trText("dontSave")
+                    onClicked: {
+                        unsavedEngineDialog.close()
+                        engineListDialog.runPendingUnsavedAction(false)
+                    }
+                }
+
+                SavePromptButton {
+                    text: app.trText("cancel")
+                    onClicked: {
+                        engineListDialog.pendingUnsavedAction = null
+                        unsavedEngineDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    GoRuleDialog {
+        id: engineGoRuleDialog
+        app: engineListDialog.app
+        onRulesAccepted: function(scoringRule, koRule, suicideAllowed,
+                                  taxRule, handicapBonus, buttonRule) {
+            engineListDialog.setEditorGoRules(scoringRule, koRule, suicideAllowed,
+                                              taxRule, handicapBonus, buttonRule)
+        }
+    }
+
+    GomokuRuleDialog {
+        id: engineGomokuRuleDialog
+        app: engineListDialog.app
+        onRulesAccepted: function(ruleMode, maxMoves, vcnRule, firstPassWin) {
+            engineListDialog.setEditorGomokuRules(ruleMode, maxMoves, vcnRule, firstPassWin)
+        }
+    }
+
+    NoRuleVariantDialog {
+        id: engineNoRuleVariantDialog
+        app: engineListDialog.app
     }
 
     component FieldLabel: Label {

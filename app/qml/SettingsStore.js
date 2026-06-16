@@ -131,13 +131,28 @@ function parseJsonObject(text, fallback) {
     return fallback
 }
 
+function defaultRuleModeVisible(app, mode) {
+    return mode === app.gameRuleGo
+           || mode === app.gameRuleGomoku
+           || mode === app.gameRuleHex
+}
+
+function defaultRuleVisibilityMap(app) {
+    var next = {}
+    var options = app && app.gameRuleOptions ? app.gameRuleOptions() : []
+    for (var i = 0; i < options.length; ++i)
+        next[String(options[i].value)] = defaultRuleModeVisible(app, options[i].value)
+    return next
+}
+
 function normalizeRuleVisibilityMap(app, source) {
     var map = source || {}
     var next = {}
     var options = app && app.gameRuleOptions ? app.gameRuleOptions() : []
     for (var i = 0; i < options.length; ++i) {
         var key = String(options[i].value)
-        next[key] = map[key] !== false
+        next[key] = typeof map[key] === "boolean" ? map[key]
+                                                  : defaultRuleModeVisible(app, options[i].value)
     }
     if (options.length <= 0) {
         for (var existingKey in map) {
@@ -153,6 +168,8 @@ function settingNumberEquals(value, expected) {
 }
 
 function migratePersistentSettings(app) {
+    if (app.loadedSettingsVersion < 3)
+        app.ruleVisibilityMap = defaultRuleVisibilityMap(app)
     app.loadedSettingsVersion = app.currentSettingsVersion
 }
 
@@ -160,6 +177,9 @@ function loadPersistentSettings(app, settings) {
     app.loadedSettingsVersion = Number(settingValue(settings, "settingsVersion", app.loadedSettingsVersion))
     app.language = String(settingValue(settings, "language", app.language))
     app.firstLaunchCompleted = settingBool(settings, "firstLaunchCompleted", app.firstLaunchCompleted)
+    app.showBeginnerTutorialOnNextLaunch = settingBool(settings,
+                                                       "showBeginnerTutorialOnNextLaunch",
+                                                       app.showBeginnerTutorialOnNextLaunch)
     app.boardSizeX = Number(settingValue(settings, "boardSizeX", app.boardSizeX))
     app.boardSizeY = Number(settingValue(settings, "boardSizeY", app.boardSizeY))
     app.gameRuleMode = Number(settingValue(settings, "gameRuleMode", app.gameRuleMode))
@@ -240,6 +260,7 @@ function savePersistentSettings(app, settings, engineController) {
     settings.setValue("settingsVersion", app.currentSettingsVersion)
     settings.setValue("language", app.language)
     settings.setValue("firstLaunchCompleted", app.firstLaunchCompleted)
+    settings.setValue("showBeginnerTutorialOnNextLaunch", app.showBeginnerTutorialOnNextLaunch)
     settings.setValue("boardSizeX", app.boardSizeX)
     settings.setValue("boardSizeY", app.boardSizeY)
     settings.setValue("gameRuleMode", app.gameRuleMode)

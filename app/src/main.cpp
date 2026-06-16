@@ -23,7 +23,7 @@ bool launchedInnerPortableAppDirectly()
 #ifdef Q_OS_WIN
     const QString appDirPath = QCoreApplication::applicationDirPath();
     const QFileInfo appDirInfo(appDirPath);
-    if (appDirInfo.fileName().compare(QStringLiteral("app"), Qt::CaseInsensitive) != 0)
+    if (appDirInfo.fileName().compare(QStringLiteral("bin"), Qt::CaseInsensitive) != 0)
         return false;
 
     return qEnvironmentVariable("QLIZZIE_LAUNCHED_BY_LAUNCHER") != QStringLiteral("1");
@@ -36,8 +36,8 @@ void showLauncherRequiredMessage()
 {
 #ifdef Q_OS_WIN
     MessageBoxW(nullptr,
-                L"请从上一级目录的 QLizzie.exe 启动，不要直接打开 app\\qlizzie.exe。\n\n"
-                L"Please start QLizzie.exe from the package root instead of running app\\qlizzie.exe directly.",
+                L"请从上一级目录的 QLizzie.exe 启动，不要直接打开 bin\\qlizzie.exe。\n\n"
+                L"Please start QLizzie.exe from the package root instead of running bin\\qlizzie.exe directly.",
                 L"QLizzie",
                 MB_ICONINFORMATION | MB_OK);
 #endif
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("QLizzie"));
     QCoreApplication::setApplicationName(QStringLiteral("QLizzie"));
-    app.setWindowIcon(QIcon(QStringLiteral(":/resources/qlizzie-logo.svg")));
+    app.setWindowIcon(QIcon(QStringLiteral(":/resources/qlizzie-logo.png")));
 
     if (launchedInnerPortableAppDirectly()) {
         showLauncherRequiredMessage();

@@ -2,17 +2,25 @@
 
 QLizzie is a Qt 6 AI analysis interface for Go, Gomoku, Hex, and similar board games, mainly targeting KataGo/KataGomo-style engines, with functionality and visual style inspired by LizzieYZY.
 
-![QLizzie screenshot](docs/images/screenshot-main.png)
+## Screenshots
+
+### Go Analysis
+
+![QLizzie Go analysis screenshot](docs/images/screenshot-go.png)
+
+### Hex Analysis
+
+![QLizzie Hex analysis screenshot](docs/images/screenshot-hex.png)
 
 ## Overview
 
-QLizzie is a desktop analysis board built with Qt 6. It focuses on a clean 2D board, engine candidate visualization, a Lizzie-like left analysis panel, and a game tree workflow for reviewing variations across multiple grid-based board games.
+QLizzie is a desktop analysis board built with Qt 6. It focuses on a clean 2D board, engine candidate visualization, a Lizzie-like left analysis panel, and a game tree workflow for reviewing variations across multiple board games.
 
 The project references LizzieYZY for feature direction and visual behavior, but it is a separate Qt 6 implementation. It was built through an iterative Codex vibe-coding workflow.
 
 ## Features
 
-- Go, Gomoku, and Hex analysis modes
+- Go, Gomoku, Hex, Connect6, Reversi, hexagonal Go variants, Ataxx, Breakthrough, and free-grid analysis modes
 - Scalable 2D board with multiple coordinate formats, stones, move numbers, and candidate markers
 - Hex triangle-grid and filled-hex-cell board presentations, including rotated/flipped display modes
 - Win-line/path highlighting for Gomoku and Hex

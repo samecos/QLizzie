@@ -10,8 +10,8 @@ function applyPackageModeConstraints(app, restartIfChanged, engineController) {
     } else if (app.packageMode === app.packageModeSix) {
         app.gameRuleMode = app.gameRuleGomoku
         if (!app.boardDimensionsAllowedForPackage(app.boardSizeX, app.boardSizeY)) {
-            app.boardSizeX = 13
-            app.boardSizeY = 13
+            app.boardSizeX = 15
+            app.boardSizeY = 15
         }
     }
     app.normalizeGomokuRuleForCurrentMode()

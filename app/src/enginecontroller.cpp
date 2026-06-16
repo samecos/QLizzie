@@ -23,7 +23,7 @@ QString portableRootPath()
 
     const QString appDirPath = QCoreApplication::applicationDirPath();
     const QFileInfo appDirInfo(appDirPath);
-    if (appDirInfo.fileName().compare(QStringLiteral("app"), Qt::CaseInsensitive) == 0)
+    if (appDirInfo.fileName().compare(QStringLiteral("bin"), Qt::CaseInsensitive) == 0)
         return QDir(appDirPath).absoluteFilePath(QStringLiteral(".."));
 
     return appDirPath;
@@ -36,31 +36,6 @@ QString resolvedProgramPath(const QString &program)
         return program;
 
     return QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(program));
-}
-
-QString resolvedConfigPath(const QString &configPath)
-{
-    const QFileInfo configInfo(configPath);
-    if (configInfo.isAbsolute())
-        return configPath;
-
-    return QDir::cleanPath(QDir(portableRootPath()).absoluteFilePath(configPath));
-}
-
-QStringList resolvedEngineArguments(QStringList arguments)
-{
-    for (int i = 0; i < arguments.size(); ++i) {
-        if (arguments.at(i) == QStringLiteral("-config") && i + 1 < arguments.size()) {
-            arguments[i + 1] = resolvedConfigPath(arguments.at(i + 1));
-            ++i;
-            continue;
-        }
-
-        const QString configPrefix = QStringLiteral("-config=");
-        if (arguments.at(i).startsWith(configPrefix))
-            arguments[i] = configPrefix + resolvedConfigPath(arguments.at(i).mid(configPrefix.size()));
-    }
-    return arguments;
 }
 
 struct ParsedCandidateInfo {
@@ -178,7 +153,7 @@ EngineController::EngineController(QObject *parent)
         setReady(false);
         setRunning(false);
         m_nameResponsePending = false;
-        setFailed(true, message);
+        setFailed(true, message, QStringLiteral("generic"));
         setLastError(message);
         setStatusText(message);
     });
@@ -218,7 +193,7 @@ EngineController::EngineController(QObject *parent)
                 message += QStringLiteral(" (%1)").arg(exitCode);
                 if (exitStatus == QProcess::CrashExit || exitCode != 0) {
                     m_pendingCommands.clear();
-                    setFailed(true, message);
+                    setFailed(true, message, QStringLiteral("generic"));
                     setLastError(message);
                 }
                 setStatusText(message);
@@ -261,6 +236,11 @@ bool EngineController::ready() const
 bool EngineController::failed() const
 {
     return m_failed;
+}
+
+QString EngineController::failureKind() const
+{
+    return m_failureKind;
 }
 
 QString EngineController::failureMessage() const
@@ -494,19 +474,30 @@ QStringList EngineController::splitCommandLine(const QString &commandLine)
 void EngineController::startProcess()
 {
     const QStringList parts = splitCommandLine(m_command);
-    if (parts.isEmpty()) {
-        const QString message = QStringLiteral("Engine command is empty");
-        setFailed(true, message);
-        setLastError(message);
-        setStatusText(m_lastError);
+    setFailed(false);
+    setLastError(QString());
+
+    if (parts.isEmpty() || parts.first().trimmed().isEmpty()) {
+        setFailed(true, QString(), QStringLiteral("emptyCommand"));
+        setLastError(QString());
+        setStatusText(QStringLiteral("Engine command is empty"));
+        setRunning(false);
+        setReady(false);
+        return;
+    }
+
+    const QString programPath = resolvedProgramPath(parts.first());
+    const QFileInfo programInfo(programPath);
+    if (!programInfo.exists() || !programInfo.isFile()) {
+        setFailed(true, QString(), QStringLiteral("missingProgram"));
+        setLastError(programPath);
+        setStatusText(QStringLiteral("Engine program path does not exist"));
         setRunning(false);
         setReady(false);
         return;
     }
 
     m_stopping = false;
-    setFailed(false);
-    setLastError(QString());
     setStatusText(QStringLiteral("Starting engine"));
     setReady(false);
     m_nameResponsePending = false;
@@ -520,7 +511,7 @@ void EngineController::startProcess()
     m_stdoutBuffer.clear();
     m_stderrBuffer.clear();
     m_process.setWorkingDirectory(portableRootPath());
-    m_process.start(resolvedProgramPath(parts.first()), resolvedEngineArguments(parts.mid(1)));
+    m_process.start(programPath, parts.mid(1));
 }
 
 void EngineController::sendPendingCommands()
@@ -753,13 +744,18 @@ void EngineController::setReady(bool ready)
     emit readyChanged();
 }
 
-void EngineController::setFailed(bool failed, const QString &message)
+void EngineController::setFailed(bool failed, const QString &message, const QString &kind)
 {
     const bool failedStateChanged = m_failed != failed;
+    const QString nextKind = failed ? kind : QString();
+    const bool kindChanged = m_failureKind != nextKind;
     const bool messageChanged = m_failureMessage != message;
     m_failed = failed;
+    m_failureKind = nextKind;
     m_failureMessage = message;
 
+    if (kindChanged)
+        emit failureKindChanged();
     if (messageChanged)
         emit failureMessageChanged();
     if (failedStateChanged)

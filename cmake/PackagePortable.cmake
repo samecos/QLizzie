@@ -15,7 +15,7 @@ if(NOT DEFINED PACKAGE_DIR OR PACKAGE_DIR STREQUAL "")
 endif()
 
 file(REMOVE_RECURSE "${PACKAGE_DIR}")
-file(MAKE_DIRECTORY "${PACKAGE_DIR}/app")
+file(MAKE_DIRECTORY "${PACKAGE_DIR}/bin")
 
 file(GLOB runtime_entries LIST_DIRECTORIES true RELATIVE "${MAIN_RUNTIME_DIR}" "${MAIN_RUNTIME_DIR}/*")
 foreach(entry IN LISTS runtime_entries)
@@ -30,7 +30,7 @@ foreach(entry IN LISTS runtime_entries)
         continue()
     endif()
 
-    file(COPY "${MAIN_RUNTIME_DIR}/${entry}" DESTINATION "${PACKAGE_DIR}/app")
+    file(COPY "${MAIN_RUNTIME_DIR}/${entry}" DESTINATION "${PACKAGE_DIR}/bin")
 endforeach()
 
 file(COPY "${LAUNCHER_EXE}" DESTINATION "${PACKAGE_DIR}")

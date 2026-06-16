@@ -33,6 +33,8 @@ ApplicationWindow {
     property string language: "zh"
     property var translations: TranslationData.translations
     property bool firstLaunchCompleted: false
+    property bool showBeginnerTutorialOnNextLaunch: true
+    property bool startupBeginnerTutorialRequested: false
     property bool appReady: false
     property bool persistentSettingsLoaded: false
     property bool gameDirty: false
@@ -50,7 +52,7 @@ ApplicationWindow {
     readonly property int minBoardSize: 1
     readonly property int maxBoardSize: 1001
     readonly property int maxCachedLegalPoints: 40000
-    readonly property int currentSettingsVersion: 2
+    readonly property int currentSettingsVersion: 3
     property int loadedSettingsVersion: 0
     readonly property int defaultBoardSize: 19
     property int boardSizeX: defaultBoardSize
@@ -414,7 +416,6 @@ ApplicationWindow {
 
             Action {
                 text: root.trText("menuBoardSize")
-                shortcut: "Ctrl+I"
                 onTriggered: root.openBoardSizeDialog()
             }
         }
@@ -441,20 +442,41 @@ ApplicationWindow {
 
             Menu {
                 id: ruleSettingsMenu
-                title: root.trText("settingsPageRules")
+                title: root.trText("ruleSelectionMenu")
 
                 function closeMenuChain() {
-                    if (ruleSettingsMenu.dismiss)
+                    if (typeof ruleSettingsMenu.dismiss === "function")
                         ruleSettingsMenu.dismiss()
-                    else {
-                        ruleSettingsMenu.close()
-                        settingsMenu.close()
-                    }
+                    if (typeof settingsMenu.dismiss === "function")
+                        settingsMenu.dismiss()
+                    ruleSettingsMenu.close()
+                    settingsMenu.close()
+                }
+
+                function chooseRuleMode(mode) {
+                    closeMenuChain()
+                    Qt.callLater(function() {
+                        root.requestRuleModeChange(mode)
+                        root.queueFocusBoardInput()
+                    })
                 }
 
                 MenuItem {
+                    id: ruleSettingsPageMenuItem
+
+                    width: Math.max(300, ruleSettingsMenu.width)
+                    leftPadding: 44
+                    rightPadding: 16
                     text: root.trText("settingsPageRules") + "..."
                     onTriggered: settingsDialog.openPage(1)
+
+                    contentItem: Text {
+                        text: ruleSettingsPageMenuItem.text
+                        color: ruleSettingsPageMenuItem.enabled ? "#17212a" : "#8a969d"
+                        font.pixelSize: root.compactLayout ? 14 : 16
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
                 }
 
                 MenuSeparator {}
@@ -473,9 +495,7 @@ ApplicationWindow {
                         checked: root.gameRuleMode === modelData.value
                         enabled: root.ruleModeAllowedForPackage(modelData.value)
                         onTriggered: {
-                            root.requestRuleModeChange(modelData.value)
-                            Qt.callLater(ruleSettingsMenu.closeMenuChain)
-                            root.queueFocusBoardInput()
+                            ruleSettingsMenu.chooseRuleMode(modelData.value)
                         }
 
                         contentItem: Text {
@@ -581,6 +601,11 @@ ApplicationWindow {
 
             Action {
                 text: root.trText("moreEngines")
+                onTriggered: engineListDialog.openPicker()
+            }
+
+            Action {
+                text: root.trText("engineAddAndConfigure")
                 onTriggered: engineListDialog.openManage()
             }
 
@@ -628,6 +653,7 @@ ApplicationWindow {
         sequence: "Ctrl+I"
         context: Qt.ApplicationShortcut
         onActivated: root.openBoardSizeDialog()
+        onActivatedAmbiguously: root.openBoardSizeDialog()
     }
 
     Timer {
@@ -673,6 +699,16 @@ ApplicationWindow {
         interval: 180
         repeat: false
         onTriggered: root.showStartupEngineListIfNeeded()
+    }
+
+    Timer {
+        id: startupBeginnerTutorialTimer
+        interval: 260
+        repeat: false
+        onTriggered: {
+            root.startupBeginnerTutorialRequested = false
+            beginnerTutorialDialog.openTutorial()
+        }
     }
 
     ListModel {
@@ -1846,6 +1882,10 @@ ApplicationWindow {
         return RuleSupport.customBoardSizeAllowed(root)
     }
 
+    function boardSizePresets() {
+        return RuleSupport.boardSizePresets(root)
+    }
+
     function boardSizePresetAllowed(size) {
         return RuleSupport.boardSizePresetAllowed(root, size)
     }
@@ -2134,8 +2174,10 @@ ApplicationWindow {
     function enginePresetRuleMatchesCurrent(preset) {
         if (!preset || preset.ruleMode !== gameRuleMode)
             return false
-        if (preset.ruleMode === gameRuleGomoku && preset.ruleVariant !== gomokuRuleMode)
-            return false
+        if (preset.ruleMode === gameRuleGo)
+            return EnginePresets.goRulesMatchApp(root, preset.goRules)
+        if (preset.ruleMode === gameRuleGomoku)
+            return EnginePresets.gomokuRulesMatchApp(root, preset.gomokuRules)
         return true
     }
 
@@ -2143,8 +2185,21 @@ ApplicationWindow {
         if (!preset)
             return
         gameRuleMode = preset.ruleMode
-        if (preset.ruleMode === gameRuleGomoku)
-            gomokuRuleMode = preset.ruleVariant
+        if (preset.ruleMode === gameRuleGo) {
+            var goRules = EnginePresets.normalizeGoRules(root, preset.goRules)
+            goScoringRule = goRules.scoringRule
+            goKoRule = goRules.koRule
+            goSuicideAllowed = goRules.suicideAllowed
+            goTaxRule = goRules.taxRule
+            goWhiteHandicapBonus = goRules.handicapBonus
+            goButtonRule = goRules.buttonRule
+        } else if (preset.ruleMode === gameRuleGomoku) {
+            var gomokuRules = EnginePresets.normalizeGomokuRules(root, preset.gomokuRules, preset.ruleVariant)
+            gomokuRuleMode = gomokuRules.ruleMode
+            gomokuRuleMaxMoves = gomokuRules.maxMoves
+            gomokuRuleVcn = gomokuRules.vcnRule
+            gomokuRuleFirstPassWin = gomokuRules.firstPassWin
+        }
         normalizeGomokuRuleForCurrentMode()
         if (preset.ruleMode === gameRuleGomoku)
             gomokuBoardPresentationMode = preset.boardPresentationMode
@@ -2837,7 +2892,7 @@ ApplicationWindow {
     }
 
     function handleEngineLoadFailure(message) {
-        var text = trText("engineFailedNotice")
+        var text = message && message.length > 0 ? message : trText("engineFailedNotice")
         engineFailureNoticeText = text
         engineNoticeDismissed = false
         enterNoEngineMode(text, true)
@@ -3204,8 +3259,10 @@ ApplicationWindow {
         savePersistentSettings()
         if (initialSetupDialog.visible)
             initialSetupDialog.close()
-        if (openTutorial)
+        if (openTutorial || startupBeginnerTutorialRequested) {
+            startupBeginnerTutorialRequested = false
             openBeginnerTutorial()
+        }
         runStartupEnginePolicy()
         focusBoardInput()
     }
@@ -3283,6 +3340,11 @@ ApplicationWindow {
 
     Component.onCompleted: {
         loadPersistentSettings()
+        startupBeginnerTutorialRequested = showBeginnerTutorialOnNextLaunch
+        if (showBeginnerTutorialOnNextLaunch) {
+            showBeginnerTutorialOnNextLaunch = false
+            savePersistentSettings()
+        }
         normalizePersistentSettings()
         persistentSettingsLoaded = true
         resetGameTree()
@@ -3294,6 +3356,8 @@ ApplicationWindow {
             runStartupEnginePolicy()
         else
             engineDisabled = true
+        if (firstLaunchCompleted && startupBeginnerTutorialRequested)
+            startupBeginnerTutorialTimer.start()
         scheduleAutoAnalysis()
     }
 

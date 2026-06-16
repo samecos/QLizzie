@@ -207,13 +207,20 @@ function ruleVisibilityKey(app, mode) {
     return String(mode)
 }
 
+function defaultRuleModeVisible(app, mode) {
+    return mode === app.gameRuleGo
+           || mode === app.gameRuleGomoku
+           || mode === app.gameRuleHex
+}
+
 function normalizedRuleVisibilityMap(app, source) {
     var map = source || {}
     var options = gameRuleOptions(app)
     var next = {}
     for (var i = 0; i < options.length; ++i) {
         var key = ruleVisibilityKey(app, options[i].value)
-        next[key] = map[key] !== false
+        next[key] = typeof map[key] === "boolean" ? map[key]
+                                                  : defaultRuleModeVisible(app, options[i].value)
     }
     return next
 }
@@ -416,12 +423,35 @@ function customBoardSizeAllowed(app) {
     return app.packageMode === app.packageModeUniversal
 }
 
-function boardSizePresetAllowed(app, size) {
+function boardSizePresets(app) {
     if (app.packageMode === app.packageModeGo)
-        return size === 5 || size === 7 || size === 9 || size === 13 || size === 19
+        return [9, 13, 19]
     if (app.packageMode === app.packageModeSix)
-        return size === 11 || size === 13
-    return size === 5 || size === 7 || size === 9 || size === 13 || size === 19
+        return [15, 19]
+
+    if (app.gameRuleMode === app.gameRuleGo)
+        return [9, 13, 19]
+    if (app.gameRuleMode === app.gameRuleGomoku)
+        return [12, 15, 19]
+    if (app.gameRuleMode === app.gameRuleConnect6)
+        return [15, 19]
+    if (app.gameRuleMode === app.gameRuleHex)
+        return [11, 13, 19]
+    if (app.gameRuleMode === app.gameRuleHexGoParallelogram
+            || app.gameRuleMode === app.gameRuleHexGoHexagon
+            || app.gameRuleMode === app.gameRuleHexGoTriangle)
+        return [13, 19]
+    if (app.gameRuleMode === app.gameRuleReversi)
+        return [6, 8, 10]
+    if (app.gameRuleMode === app.gameRuleAtaxx)
+        return [5, 7, 9]
+    if (app.gameRuleMode === app.gameRuleBreakthrough)
+        return [6, 8, 10]
+    return [9, 13, 19]
+}
+
+function boardSizePresetAllowed(app, size) {
+    return boardSizePresets(app).indexOf(size) >= 0
 }
 
 function boardDimensionsAllowedForPackage(app, xSize, ySize) {
@@ -444,7 +474,7 @@ function packageDefaultBoardSize(app) {
     if (app.packageMode === app.packageModeGo)
         return 19
     if (app.packageMode === app.packageModeSix)
-        return 13
+        return 15
     return app.defaultBoardSize
 }
 
@@ -461,7 +491,7 @@ function packageBoardSizeRejectText(app, xSize, ySize) {
     if (app.packageMode === app.packageModeGo)
         return app.trText("packageBoardSizeRejected") + ": " + dims
     if (app.packageMode === app.packageModeSix)
-        return app.trText("packageBoardSizeRejected") + ": " + dims + " (11x11 / 13x13)"
+        return app.trText("packageBoardSizeRejected") + ": " + dims + " (15x15 / 19x19)"
     return app.trText("packageBoardSizeRejected") + ": " + dims
 }
 

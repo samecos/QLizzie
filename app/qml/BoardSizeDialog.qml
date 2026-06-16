@@ -107,7 +107,7 @@ Basic.Dialog {
                 spacing: 12
 
                 Repeater {
-                    model: [9, 13, 15, 19]
+                    model: app.boardSizePresets()
 
                     Basic.RadioButton {
                         text: modelData + "x" + modelData

@@ -2,17 +2,25 @@
 
 QLizzie 是一个基于 Qt 6 的围棋、五子棋、Hex 棋等棋类 AI 分析界面，主要面向 KataGo/KataGomo 风格引擎，功能和样式方面参考了 LizzieYZY。
 
-![QLizzie 截图](docs/images/screenshot-main.png)
+## 截图
+
+### 围棋分析
+
+![QLizzie 围棋分析截图](docs/images/screenshot-go.png)
+
+### Hex 棋分析
+
+![QLizzie Hex 棋分析截图](docs/images/screenshot-hex.png)
 
 ## 简介
 
-QLizzie 是一个桌面分析棋盘程序，重点是干净的 2D 棋盘、引擎选点显示、类似 Lizzie 的左侧分析栏，以及用于复盘变化的游戏树工作流，并逐步支持多种网格棋类。
+QLizzie 是一个桌面分析棋盘程序，重点是干净的 2D 棋盘、引擎选点显示、类似 Lizzie 的左侧分析栏，以及用于复盘变化的游戏树工作流，并逐步支持多种棋类。
 
 本项目在功能方向和视觉行为上参考了 LizzieYZY，但它是一个独立的 Qt 6 实现。本项目基于 Codex vibe coding 的迭代方式构建。
 
 ## 功能
 
-- 支持围棋、五子棋和 Hex 棋分析模式
+- 支持围棋、五子棋、Hex 棋、六子棋、翻转棋、六角围棋、Ataxx、Breakthrough 和方格无规则等分析模式
 - 2D 棋盘，支持多种坐标格式、棋子、手数、选点标记缩放显示
 - Hex 棋支持三角网格和六边形涂色棋盘，并支持旋转/翻转显示
 - 五子棋和 Hex 棋支持胜负连线/连接路径高亮

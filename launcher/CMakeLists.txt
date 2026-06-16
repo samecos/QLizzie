@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 project(qlizzie_launcher LANGUAGES CXX)
 
 if(WIN32)
-    set(QLIZZIE_PORTABLE_DIR "${CMAKE_BINARY_DIR}/portable/QLizzie")
+    set(QLIZZIE_PORTABLE_DIR "${CMAKE_SOURCE_DIR}/release")
     if(TARGET Qt6::windeployqt)
         get_target_property(WINDEPLOYQT_EXECUTABLE Qt6::windeployqt IMPORTED_LOCATION)
     else()
@@ -14,7 +14,7 @@ if(WIN32)
         set(QLIZZIE_PORTABLE_DEPLOY_COMMAND
             COMMAND "${WINDEPLOYQT_EXECUTABLE}"
                 --qmldir "${CMAKE_SOURCE_DIR}/app/qml"
-                "${QLIZZIE_PORTABLE_DIR}/app/qlizzie.exe"
+                "${QLIZZIE_PORTABLE_DIR}/bin/qlizzie.exe"
         )
     endif()
 

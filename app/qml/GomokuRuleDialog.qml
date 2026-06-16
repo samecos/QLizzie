@@ -11,6 +11,9 @@ Basic.Dialog {
     property int maxMoves: 0
     property string vcnRule: "NOVC"
     property bool firstPassWin: false
+    property bool applyToApp: true
+
+    signal rulesAccepted(int ruleMode, int maxMoves, string vcnRule, bool firstPassWin)
 
     modal: true
     title: app.trText("gomokuRuleDialogTitle")
@@ -21,10 +24,17 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     function openWithCurrent() {
-        ruleMode = app.gomokuRuleMode
-        maxMoves = app.gomokuRuleMaxMoves
-        vcnRule = app.gomokuRuleVcn
-        firstPassWin = app.gomokuRuleFirstPassWin
+        applyToApp = true
+        openWithRules(app.gomokuRuleMode, app.gomokuRuleMaxMoves,
+                      app.gomokuRuleVcn, app.gomokuRuleFirstPassWin)
+        applyToApp = true
+    }
+
+    function openWithRules(rule, moves, vcn, passWin) {
+        ruleMode = app.normalizedGomokuRuleMode(rule)
+        maxMoves = Math.round(app.clamp(Number(moves), 0, app.maxLargeIntegerSetting))
+        vcnRule = app.normalizedGomokuVcnRule(vcn)
+        firstPassWin = passWin === true
         if (firstPassWin)
             vcnRule = "NOVC"
         open()
@@ -34,7 +44,10 @@ Basic.Dialog {
         commitMaxMoves()
         if (firstPassWin)
             vcnRule = "NOVC"
-        app.applyGomokuRuleSettings(ruleMode, maxMoves, vcnRule, firstPassWin)
+        if (applyToApp)
+            app.applyGomokuRuleSettings(ruleMode, maxMoves, vcnRule, firstPassWin)
+        else
+            rulesAccepted(ruleMode, maxMoves, vcnRule, firstPassWin)
         close()
     }
 

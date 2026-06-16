@@ -110,6 +110,7 @@ Basic.Dialog {
                   + " " + link("https://github.com/lightvector/KataGo", "KataGo")
                   + " / " + link("https://github.com/hzyhhzy/KataGomo", "KataGomo")
                   + " " + app.trText("aboutEngineAfterKataGomo") + "</p>"
+                  + "<p>" + app.trText("aboutQqGroup") + "</p>"
             onLinkActivated: function(url) { Qt.openUrlExternally(url) }
         }
 

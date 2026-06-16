@@ -157,7 +157,7 @@ Basic.Dialog {
                             spacing: 8
 
                             Repeater {
-                                model: [5, 7, 9, 13, 19]
+                                model: app.boardSizePresets()
                                 SmallModeButton {
                                     text: modelData + "x" + modelData
                                     visible: app.boardSizePresetAllowed(modelData)
@@ -871,6 +871,21 @@ Basic.Dialog {
                             Layout.fillWidth: true
                             spacing: 8
 
+                            SavePromptButton {
+                                text: app.trText("engineAddAndConfigure")
+                                Layout.preferredWidth: 180
+                                Layout.minimumWidth: 160
+                                primary: true
+                                onClicked: app.openEngineListDialog()
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
                             Label {
                                 text: app.trText("engineDefaultEngine")
                                 color: "#24313a"
@@ -960,10 +975,11 @@ Basic.Dialog {
                             }
 
                             SavePromptButton {
-                                text: app.trText("engineSettingsTitle")
+                                text: app.trText("engineClearDefault")
                                 Layout.preferredWidth: 132
                                 Layout.minimumWidth: 124
-                                onClicked: app.openEngineListDialog()
+                                enabled: app.defaultEngineId.length > 0
+                                onClicked: app.setDefaultEnginePreset("")
                             }
                         }
 

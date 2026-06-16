@@ -12,6 +12,7 @@ class EngineController : public QObject
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
     Q_PROPERTY(bool failed READ failed NOTIFY failedChanged)
+    Q_PROPERTY(QString failureKind READ failureKind NOTIFY failureKindChanged)
     Q_PROPERTY(QString failureMessage READ failureMessage NOTIFY failureMessageChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
@@ -28,6 +29,7 @@ public:
     bool running() const;
     bool ready() const;
     bool failed() const;
+    QString failureKind() const;
     QString failureMessage() const;
     QString statusText() const;
     QString lastError() const;
@@ -50,6 +52,7 @@ signals:
     void runningChanged();
     void readyChanged();
     void failedChanged();
+    void failureKindChanged();
     void failureMessageChanged();
     void statusTextChanged();
     void lastErrorChanged();
@@ -72,7 +75,7 @@ private:
     void parseInfoLine(const QString &line);
     void setRunning(bool running);
     void setReady(bool ready);
-    void setFailed(bool failed, const QString &message = QString());
+    void setFailed(bool failed, const QString &message = QString(), const QString &kind = QString());
     void setStatusText(const QString &text);
     void setLastError(const QString &text);
 
@@ -84,6 +87,7 @@ private:
     bool m_stopping = false;
     bool m_restartPending = false;
     bool m_nameResponsePending = false;
+    QString m_failureKind;
     QString m_failureMessage;
     QString m_statusText;
     QString m_lastError;

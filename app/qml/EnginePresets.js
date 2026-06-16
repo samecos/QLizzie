@@ -53,6 +53,118 @@ function numeric(value, fallback) {
     return isNaN(number) ? fallback : number
 }
 
+function defaultGoRules(app) {
+    return {
+        "scoringRule": app.goScoringArea,
+        "koRule": app.goKoPositional,
+        "suicideAllowed": true,
+        "taxRule": app.goTaxNone,
+        "handicapBonus": "N",
+        "buttonRule": false
+    }
+}
+
+function normalizeGoRules(app, source) {
+    var fallback = defaultGoRules(app)
+    var rules = source || fallback
+    var handicap = String(rules.handicapBonus === undefined ? fallback.handicapBonus : rules.handicapBonus)
+    return {
+        "scoringRule": Math.round(app.clamp(numeric(rules.scoringRule, fallback.scoringRule),
+                                            app.goScoringArea,
+                                            app.goScoringTerritory)),
+        "koRule": Math.round(app.clamp(numeric(rules.koRule, fallback.koRule),
+                                       app.goKoSimple,
+                                       app.goKoSituational)),
+        "suicideAllowed": rules.suicideAllowed === true,
+        "taxRule": Math.round(app.clamp(numeric(rules.taxRule, fallback.taxRule),
+                                        app.goTaxNone,
+                                        app.goTaxAll)),
+        "handicapBonus": handicap === "0" || handicap === "N-1" ? handicap : "N",
+        "buttonRule": rules.buttonRule === true
+    }
+}
+
+function defaultGomokuRules(app, ruleVariant) {
+    return {
+        "ruleMode": app.normalizedGomokuRuleMode(ruleVariant),
+        "maxMoves": 0,
+        "vcnRule": "NOVC",
+        "firstPassWin": false
+    }
+}
+
+function normalizeGomokuRules(app, source, ruleVariant) {
+    var fallback = defaultGomokuRules(app, ruleVariant)
+    var rules = source || fallback
+    var firstPassWin = rules.firstPassWin === true
+    return {
+        "ruleMode": app.normalizedGomokuRuleMode(rules.ruleMode === undefined
+                                                 ? fallback.ruleMode : rules.ruleMode),
+        "maxMoves": Math.round(app.clamp(numeric(rules.maxMoves, fallback.maxMoves),
+                                         0,
+                                         app.maxLargeIntegerSetting)),
+        "vcnRule": firstPassWin ? "NOVC" : app.normalizedGomokuVcnRule(rules.vcnRule),
+        "firstPassWin": firstPassWin
+    }
+}
+
+function goRuleEngineObject(app, rules) {
+    var normalized = normalizeGoRules(app, rules)
+    return {
+        "scoring": normalized.scoringRule === app.goScoringTerritory ? "TERRITORY" : "AREA",
+        "ko": normalized.koRule === app.goKoSimple ? "SIMPLE"
+              : normalized.koRule === app.goKoSituational ? "SITUATIONAL" : "POSITIONAL",
+        "suicide": normalized.suicideAllowed === true,
+        "tax": normalized.taxRule === app.goTaxAll ? "ALL"
+               : normalized.taxRule === app.goTaxSeki ? "SEKI" : "NONE",
+        "whiteHandicapBonus": normalized.handicapBonus,
+        "hasButton": normalized.buttonRule === true
+    }
+}
+
+function gomokuRuleEngineObject(app, rules) {
+    var normalized = normalizeGomokuRules(app, rules, app.gomokuRuleFreestyle)
+    var firstPassWin = normalized.firstPassWin === true
+    return {
+        "basicrule": app.gomokuRuleEngineValue(normalized.ruleMode),
+        "maxmoves": normalized.maxMoves,
+        "firstpasswin": firstPassWin,
+        "vcnrule": firstPassWin ? "NOVC" : normalized.vcnRule
+    }
+}
+
+function goRuleLabelForRules(app, rules) {
+    var engineRules = goRuleEngineObject(app, rules)
+    if (engineRules.scoring === "AREA" && engineRules.ko === "POSITIONAL" && engineRules.suicide
+            && engineRules.tax === "NONE" && engineRules.whiteHandicapBonus === "N" && !engineRules.hasButton)
+        return app.trText("goRuleTrompTaylor")
+    if (engineRules.scoring === "AREA" && engineRules.tax === "NONE" && !engineRules.hasButton)
+        return app.trText("goRuleChinese")
+    if (engineRules.scoring === "AREA" && engineRules.tax === "ALL" && !engineRules.hasButton)
+        return app.trText("goRuleChineseAncient")
+    if (engineRules.scoring === "TERRITORY" && engineRules.tax === "SEKI")
+        return app.trText("goRuleJapanese")
+    return app.trText("customRule")
+}
+
+function goRulesMatchApp(app, rules) {
+    var normalized = normalizeGoRules(app, rules)
+    return normalized.scoringRule === app.goScoringRule
+           && normalized.koRule === app.goKoRule
+           && normalized.suicideAllowed === app.goSuicideAllowed
+           && normalized.taxRule === app.goTaxRule
+           && normalized.handicapBonus === app.goWhiteHandicapBonus
+           && normalized.buttonRule === app.goButtonRule
+}
+
+function gomokuRulesMatchApp(app, rules) {
+    var normalized = normalizeGomokuRules(app, rules, app.gomokuRuleFreestyle)
+    return normalized.ruleMode === app.gomokuRuleMode
+           && normalized.maxMoves === app.gomokuRuleMaxMoves
+           && normalized.vcnRule === app.gomokuRuleVcn
+           && normalized.firstPassWin === app.gomokuRuleFirstPassWin
+}
+
 function normalizePreset(app, preset, index) {
     var safeIndex = Math.max(0, Math.round(numeric(index, 0)))
     var fallback = fallbackPreset(app, safeIndex)
@@ -70,10 +182,12 @@ function normalizePreset(app, preset, index) {
         copy.ruleMode = app.gameRuleGo
 
     copy.ruleVariant = Math.round(numeric(copy.ruleVariant, -1))
+    copy.goRules = normalizeGoRules(app, copy.goRules)
+    copy.gomokuRules = normalizeGomokuRules(app, copy.gomokuRules, copy.ruleVariant)
     if (copy.ruleMode !== app.gameRuleGomoku)
         copy.ruleVariant = -1
     else
-        copy.ruleVariant = app.normalizedGomokuRuleMode(copy.ruleVariant)
+        copy.ruleVariant = copy.gomokuRules.ruleMode
 
     copy.boardSizeX = Math.round(app.clamp(numeric(copy.boardSizeX, app.defaultBoardSize),
                                            app.minBoardSize,
@@ -184,8 +298,10 @@ function ruleText(app, preset) {
 function ruleDetailText(app, preset) {
     if (!preset)
         return ""
+    if (preset.ruleMode === app.gameRuleGo)
+        return goRuleLabelForRules(app, preset.goRules)
     if (preset.ruleMode === app.gameRuleGomoku)
-        return app.gomokuRuleLabel(preset.ruleVariant)
+        return app.gomokuRuleLabel(normalizeGomokuRules(app, preset.gomokuRules, preset.ruleVariant).ruleMode)
     return ruleText(app, preset)
 }
 

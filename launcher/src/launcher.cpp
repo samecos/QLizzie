@@ -92,9 +92,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         return 1;
     }
 
-    const std::wstring appPath = joinPath(portableRoot, L"app\\qlizzie.exe");
+    const std::wstring appPath = joinPath(portableRoot, L"bin\\qlizzie.exe");
     if (!fileExists(appPath)) {
-        showError(L"Cannot find app\\qlizzie.exe.\n\nPlease keep QLizzie.exe next to the app folder.");
+        showError(L"Cannot find bin\\qlizzie.exe.\n\nPlease keep QLizzie.exe next to the bin folder.");
         return 1;
     }
 
@@ -117,7 +117,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
                                         &startupInfo,
                                         &processInfo);
     if (!started) {
-        showError(L"Failed to start app\\qlizzie.exe.\n\n" + windowsErrorMessage(GetLastError()));
+        showError(L"Failed to start bin\\qlizzie.exe.\n\n" + windowsErrorMessage(GetLastError()));
         return 1;
     }
 

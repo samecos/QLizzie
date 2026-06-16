@@ -13,7 +13,7 @@ QString portableRootPath()
 
     const QString appDirPath = QCoreApplication::applicationDirPath();
     const QFileInfo appDirInfo(appDirPath);
-    if (appDirInfo.fileName().compare(QStringLiteral("app"), Qt::CaseInsensitive) == 0)
+    if (appDirInfo.fileName().compare(QStringLiteral("bin"), Qt::CaseInsensitive) == 0)
         return QDir(appDirPath).absoluteFilePath(QStringLiteral(".."));
 
     return appDirPath;

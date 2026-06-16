@@ -47,7 +47,7 @@ function engineWinratePlaceholderText(app, engineController) {
     if (app.engineLoading)
         return app.trText("engineLoading")
     if (engineController && engineController.failed)
-        return app.trText("engineFailedNotice")
+        return engineFailureMessage(app, engineController)
     if (app.engineCandidateItems.length <= 0)
         return app.trText("engineNoCandidates")
     return ""
@@ -106,9 +106,9 @@ function engineNoticeTextColor(app, engineController) {
 }
 
 function engineFailureMessage(app, engineController) {
-    if (engineController && engineController.failureMessage.length > 0)
-        return engineController.failureMessage
-    if (engineController && engineController.lastError.length > 0)
-        return engineController.lastError
+    if (engineController && engineController.failureKind === "emptyCommand")
+        return app.trText("engineFailureEmptyCommand")
+    if (engineController && engineController.failureKind === "missingProgram")
+        return app.trText("engineFailureMissingProgram")
     return app.trText("engineFailedNotice")
 }

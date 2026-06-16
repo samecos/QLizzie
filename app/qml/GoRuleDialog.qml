@@ -13,6 +13,10 @@ Basic.Dialog {
     property int taxRule: app.goTaxNone
     property string handicapBonus: "N"
     property bool buttonRule: false
+    property bool applyToApp: true
+
+    signal rulesAccepted(int scoringRule, int koRule, bool suicideAllowed,
+                         int taxRule, string handicapBonus, bool buttonRule)
 
     modal: true
     title: app.trText("goRuleDialogTitle")
@@ -23,12 +27,19 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     function openWithCurrent() {
-        scoringRule = app.goScoringRule
-        koRule = app.goKoRule
-        suicideAllowed = app.goSuicideAllowed
-        taxRule = app.goTaxRule
-        handicapBonus = app.goWhiteHandicapBonus
-        buttonRule = app.goButtonRule
+        applyToApp = true
+        openWithRules(app.goScoringRule, app.goKoRule, app.goSuicideAllowed,
+                      app.goTaxRule, app.goWhiteHandicapBonus, app.goButtonRule)
+        applyToApp = true
+    }
+
+    function openWithRules(scoring, ko, suicide, tax, handicap, hasButton) {
+        scoringRule = Math.round(app.clamp(Number(scoring), app.goScoringArea, app.goScoringTerritory))
+        koRule = Math.round(app.clamp(Number(ko), app.goKoSimple, app.goKoSituational))
+        suicideAllowed = suicide === true
+        taxRule = Math.round(app.clamp(Number(tax), app.goTaxNone, app.goTaxAll))
+        handicapBonus = handicap === "0" || handicap === "N-1" ? handicap : "N"
+        buttonRule = hasButton === true
         open()
     }
 
@@ -93,7 +104,10 @@ Basic.Dialog {
     }
 
     function applyRules() {
-        app.applyGoRuleSettings(scoringRule, koRule, suicideAllowed, taxRule, handicapBonus, buttonRule)
+        if (applyToApp)
+            app.applyGoRuleSettings(scoringRule, koRule, suicideAllowed, taxRule, handicapBonus, buttonRule)
+        else
+            rulesAccepted(scoringRule, koRule, suicideAllowed, taxRule, handicapBonus, buttonRule)
         close()
     }
 
