@@ -11,7 +11,9 @@ Basic.Dialog {
     modal: true
     title: app.trText("initialSetupTitle")
     closePolicy: Popup.NoAutoClose
+    onOpened: console.log("InitialSetupDialog opened")
     padding: 18
+    topPadding: header.height + 12
     width: Math.min(440, app.width - 70)
     x: Math.round((app.width - width) / 2)
     y: Math.round((app.height - height) / 2)
@@ -25,6 +27,7 @@ Basic.Dialog {
 
     header: Rectangle {
         height: 52
+        implicitHeight: 52
         color: "#e6eff4"
         radius: 10
 
@@ -153,10 +156,12 @@ Basic.Dialog {
             Item { Layout.fillWidth: true }
 
             SavePromptButton {
+                id: startButton
                 text: app.trText("startUsing")
                 primary: true
                 implicitWidth: 118
                 onClicked: {
+                    console.log("InitialSetupDialog start button clicked")
                     app.completeInitialSetup()
                     initialSetupDialog.close()
                 }

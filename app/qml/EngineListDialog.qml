@@ -45,11 +45,13 @@ Basic.Dialog {
     }
 
     function openStartup() {
+        console.log("EngineListDialog.openStartup called")
         startupMode = true
         pickerMode = false
         selectedIndex = app.enginePresets.length > 0 ? 0 : -1
         syncEditor()
         open()
+        console.log("EngineListDialog.openStartup open() returned, visible=" + visible)
     }
 
     function openPicker() {

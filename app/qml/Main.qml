@@ -2267,6 +2267,7 @@ ApplicationWindow {
     }
 
     function showStartupEngineListIfNeeded() {
+        console.log("showStartupEngineListIfNeeded called")
         if (enginePresetStartupPromptShown || engineStartupMode === engineStartupNone)
             return
         if (engineStartupMode === engineStartupDefault && defaultEngineId.length > 0 && enginePresetById(defaultEngineId))
@@ -2278,6 +2279,7 @@ ApplicationWindow {
     }
 
     function runStartupEnginePolicy() {
+        console.log("runStartupEnginePolicy called, mode=" + engineStartupMode)
         if (engineStartupMode === engineStartupNone) {
             engineDisabled = true
             return
