@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
-#include <QGuiApplication>
+#include <QApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -47,13 +47,11 @@ void showLauncherRequiredMessage()
 
 int main(int argc, char *argv[])
 {
-    // On macOS Qt 6.8+ renders MenuBar natively by default, but that requires
-    // a full native menu integration (QApplication + Qt Widgets). We use
-    // QGuiApplication with Qt Quick only, so keep the in-app MenuBar to avoid
-    // the menu bar freezing or swallowing clicks on macOS.
-    QCoreApplication::setAttribute(Qt::AA_DontUseNativeMenuBar);
-
-    QGuiApplication app(argc, argv);
+    // Use QApplication (instead of QGuiApplication) so that the native macOS
+    // menu bar integration works correctly. With a full QApplication, Qt can
+    // place the MenuBar in the macOS screen-top menu area and render it with
+    // the system appearance, avoiding the dark-background issues on macOS.
+    QApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("QLizzie"));
     QCoreApplication::setApplicationName(QStringLiteral("QLizzie"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/qlizzie-logo.png")));

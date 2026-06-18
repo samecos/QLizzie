@@ -5,7 +5,7 @@ project(qlizzie LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Widgets)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -97,10 +97,17 @@ qt_add_resources(qlizzie qlizzie_fonts
         resources/fonts/JetBrainsMono-OFL.txt
 )
 
+qt_add_resources(qlizzie qlizzie_style
+    PREFIX "/"
+    FILES
+        qtquickcontrols2.conf
+)
+
 target_link_libraries(qlizzie
     PRIVATE
         Qt6::Core
         Qt6::Quick
+        Qt6::Widgets
 )
 
 if(WIN32)
