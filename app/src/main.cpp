@@ -47,6 +47,12 @@ void showLauncherRequiredMessage()
 
 int main(int argc, char *argv[])
 {
+    // On macOS Qt 6.8+ renders MenuBar natively by default, but that requires
+    // a full native menu integration (QApplication + Qt Widgets). We use
+    // QGuiApplication with Qt Quick only, so keep the in-app MenuBar to avoid
+    // the menu bar freezing or swallowing clicks on macOS.
+    QCoreApplication::setAttribute(Qt::AA_DontUseNativeMenuBar);
+
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("QLizzie"));
     QCoreApplication::setApplicationName(QStringLiteral("QLizzie"));
