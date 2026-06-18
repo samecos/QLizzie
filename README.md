@@ -34,11 +34,13 @@ The project references LizzieYZY for feature direction and visual behavior, but 
 
 ## Build
 
+### Windows
+
 Requirements:
 
 - Qt 6
-- CMake
-- A C++17-capable compiler, such as MSVC on Windows
+- CMake 3.24+
+- A C++17-capable compiler, such as MSVC
 
 Example build:
 
@@ -47,10 +49,59 @@ cmake -S . -B build/qlizzie
 cmake --build build/qlizzie --config Release
 ```
 
-The executable is generated under the selected build directory, for example:
+The executable is generated under:
 
 ```text
 build/qlizzie/app/Release/qlizzie.exe
+```
+
+### macOS (Apple Silicon)
+
+Requirements:
+
+- macOS 12 or later
+- Xcode Command Line Tools (provides Clang)
+- Homebrew
+
+Install Qt 6 and CMake:
+
+```bash
+brew install qt cmake
+```
+
+Configure and build:
+
+```bash
+cmake -S . -B build/qlizzie -DCMAKE_PREFIX_PATH=/opt/homebrew
+cmake --build build/qlizzie --config Release
+```
+
+> If CMake finds Qt 6 automatically, the `-DCMAKE_PREFIX_PATH=/opt/homebrew` option can be omitted. On Intel Macs the corresponding Homebrew prefix is usually `/usr/local`.
+
+The build produces an app bundle:
+
+```text
+build/qlizzie/app/qlizzie.app
+```
+
+Run it from Finder by double-clicking, or from the terminal:
+
+```bash
+open build/qlizzie/app/qlizzie.app
+```
+
+You can also run the executable directly:
+
+```bash
+./build/qlizzie/app/qlizzie.app/Contents/MacOS/qlizzie
+```
+
+The first time you launch QLizzie, open **Engine List** and add a GTP engine preset (for example, a KataGo binary, its config file, and a model). Settings are saved in `qlizzie.app/Contents/MacOS/settings.ini` by default.
+
+To make a redistributable bundle that includes the Qt libraries, run:
+
+```bash
+macdeployqt build/qlizzie/app/qlizzie.app -qmldir=app/qml
 ```
 
 ## Engine
@@ -58,6 +109,12 @@ build/qlizzie/app/Release/qlizzie.exe
 QLizzie communicates with GTP-compatible AI engines. Engine presets can store a name, command line, rule type, default board size, komi, and Hex coordinate compatibility settings.
 
 For KataGo/KataGomo-style analysis, use an engine command that starts GTP mode and points to your config and model files. QLizzie is primarily developed and tested around KataGo-family `kata-analyze` output.
+
+Example KataGo command:
+
+```text
+katago gtp -config /path/to/gtp.cfg -model /path/to/model.bin.gz
+```
 
 ## Relationship To LizzieYZY
 

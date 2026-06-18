@@ -23,6 +23,7 @@ qt_add_executable(qlizzie
 
 set_target_properties(qlizzie PROPERTIES
     WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
 )
 
 qt_add_qml_module(qlizzie
