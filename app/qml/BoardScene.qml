@@ -1,5 +1,6 @@
 import QtQuick
 import "BoardRenderer.js" as BoardRenderer
+import "InkTheme.js" as InkTheme
 
 Item {
     id: boardScene
@@ -166,11 +167,11 @@ Item {
         y: boardScene.boardTop - boardScene.boardPaddingY
         width: boardScene.gridWidth + boardScene.boardPaddingX * 2
         height: boardScene.gridHeight + boardScene.boardPaddingY * 2
-        radius: 6
-        color: boardScene.hexCellStyle ? "#f2cc62" : app.boardWoodColor
-        border.color: boardScene.hexCellStyle ? "#0b3d73" : "#9d7442"
+        radius: 8
+        color: boardScene.hexCellStyle ? InkTheme.colors.paperDeep : app.boardWoodColor
+        border.color: boardScene.hexCellStyle ? InkTheme.colors.ink : InkTheme.colors.inkLight
         border.width: 1
-        opacity: 0.98
+        opacity: 0.96
     }
 
     Canvas {
@@ -269,7 +270,7 @@ Item {
                 var fp = boardScene.boardPointLocal(forbidden.x, forbidden.y)
                 var crossSize = Math.max(7, stoneRadius * 0.42)
                 ctx.save()
-                ctx.strokeStyle = "#f01818"
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = Math.max(2, cell * 0.055)
                 ctx.lineCap = "round"
                 ctx.beginPath()
@@ -290,8 +291,8 @@ Item {
             if (sourceNode) {
                 var sp = boardScene.boardPointLocal(sourceNode.x, sourceNode.y)
                 var sourceSize = stoneRadius * 0.58
-                ctx.fillStyle = "#f39c12"
-                ctx.strokeStyle = "#7a3f00"
+                ctx.fillStyle = InkTheme.colors.cinnabarLight
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = Math.max(1, cell * 0.035)
                 ctx.beginPath()
                 ctx.moveTo(sp.x, sp.y - sourceSize * 0.72)
@@ -306,7 +307,7 @@ Item {
                 var win = app.gomokuWinLineItems[w]
                 var start = boardScene.boardPointLocal(win.startX, win.startY)
                 var end = boardScene.boardPointLocal(win.endX, win.endY)
-                ctx.strokeStyle = "#f01818"
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = Math.max(4, cell * 0.09)
                 ctx.lineCap = "round"
                 ctx.beginPath()
@@ -316,7 +317,7 @@ Item {
             }
 
             if (app.hexWinPathItems.length > 0) {
-                ctx.strokeStyle = "#f01818"
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = Math.max(4, cell * 0.09)
                 ctx.lineCap = "round"
                 ctx.lineJoin = "round"
@@ -348,15 +349,11 @@ Item {
                         continue
                     var op = boardScene.boardPointLocal(overlayStone.x, overlayStone.y)
                     if (last) {
-                        var markerSize = stoneRadius * 0.62
-                        var markerCornerX = op.x - stoneRadius
-                        var markerCornerY = op.y - stoneRadius
-                        ctx.fillStyle = "#e3342f"
+                        // Last-move seal dot.
+                        ctx.fillStyle = InkTheme.colors.cinnabar
                         ctx.beginPath()
-                        ctx.moveTo(markerCornerX, markerCornerY)
-                        ctx.lineTo(markerCornerX + markerSize, markerCornerY)
-                        ctx.lineTo(markerCornerX, markerCornerY + markerSize)
-                        ctx.closePath()
+                        ctx.arc(op.x + stoneRadius * 0.32, op.y - stoneRadius * 0.32,
+                                Math.max(2.5, cell * 0.07), 0, Math.PI * 2)
                         ctx.fill()
                     }
                     if (app.stoneNumberVisible(overlayStone.moveNumber, last)) {
@@ -404,7 +401,7 @@ Item {
 
             if (app.koLocKey !== "" && app.stoneAt(app.koLocX, app.koLocY) === 0) {
                 var kp = boardScene.boardPointLocal(app.koLocX, app.koLocY)
-                ctx.strokeStyle = "#f01818"
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = 3
                 ctx.lineCap = "round"
                 ctx.beginPath()
@@ -596,7 +593,7 @@ Item {
 
             ctx.save()
             ctx.globalAlpha = 1
-            ctx.strokeStyle = "#ff1010"
+            ctx.strokeStyle = InkTheme.colors.cinnabar
             ctx.lineWidth = app.candidateRingLineWidthForRadius(stoneRadius)
             ctx.beginPath()
             ctx.arc(cp.x, cp.y, app.candidateRingRadius(stoneRadius), 0, Math.PI * 2)

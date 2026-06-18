@@ -63,6 +63,8 @@ qt_add_qml_module(qlizzie
         qml/GameRules.js
         qml/HelpKeysDialog.qml
         qml/HiddenSettingsDialog.qml
+        qml/InkTheme.js
+        qml/InkWashBackground.qml
         qml/InitialSetupDialog.qml
         qml/InfoPanel.qml
         qml/Main.qml

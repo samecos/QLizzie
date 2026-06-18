@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "CandidateAnalysis.js" as CandidateAnalysis
+import "InkTheme.js" as InkTheme
 
 Window {
     id: tutorialDialog
@@ -23,7 +24,7 @@ Window {
 
     title: app.trText("beginnerTutorialTitle")
     flags: Qt.Window
-    color: "#f8fbfd"
+    color: InkTheme.colors.paper
     minimumWidth: 620
     minimumHeight: 430
     width: 760
@@ -73,7 +74,7 @@ Window {
     }
 
     function keyBadge(text) {
-        return "<span style=\"background-color:#e7f0f5;color:#123240;"
+        return "<span style=\"background-color:" + InkTheme.colors.inkWash + ";color:" + InkTheme.colors.inkDeep + ";"
                + "font-family:Consolas,monospace;font-weight:700;\">&nbsp;"
                + text + "&nbsp;</span>"
     }
@@ -119,9 +120,9 @@ Window {
         readonly property bool candidateRingVisible: true
         readonly property int candidateRingLineWidth: 12
         readonly property bool candidateRankLabelVisible: true
-        readonly property string candidateFirstLabelTextColor: "#ff0000"
-        readonly property string candidateLabelTextColor: "#000000"
-        readonly property string firstCandidateRingColor: "#003b8e"
+        readonly property string candidateFirstLabelTextColor: InkTheme.colors.cinnabar
+        readonly property string candidateLabelTextColor: InkTheme.colors.inkDeep
+        readonly property string firstCandidateRingColor: InkTheme.colors.cinnabar
         readonly property int candidateYzyMinAlpha: 32
         readonly property int candidateYzyMaxAlpha: 240
         readonly property real candidateYzyAlphaFactor: 5.0
@@ -161,8 +162,8 @@ Window {
     Rectangle {
         id: tutorialRoot
         anchors.fill: parent
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
 
         ColumnLayout {
@@ -173,7 +174,7 @@ Window {
             Label {
                 Layout.fillWidth: true
                 text: (tutorialDialog.pageIndex + 1) + "/" + tutorialDialog.pageCount
-                color: "#267fbb"
+                color: InkTheme.colors.cinnabar
                 font.pixelSize: 16
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -181,9 +182,10 @@ Window {
 
             Label {
                 text: tutorialDialog.currentPageTitle()
-                color: "#14242e"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 21
                 font.bold: true
+                font.family: InkTheme.fonts.title
                 Layout.fillWidth: true
                 elide: Text.ElideRight
             }

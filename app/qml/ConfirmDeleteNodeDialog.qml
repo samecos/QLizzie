@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: confirmDeleteNodeDialog
@@ -40,8 +41,8 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#94aab6"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
@@ -59,7 +60,8 @@ Basic.Dialog {
             Layout.rightMargin: 18
             Layout.fillWidth: true
             text: app.trText("deleteNodeWarningTitle")
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 20
             font.bold: true
         }
@@ -70,15 +72,15 @@ Basic.Dialog {
             Layout.fillWidth: true
             Layout.preferredHeight: warningBody.implicitHeight + 22
             radius: 6
-            color: "#fff4ed"
-            border.color: "#efb08b"
+            color: InkTheme.colors.cinnabarPale
+            border.color: InkTheme.colors.cinnabarLight
 
             Label {
                 id: warningBody
                 anchors.fill: parent
                 anchors.margins: 11
                 text: app.trText("deleteNodeWarningBody")
-                color: "#653018"
+                color: InkTheme.colors.cinnabar
                 wrapMode: Text.WordWrap
                 verticalAlignment: Text.AlignVCenter
             }
@@ -94,13 +96,13 @@ Basic.Dialog {
 
             Label {
                 text: app.trText("deleteNodeMoveLabel")
-                color: "#52636d"
+                color: InkTheme.colors.inkDark
                 Layout.preferredWidth: 92
             }
 
             Label {
                 text: app.currentNodeText()
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.bold: true
                 elide: Text.ElideRight
                 Layout.fillWidth: true
@@ -108,13 +110,13 @@ Basic.Dialog {
 
             Label {
                 text: app.trText("deleteNodeDescendantLabel")
-                color: "#52636d"
+                color: InkTheme.colors.inkDark
                 Layout.preferredWidth: 92
             }
 
             Label {
                 text: confirmDeleteNodeDialog.descendantCountText()
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.bold: true
                 Layout.fillWidth: true
             }
@@ -123,7 +125,7 @@ Basic.Dialog {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 62
-            color: "#f1f6f9"
+            color: InkTheme.colors.paper
             radius: 10
 
             Rectangle {
@@ -131,7 +133,7 @@ Basic.Dialog {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: 1
-                color: "#d7e1e7"
+                color: InkTheme.colors.inkLight
             }
 
             RowLayout {
@@ -160,7 +162,7 @@ Basic.Dialog {
 
                     contentItem: Text {
                         text: deleteButton.text
-                        color: "#ffffff"
+                        color: InkTheme.colors.white
                         font.pixelSize: 13
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
@@ -169,9 +171,9 @@ Basic.Dialog {
 
                     background: Rectangle {
                         radius: 6
-                        color: deleteButton.pressed ? "#a02a1f"
-                             : deleteButton.hovered ? "#d14635" : "#c7352a"
-                        border.color: "#a02a1f"
+                        color: deleteButton.pressed ? InkTheme.colors.inkDeep
+                             : deleteButton.hovered ? InkTheme.colors.cinnabarLight : InkTheme.colors.cinnabar
+                        border.color: deleteButton.pressed ? InkTheme.colors.inkDeep : InkTheme.colors.cinnabar
                         border.width: 1
                     }
                 }

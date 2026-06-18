@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: helpDialog
@@ -31,14 +32,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -54,7 +55,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Text {
@@ -64,7 +65,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: helpDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 18
             font.bold: true
             elide: Text.ElideRight
@@ -101,8 +103,8 @@ Basic.Dialog {
                         Layout.fillWidth: true
                         implicitHeight: Math.max(42, helpRowLayout.implicitHeight + 14)
                         radius: 7
-                        color: "#ffffff"
-                        border.color: "#cfdae0"
+                        color: InkTheme.colors.white
+                        border.color: InkTheme.colors.inkLight
                         border.width: 1
 
                         RowLayout {
@@ -118,8 +120,8 @@ Basic.Dialog {
                                 Layout.preferredWidth: 118
                                 Layout.preferredHeight: 28
                                 radius: 5
-                                color: "#e8f0f4"
-                                border.color: "#9fb3bf"
+                                color: InkTheme.colors.inkWash
+                                border.color: InkTheme.colors.inkLight
                                 border.width: 1
 
                                 TextEdit {
@@ -130,9 +132,9 @@ Basic.Dialog {
                                     readOnly: true
                                     selectByMouse: true
                                     cursorVisible: false
-                                    color: "#10242f"
-                                    selectionColor: "#2a91c9"
-                                    selectedTextColor: "#ffffff"
+                                    color: InkTheme.colors.inkDeep
+                                    selectionColor: InkTheme.colors.cinnabar
+                                    selectedTextColor: InkTheme.colors.white
                                     font.pixelSize: 14
                                     font.bold: true
                                     font.family: "Consolas"
@@ -148,9 +150,9 @@ Basic.Dialog {
                                 readOnly: true
                                 selectByMouse: true
                                 cursorVisible: false
-                                color: "#1e2d36"
-                                selectionColor: "#2a91c9"
-                                selectedTextColor: "#ffffff"
+                                color: InkTheme.colors.inkDeep
+                                selectionColor: InkTheme.colors.cinnabar
+                                selectedTextColor: InkTheme.colors.white
                                 font.pixelSize: 15
                                 wrapMode: TextEdit.WordWrap
                                 verticalAlignment: Text.AlignVCenter

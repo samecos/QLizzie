@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as Basic
+import "InkTheme.js" as InkTheme
 
 Basic.ScrollBar {
     id: scrollBar
@@ -26,14 +27,14 @@ Basic.ScrollBar {
                 ? Math.max(0, scrollBar.height - scrollBar.startInset - scrollBar.endInset)
                 : scrollBar.height
         radius: 6
-        color: "#edf4f7"
-        border.color: "#d2dee5"
+        color: InkTheme.colors.paperDark
+        border.color: InkTheme.colors.inkLight
     }
 
     contentItem: Rectangle {
         implicitWidth: scrollBar.orientation === Qt.Vertical ? 8 : 34
         implicitHeight: scrollBar.orientation === Qt.Vertical ? 34 : 8
         radius: 4
-        color: scrollBar.pressed ? "#5d737f" : scrollBar.hovered ? "#748a96" : "#9aadb6"
+        color: scrollBar.pressed ? InkTheme.colors.inkDark : scrollBar.hovered ? InkTheme.colors.ink : InkTheme.colors.inkLight
     }
 }

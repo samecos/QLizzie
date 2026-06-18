@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: engineParametersDialog
@@ -24,14 +25,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -47,7 +48,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -57,7 +58,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: engineParametersDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -70,7 +72,8 @@ Basic.Dialog {
 
         Label {
             text: app.trText("engineCommand")
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 14
             Layout.fillWidth: true
         }
@@ -80,14 +83,14 @@ Basic.Dialog {
             selectByMouse: true
             wrapMode: TextEdit.WrapAnywhere
             font.pixelSize: 13
-            color: "#13232d"
+            color: InkTheme.colors.inkDeep
             Layout.fillWidth: true
             Layout.preferredHeight: 92
 
             background: Rectangle {
                 radius: 5
-                color: "#ffffff"
-                border.color: engineCommandEdit.activeFocus ? "#2388b8" : "#b7c5cc"
+                color: InkTheme.colors.white
+                border.color: engineCommandEdit.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                 border.width: 1
             }
         }

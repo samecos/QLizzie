@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: aboutDialog
@@ -26,14 +27,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -49,7 +50,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Text {
@@ -59,7 +60,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: aboutDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 18
             font.bold: true
             elide: Text.ElideRight
@@ -74,7 +76,8 @@ Basic.Dialog {
         Text {
             Layout.fillWidth: true
             text: "QLizzie"
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 24
             font.bold: true
 
@@ -96,8 +99,8 @@ Basic.Dialog {
             Layout.fillWidth: true
             Layout.fillHeight: true
             textFormat: Text.RichText
-            color: "#17212a"
-            linkColor: "#176ea3"
+            color: InkTheme.colors.inkDeep
+            linkColor: InkTheme.colors.cinnabar
             font.pixelSize: 15
             wrapMode: Text.WordWrap
             text: "<p>" + app.trText("aboutIntroBeforeAuthor") + " "

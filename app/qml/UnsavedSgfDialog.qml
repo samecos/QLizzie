@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: unsavedSgfDialog
@@ -18,14 +19,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -41,7 +42,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -51,7 +52,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: unsavedSgfDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -61,7 +63,7 @@ Basic.Dialog {
     contentItem: Rectangle {
         implicitWidth: 424
         implicitHeight: Math.max(72, messageLabel.implicitHeight + 24)
-        color: "#f8fbfd"
+        color: InkTheme.colors.paper
 
         Label {
             id: messageLabel
@@ -71,7 +73,7 @@ Basic.Dialog {
             anchors.leftMargin: 2
             anchors.rightMargin: 2
             text: app.trText("confirmSaveGame")
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
             wrapMode: Text.WordWrap
             font.pixelSize: 15
             lineHeight: 1.12
@@ -80,7 +82,7 @@ Basic.Dialog {
 
     footer: Rectangle {
         implicitHeight: 68
-        color: "#f8fbfd"
+        color: InkTheme.colors.paper
         radius: 10
 
         Rectangle {
@@ -88,7 +90,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.top: parent.top
             height: 1
-            color: "#d7e1e7"
+            color: InkTheme.colors.inkLight
         }
 
         Rectangle {

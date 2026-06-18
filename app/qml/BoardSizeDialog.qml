@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: boardSizeDialog
@@ -53,14 +54,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -76,7 +77,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -86,7 +87,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: boardSizeDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -96,7 +98,7 @@ Basic.Dialog {
     contentItem: Rectangle {
         implicitWidth: 600
         implicitHeight: app.customBoardSizeAllowed() ? 142 : 98
-        color: "#f8fbfd"
+        color: InkTheme.colors.paper
 
         ColumnLayout {
             anchors.fill: parent
@@ -136,7 +138,7 @@ Basic.Dialog {
 
                 Label {
                     text: app.trText("boardSizeX")
-                    color: "#24313a"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: 14
                 }
 
@@ -150,7 +152,7 @@ Basic.Dialog {
 
                 Label {
                     text: "x " + app.trText("boardSizeY")
-                    color: "#24313a"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: 14
                 }
 
@@ -168,7 +170,7 @@ Basic.Dialog {
             Label {
                 text: boardSizeDialog.errorText
                 visible: boardSizeDialog.errorText !== ""
-                color: "#b3261e"
+                color: InkTheme.colors.cinnabar
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
             }
@@ -179,7 +181,7 @@ Basic.Dialog {
 
     footer: Rectangle {
         implicitHeight: 68
-        color: "#f8fbfd"
+        color: InkTheme.colors.paper
         radius: 10
 
         Rectangle {
@@ -187,7 +189,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.top: parent.top
             height: 1
-            color: "#d7e1e7"
+            color: InkTheme.colors.inkLight
         }
 
         Rectangle {

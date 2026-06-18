@@ -1,5 +1,6 @@
 .pragma library
 .import "GameRules.js" as GameRules
+.import "InkTheme.js" as InkTheme
 
 function buildGomokuWinLineItems(app, map) {
     var runs = GameRules.buildGomokuWinRuns(map, app.boardDims(), app.gameRuleMode, app.gomokuRuleMode)
@@ -38,13 +39,13 @@ function stoneNumberVisible(app, moveNumber, lastMove) {
 }
 
 function stoneNumberColor(player, lastMove) {
-    return player === 1 ? "#f5f7f8" : "#1a252d"
+    return player === 1 ? InkTheme.colors.white : InkTheme.colors.inkDeep
 }
 
 function stoneNumberCanvasFont(app, size, bold) {
     var family = String(app.coordinateFontFamily).replace(/"/g, "")
     return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size))
-         + "px \"" + family + "\", sans-serif"
+         + "px \"" + family + "\", " + InkTheme.fonts.body
 }
 
 function stoneNumberBaseFontSize(app, ctx, text, radius) {

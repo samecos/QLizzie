@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: noRuleVariantDialog
@@ -18,13 +19,13 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 8
-        color: "#f8fbfd"
-        border.color: "#b9cbd4"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
     }
 
     contentItem: Label {
         text: app.trText("noRuleVariantBody")
-        color: "#24313a"
+        color: InkTheme.colors.inkDeep
         font.pixelSize: app.compactLayout ? 13 : 14
         wrapMode: Text.WordWrap
         verticalAlignment: Text.AlignVCenter
@@ -42,7 +43,7 @@ Basic.Dialog {
 
             contentItem: Text {
                 text: okButton.text
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: noRuleVariantDialog.app.compactLayout ? 12 : 13
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -50,8 +51,8 @@ Basic.Dialog {
 
             background: Rectangle {
                 radius: 5
-                color: okButton.pressed ? "#dcecf3" : okButton.hovered ? "#eef7fa" : "#f8fbfd"
-                border.color: okButton.activeFocus ? "#2a91c9" : "#a8bac5"
+                color: okButton.pressed ? InkTheme.colors.inkWash : okButton.hovered ? InkTheme.colors.inkWash : InkTheme.colors.paper
+                border.color: okButton.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                 border.width: okButton.activeFocus ? 2 : 1
             }
         }

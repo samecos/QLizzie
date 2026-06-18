@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: goRuleDialog
@@ -112,7 +113,7 @@ Basic.Dialog {
     }
 
     component FieldLabel: Label {
-        color: "#52636d"
+        color: InkTheme.colors.inkDark
         font.pixelSize: goRuleDialog.app.compactLayout ? 12 : 13
         verticalAlignment: Text.AlignVCenter
         Layout.preferredWidth: 116
@@ -129,7 +130,7 @@ Basic.Dialog {
 
         contentItem: Text {
             text: presetButton.text
-            color: presetButton.primary ? "#ffffff" : "#17212a"
+            color: presetButton.primary ? InkTheme.colors.white : InkTheme.colors.inkDeep
             font.pixelSize: goRuleDialog.app.compactLayout ? 12 : 13
             font.bold: presetButton.selected || presetButton.primary
             horizontalAlignment: Text.AlignHCenter
@@ -139,13 +140,13 @@ Basic.Dialog {
 
         background: Rectangle {
             radius: 5
-            color: presetButton.primary ? (presetButton.pressed ? "#1f6f8d" : "#2b8cc4")
-                 : presetButton.pressed ? "#dcecf3"
-                 : presetButton.selected ? "#e1f2f8"
-                 : presetButton.hovered ? "#eef7fa" : "#f8fbfd"
-            border.color: presetButton.primary ? "#1f6f8d"
-                         : presetButton.selected ? "#2e8eb0"
-                         : presetButton.activeFocus ? "#2a91c9" : "#a8bac5"
+            color: presetButton.primary ? (presetButton.pressed ? InkTheme.colors.inkDeep : InkTheme.colors.cinnabar)
+                 : presetButton.pressed ? InkTheme.colors.inkWash
+                 : presetButton.selected ? InkTheme.colors.inkWash
+                 : presetButton.hovered ? InkTheme.colors.inkWash : InkTheme.colors.paper
+            border.color: presetButton.primary ? InkTheme.colors.cinnabar
+                         : presetButton.selected ? InkTheme.colors.cinnabar
+                         : presetButton.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: presetButton.selected || presetButton.activeFocus ? 2 : 1
         }
     }
@@ -168,9 +169,9 @@ Basic.Dialog {
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 radius: 12
-                color: "#ffffff"
-                border.color: ruleChoice.checked ? "#2e8eb0"
-                             : choiceMouse.containsMouse ? "#6f9dad" : "#9fa8ad"
+                color: InkTheme.colors.white
+                border.color: ruleChoice.checked ? InkTheme.colors.cinnabar
+                             : choiceMouse.containsMouse ? InkTheme.colors.inkDark : InkTheme.colors.inkLight
                 border.width: ruleChoice.checked ? 2 : 1
 
                 Rectangle {
@@ -179,13 +180,13 @@ Basic.Dialog {
                     width: 14
                     height: 14
                     radius: 7
-                    color: "#000000"
+                    color: InkTheme.colors.sumi
                 }
             }
 
             Text {
                 text: ruleChoice.text
-                color: "#24313a"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: goRuleDialog.app.compactLayout ? 12 : 13
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight
@@ -203,13 +204,13 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 8
-        color: "#f8fbfd"
-        border.color: "#b9cbd4"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
     }
 
     header: Rectangle {
         height: 48
-        color: "#e7eff4"
+        color: InkTheme.colors.paperDeep
         radius: 8
 
         Rectangle {
@@ -227,7 +228,8 @@ Basic.Dialog {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             text: goRuleDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 16
             font.bold: true
             elide: Text.ElideRight
@@ -272,7 +274,7 @@ Basic.Dialog {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
-            color: "#d5e1e7"
+            color: InkTheme.colors.inkLight
         }
 
         RowLayout {

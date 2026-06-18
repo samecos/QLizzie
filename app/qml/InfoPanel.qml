@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Rectangle {
     id: infoPanel
@@ -45,14 +46,14 @@ Rectangle {
         property string text: ""
         width: 60
         height: infoPanel.tableHeaderHeight
-        color: "#c5c9cc"
-        border.color: "#8d9498"
+        color: InkTheme.colors.paperDark
+        border.color: InkTheme.colors.inkLight
         border.width: 1
 
         Text {
             anchors.centerIn: parent
             text: parent.text
-            color: "#2d3438"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 11 : 12
             font.bold: true
         }
@@ -61,7 +62,7 @@ Rectangle {
     component TableCell: Text {
         width: 60
         height: infoPanel.tableRowHeight
-        color: "#15191c"
+        color: InkTheme.colors.inkDeep
         font.pixelSize: app.compactLayout ? 12 : 13
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
@@ -74,18 +75,18 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         height: infoPanel.topPanelHeight
-        radius: 4
-        color: "#4c5458"
-        border.color: "#3b4449"
+        radius: 8
+        color: InkTheme.colors.paperDeep
+        border.color: InkTheme.colors.inkLight
         border.width: 1
         clip: true
 
         Rectangle {
             anchors.fill: parent
             anchors.margins: 1
-            radius: 4
+            radius: 8
             color: "transparent"
-            border.color: "#6a7377"
+            border.color: InkTheme.colors.inkWash
             opacity: 0.55
         }
 
@@ -115,15 +116,15 @@ Rectangle {
                             width: app.currentPlayer === 1 ? infoPanel.activeStoneSize : infoPanel.inactiveStoneSize
                             height: width
                             radius: width / 2
-                            color: "#050607"
-                            border.color: "#11181d"
+                            color: InkTheme.colors.sumi
+                            border.color: InkTheme.colors.ink
                             border.width: 1
                         }
                     }
 
                     Label {
                         text: app.trText("captured") + ": " + app.blackCaptures
-                        color: "#edf2f4"
+                        color: InkTheme.colors.inkDark
                         font.pixelSize: app.compactLayout ? 13 : 15
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
@@ -137,7 +138,8 @@ Rectangle {
 
                     Label {
                         text: app.currentMoveNumberText()
-                        color: "#f1f5f7"
+                        color: InkTheme.colors.inkDeep
+                        font.family: InkTheme.fonts.title
                         font.pixelSize: app.compactLayout ? 20 : 24
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
@@ -150,13 +152,13 @@ Rectangle {
                         height: width
                         radius: width / 2
                         color: app.engineDotColor()
-                        border.color: "#3b4449"
+                        border.color: InkTheme.colors.inkLight
                         border.width: 1
                     }
 
                     Label {
                         text: Number(app.effectiveKomi()).toFixed(1)
-                        color: "#f1f5f7"
+                        color: InkTheme.colors.inkDeep
                         font.pixelSize: app.compactLayout ? 18 : 22
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
@@ -177,15 +179,15 @@ Rectangle {
                             width: app.currentPlayer === 2 ? infoPanel.activeStoneSize : infoPanel.inactiveStoneSize
                             height: width
                             radius: width / 2
-                            color: "#f8fbfd"
-                            border.color: "#d7dee3"
+                            color: InkTheme.colors.white
+                            border.color: InkTheme.colors.inkLight
                             border.width: 1
                         }
                     }
 
                     Label {
                         text: app.trText("captured") + ": " + app.whiteCaptures
-                        color: "#edf2f4"
+                        color: InkTheme.colors.inkDark
                         font.pixelSize: app.compactLayout ? 13 : 15
                         horizontalAlignment: Text.AlignHCenter
                         Layout.fillWidth: true
@@ -197,8 +199,8 @@ Rectangle {
                 visible: infoPanel.winrateBarVisible
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: "#384146"
-                opacity: 0.75
+                color: InkTheme.colors.inkLight
+                opacity: 0.55
             }
 
             Item {
@@ -221,7 +223,7 @@ Rectangle {
                     anchors.left: parent.left
                     anchors.top: parent.top
                     text: winrateContent.blackWinrate.toFixed(1) + "%"
-                    color: "#f3f5f6"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: app.compactLayout ? 13 : 15
                 }
 
@@ -229,7 +231,7 @@ Rectangle {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     text: winrateContent.whiteWinrate.toFixed(1) + "%"
-                    color: "#f3f5f6"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: app.compactLayout ? 13 : 15
                 }
 
@@ -266,7 +268,7 @@ Rectangle {
                 anchors.fill: parent
                 visible: app.engineWinratePlaceholderActive()
                 text: app.engineWinratePlaceholderText()
-                color: "#edf2f4"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: app.compactLayout ? 15 : 17
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -282,8 +284,8 @@ Rectangle {
             Layout.minimumHeight: infoPanel.winrateGraphHeight
             Layout.preferredHeight: infoPanel.winrateGraphHeight
             Layout.maximumHeight: infoPanel.winrateGraphHeight
-            color: "#636b6f"
-            border.color: "#3f484d"
+            color: InkTheme.colors.paperDeep
+            border.color: InkTheme.colors.inkLight
             clip: true
 
             Canvas {
@@ -305,8 +307,8 @@ Rectangle {
                     var xMax = currentMove > 45 ? Math.max(50, currentMove * 1.1) : 50
                     var points = app.winrateHistoryPoints()
 
-                    ctx.strokeStyle = "#dce2e5"
-                    ctx.globalAlpha = 0.70
+                    ctx.strokeStyle = InkTheme.colors.inkLight
+                    ctx.globalAlpha = 0.55
                     ctx.setLineDash([5, 5])
                     for (var g = 0; g <= 2; ++g) {
                         var gy = top + plotHeight * g / 2
@@ -318,7 +320,7 @@ Rectangle {
                     ctx.setLineDash([])
                     ctx.globalAlpha = 1
 
-                    ctx.strokeStyle = "#20282d"
+                    ctx.strokeStyle = InkTheme.colors.ink
                     ctx.lineWidth = 1
                     ctx.beginPath()
                     ctx.moveTo(left, top)
@@ -326,8 +328,8 @@ Rectangle {
                     ctx.lineTo(left + plotWidth, top + plotHeight)
                     ctx.stroke()
 
-                    ctx.fillStyle = "#e9eef1"
-                    ctx.font = (app.compactLayout ? "10px" : "11px") + " sans-serif"
+                    ctx.fillStyle = InkTheme.colors.inkDark
+                    ctx.font = (app.compactLayout ? "10px" : "11px") + " " + InkTheme.fonts.body
                     ctx.textAlign = "right"
                     ctx.textBaseline = "middle"
                     ctx.fillText("100", left - 3, top)
@@ -337,8 +339,8 @@ Rectangle {
                     if (points.length <= 0)
                         return
 
-                    ctx.strokeStyle = "#48d3ff"
-                    ctx.fillStyle = "#48d3ff"
+                    ctx.strokeStyle = InkTheme.colors.cinnabar
+                    ctx.fillStyle = InkTheme.colors.cinnabar
                     ctx.lineWidth = 2
                     ctx.beginPath()
                     var started = false
@@ -388,9 +390,9 @@ Rectangle {
         anchors.top: summaryPanel.bottom
         anchors.topMargin: infoPanel.panelGap
         anchors.bottom: parent.bottom
-        radius: 4
-        color: "#dfe3e5"
-        border.color: "#8d9498"
+        radius: 8
+        color: InkTheme.colors.paperDeep
+        border.color: InkTheme.colors.inkLight
         clip: true
 
         Row {
@@ -540,9 +542,9 @@ Rectangle {
                 width: candidateList.width
                 height: infoPanel.tableRowHeight
                 readonly property bool selected: model.key !== "" && app.hoverKey === model.key
-                color: selected ? "#b9bdc0"
-                                : index % 2 === 0 ? "#f0f2f3" : "#e3e6e8"
-                border.color: "#9ba2a6"
+                color: selected ? InkTheme.colors.inkWash
+                                : index % 2 === 0 ? InkTheme.colors.paper : InkTheme.colors.paperDark
+                border.color: InkTheme.colors.inkLight
                 border.width: 1
 
                 Row {
@@ -551,7 +553,7 @@ Rectangle {
                     TableCell {
                         width: infoPanel.indexColumnWidth
                         text: model.row
-                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        color: parent.parent.selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkDeep
                         font.bold: parent.parent.selected
                     }
 
@@ -559,28 +561,28 @@ Rectangle {
                         width: infoPanel.positionColumnWidth
                         text: model.coordinate
                         font.family: app.coordinateFontFamily
-                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        color: parent.parent.selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkDeep
                         font.bold: parent.parent.selected
                     }
 
                     TableCell {
                         width: infoPanel.winrateColumnWidth
                         text: model.winrateText
-                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        color: parent.parent.selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkDeep
                         font.bold: parent.parent.selected
                     }
 
                     TableCell {
                         width: infoPanel.scoreColumnWidth
                         text: model.scoreText
-                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        color: parent.parent.selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkDeep
                         font.bold: parent.parent.selected
                     }
 
                     TableCell {
                         width: infoPanel.visitsColumnWidth
                         text: model.visitsText
-                        color: parent.parent.selected ? "#003cff" : "#15191c"
+                        color: parent.parent.selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkDeep
                         font.bold: parent.parent.selected
                     }
                 }
@@ -606,8 +608,8 @@ Rectangle {
             width: 12
             height: 18
             radius: 6
-            color: topMouse.pressed ? "#d3e1e8" : topMouse.containsMouse ? "#e8f1f5" : "#f8fbfd"
-            border.color: "#9aadb6"
+            color: topMouse.pressed ? InkTheme.colors.paperDark : topMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+            border.color: InkTheme.colors.inkLight
             border.width: 1
 
             Canvas {
@@ -619,7 +621,7 @@ Rectangle {
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.clearRect(0, 0, width, height)
-                    ctx.strokeStyle = "#41515a"
+                    ctx.strokeStyle = InkTheme.colors.inkDark
                     ctx.lineWidth = 1.5
                     ctx.lineCap = "round"
                     ctx.lineJoin = "round"

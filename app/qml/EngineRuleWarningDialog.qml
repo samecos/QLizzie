@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: warningDialog
@@ -41,14 +42,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#fff8ed"
-        border.color: "#c99452"
+        color: InkTheme.colors.cinnabarPale
+        border.color: InkTheme.colors.cinnabar
     }
 
     header: Rectangle {
         height: 50
         radius: 10
-        color: "#f5e4cc"
+        color: InkTheme.colors.cinnabarPale
 
         Rectangle {
             anchors.left: parent.left
@@ -63,7 +64,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: warningDialog.title
-            color: "#3d2a12"
+            color: InkTheme.colors.cinnabar
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             verticalAlignment: Text.AlignVCenter
@@ -78,7 +80,7 @@ Basic.Dialog {
         Label {
             Layout.fillWidth: true
             text: warningDialog.messageText
-            color: "#342414"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 14
             wrapMode: Text.WordWrap
         }

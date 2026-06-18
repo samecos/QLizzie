@@ -1,5 +1,6 @@
 .pragma library
 .import "GameRules.js" as GameRules
+.import "InkTheme.js" as InkTheme
 
 function visitCount(candidate) {
     if (!candidate)
@@ -211,11 +212,11 @@ function drawRankLabel(app, ctx, centerX, centerY, markerRadius, rankText) {
 
     ctx.save()
     var fontSize = Math.max(1, maxFontHeight)
-    ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
+    ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", " + InkTheme.fonts.body
     var measured = ctx.measureText(text)
     if (measured.width > maxFontWidth && measured.width > 0) {
         fontSize *= maxFontWidth / measured.width
-        ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", sans-serif"
+        ctx.font = "400 " + Math.round(fontSize) + "px \"" + fontFamily + "\", " + InkTheme.fonts.body
         measured = ctx.measureText(text)
     }
 
@@ -227,9 +228,9 @@ function drawRankLabel(app, ctx, centerX, centerY, markerRadius, rankText) {
     var y1 = anchorY
 
     ctx.globalAlpha = 1
-    ctx.fillStyle = "#ffa500"
+    ctx.fillStyle = text === "1" ? InkTheme.colors.cinnabar : InkTheme.colors.inkDark
     ctx.fillRect(x1, y1 - textHeight, textWidth, textHeight + Math.max(1, textHeight / 12))
-    ctx.fillStyle = "#15191c"
+    ctx.fillStyle = InkTheme.colors.white
     ctx.textAlign = "left"
     ctx.textBaseline = "alphabetic"
     ctx.fillText(text, x1, y1)
@@ -349,11 +350,23 @@ function yzyAlphaRatio(app, visitRatio) {
 }
 
 function markerColor(app, displayIndex, visitRatio) {
+    // Ink-wash palette: first candidate is deep sumi, later candidates fade to lighter ink.
     if (displayIndex <= 1)
-        return hsbColorHex(app, 0.5, 1.0, 0.85)
+        return InkTheme.colors.sumi
     var fraction = Math.pow(app.clamp(Number(visitRatio), 0, 1), 1 / app.candidateYzyColorRatio)
-    var hue = (1 / 3) * fraction
-    return hsbColorHex(app, hue, 1.0, 0.85)
+    // Blend from inkDark (#5c5750) down to inkLight (#b5ada0) as visit ratio drops.
+    var dark = [0.361, 0.341, 0.314] // inkDark
+    var light = [0.710, 0.678, 0.627] // inkLight
+    var r = dark[0] + (light[0] - dark[0]) * (1 - fraction)
+    var g = dark[1] + (light[1] - dark[1]) * (1 - fraction)
+    var b = dark[2] + (light[2] - dark[2]) * (1 - fraction)
+    var rr = Math.round(r * 255).toString(16)
+    var gg = Math.round(g * 255).toString(16)
+    var bb = Math.round(b * 255).toString(16)
+    if (rr.length < 2) rr = "0" + rr
+    if (gg.length < 2) gg = "0" + gg
+    if (bb.length < 2) bb = "0" + bb
+    return "#" + rr + gg + bb
 }
 
 function markerOpacity(app, displayIndex, visitRatio) {

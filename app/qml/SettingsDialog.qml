@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: settingsDialog
@@ -61,16 +62,16 @@ Basic.Dialog {
     }
 
     background: Rectangle {
-        radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        radius: 12
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
-        radius: 10
+        color: InkTheme.colors.paperDeep
+        radius: 12
 
         Rectangle {
             anchors.left: parent.left
@@ -85,7 +86,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -95,7 +96,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: settingsDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -110,9 +112,9 @@ Basic.Dialog {
         Rectangle {
             Layout.preferredWidth: 136
             Layout.fillHeight: true
-            radius: 6
-            color: "#e7eef3"
-            border.color: "#c7d4dc"
+            radius: 8
+            color: InkTheme.colors.paperDeep
+            border.color: InkTheme.colors.inkLight
 
             ColumnLayout {
                 anchors.fill: parent
@@ -173,7 +175,7 @@ Basic.Dialog {
                             Layout.fillWidth: true
                             spacing: 8
 
-                            Label { text: app.trText("boardSizeX"); color: "#24313a" }
+                            Label { text: app.trText("boardSizeX"); color: InkTheme.colors.inkDeep }
 
                             SpinBox {
                                 id: boardXSpin
@@ -184,7 +186,7 @@ Basic.Dialog {
                                 Layout.preferredWidth: 84
                             }
 
-                            Label { text: "x " + app.trText("boardSizeY"); color: "#24313a" }
+                            Label { text: "x " + app.trText("boardSizeY"); color: InkTheme.colors.inkDeep }
 
                             SpinBox {
                                 id: boardYSpin
@@ -226,7 +228,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("stoneColor")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 100
                             }
 
@@ -255,7 +257,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("analysisIntervalCentiseconds")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 240
                             }
 
@@ -275,7 +277,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("maxAnalysisSeconds")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 240
                             }
 
@@ -296,7 +298,7 @@ Basic.Dialog {
                             Label {
                                 id: variationPreviewVisibleLabel
                                 text: app.trText("candidateVariationPreviewVisible")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: variationPreviewVisibleLabel.implicitWidth
                                 elide: Text.ElideRight
                             }
@@ -308,7 +310,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateVariationPreviewMaxMoves")
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                                 font.pixelSize: 12
                             }
 
@@ -323,7 +325,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateCountUnlimitedTip")
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                                 font.pixelSize: 12
                             }
 
@@ -337,7 +339,7 @@ Basic.Dialog {
                             Label {
                                 id: variationPreviewOpacityLabel
                                 text: app.trText("candidateVariationPreviewOpacity")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: variationPreviewOpacityLabel.implicitWidth + 8
                                 elide: Text.ElideRight
                             }
@@ -353,7 +355,7 @@ Basic.Dialog {
 
                             Label {
                                 text: "%"
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                                 font.pixelSize: 14
                             }
 
@@ -366,7 +368,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateDisplayCount")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 150
                             }
 
@@ -381,7 +383,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateCountUnlimitedTip")
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                                 font.pixelSize: 12
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
@@ -394,7 +396,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateMinVisitRatio")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 150
                             }
 
@@ -417,7 +419,7 @@ Basic.Dialog {
 
                             Label {
                                 text: "%"
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                                 font.pixelSize: 14
                             }
 
@@ -430,7 +432,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("candidateShowFilteredMarkers")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 230
                                 elide: Text.ElideRight
                             }
@@ -458,7 +460,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("secondsPerMove")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 120
                             }
 
@@ -475,7 +477,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("secondsUnit")
-                                color: "#52636d"
+                                color: InkTheme.colors.inkDark
                             }
                         }
 
@@ -485,11 +487,11 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("resignSettings")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 120
                             }
 
-                            Label { text: app.trText("resignAfterMove"); color: "#52636d" }
+                            Label { text: app.trText("resignAfterMove"); color: InkTheme.colors.inkDark }
                             SpinBox {
                                 from: 1
                                 to: 500
@@ -498,7 +500,7 @@ Basic.Dialog {
                                 onValueModified: app.resignMinMove = value
                             }
 
-                            Label { text: app.trText("resignBelowWinrate"); color: "#52636d" }
+                            Label { text: app.trText("resignBelowWinrate"); color: InkTheme.colors.inkDark }
                             SpinBox {
                                 from: 0
                                 to: 100
@@ -591,7 +593,7 @@ Basic.Dialog {
 
                                         Label {
                                             text: app.trText("candidateThirdLineTitle")
-                                            color: "#24313a"
+                                            color: InkTheme.colors.inkDeep
                                             font.pixelSize: 12
                                             Layout.preferredWidth: 88
                                             elide: Text.ElideRight
@@ -737,7 +739,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("coordinateDisplay")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 150
                             }
 
@@ -803,7 +805,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("moveNumberDisplay")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 150
                             }
 
@@ -888,7 +890,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("engineDefaultEngine")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 font.bold: true
                                 Layout.preferredWidth: 96
                             }
@@ -996,7 +998,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("engineName")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 96
                             }
 
@@ -1008,7 +1010,7 @@ Basic.Dialog {
 
                         Label {
                             text: app.trText("engineCommand")
-                            color: "#24313a"
+                            color: InkTheme.colors.inkDeep
                             font.bold: true
                         }
 
@@ -1024,7 +1026,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("engineInitialCommands")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 96
                             }
 
@@ -1040,7 +1042,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("engineRule")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 96
                             }
 
@@ -1052,7 +1054,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("boardSize")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                             }
 
                             ReadOnlyField {
@@ -1069,7 +1071,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("komi")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                                 Layout.preferredWidth: 96
                             }
 
@@ -1080,7 +1082,7 @@ Basic.Dialog {
 
                             Label {
                                 text: app.trText("legacyHexEngineCoordinatesShort")
-                                color: "#24313a"
+                                color: InkTheme.colors.inkDeep
                             }
 
                             ReadOnlyField {
@@ -1186,17 +1188,18 @@ Basic.Dialog {
 
         Layout.fillWidth: true
         Layout.preferredHeight: 36
-        radius: 5
-        color: selected ? "#d8e9f1" : pageMouse.containsMouse ? "#f3f8fb" : "#ffffff"
-        border.color: selected ? "#2e8eb0" : "#c7d4dc"
+        radius: 6
+        color: selected ? InkTheme.colors.inkWash : pageMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
         border.width: selected ? 2 : 1
 
         Text {
             anchors.centerIn: parent
             text: pageButton.text
-            color: "#1b2d36"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 14
             font.bold: pageButton.selected
+            font.family: InkTheme.fonts.title
         }
 
         MouseArea {
@@ -1214,9 +1217,9 @@ Basic.Dialog {
 
         Layout.fillWidth: true
         Layout.preferredHeight: Math.max(72, sectionColumn.implicitHeight + 28)
-        radius: 6
-        color: "#f5f8fa"
-        border.color: "#c7d4dc"
+        radius: 8
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
 
         ColumnLayout {
             id: sectionColumn
@@ -1228,9 +1231,10 @@ Basic.Dialog {
 
             Label {
                 text: section.title
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 15
                 font.bold: true
+                font.family: InkTheme.fonts.title
                 Layout.fillWidth: true
             }
 
@@ -1250,19 +1254,20 @@ Basic.Dialog {
 
         Layout.preferredWidth: Math.max(62, label.implicitWidth + 22)
         Layout.preferredHeight: 30
-        radius: 4
+        radius: 6
         opacity: enabled ? 1 : 0.45
-        color: selected ? "#d8e9f1" : modeMouse.containsMouse ? "#eef5f8" : "#ffffff"
-        border.color: selected ? "#2e8eb0" : "#b5c2c9"
+        color: selected ? InkTheme.colors.inkWash : modeMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
         border.width: selected ? 2 : 1
 
         Text {
             id: label
             anchors.centerIn: parent
             text: modeButton.text
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 13
             font.bold: modeButton.selected
+            font.family: InkTheme.fonts.title
         }
 
         MouseArea {
@@ -1401,7 +1406,7 @@ Basic.Dialog {
 
             Label {
                 text: labelControl.title
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 13
                 font.bold: true
                 Layout.preferredWidth: 40
@@ -1502,7 +1507,7 @@ Basic.Dialog {
 
         Label {
             text: sliderRow.label
-            color: "#24313a"
+            color: InkTheme.colors.inkDeep
             Layout.preferredWidth: 150
         }
 
@@ -1519,7 +1524,7 @@ Basic.Dialog {
         Label {
             text: sliderRow.percent ? Math.round(Number(rowSlider.value) * 100) + "%"
                                     : Number(rowSlider.value).toFixed(sliderRow.decimals)
-            color: "#52636d"
+            color: InkTheme.colors.inkDark
             horizontalAlignment: Text.AlignRight
             Layout.preferredWidth: 56
         }
@@ -1538,16 +1543,16 @@ Basic.Dialog {
 
         Label {
             text: app.trText("boardVisualPreview")
-            color: "#24313a"
+            color: InkTheme.colors.inkDeep
             Layout.preferredWidth: 190
         }
 
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 110
-            radius: 5
-            color: "#ffffff"
-            border.color: "#c4d0d7"
+            radius: 8
+            color: InkTheme.colors.paper
+            border.color: InkTheme.colors.inkLight
 
             Canvas {
                 id: boardVisualPreviewCanvas
@@ -1575,17 +1580,19 @@ Basic.Dialog {
                                                                  cy,
                                                                  stoneRadius)
                         if (player === 1) {
-                            gradient.addColorStop(0, "#555555")
-                            gradient.addColorStop(1, "#050505")
+                            gradient.addColorStop(0, "#4a4a4a")
+                            gradient.addColorStop(0.5, "#1a1714")
+                            gradient.addColorStop(1, "#12100e")
                         } else {
                             gradient.addColorStop(0, "#ffffff")
-                            gradient.addColorStop(1, "#d7d7d7")
+                            gradient.addColorStop(0.5, "#f5f2ea")
+                            gradient.addColorStop(1, "#d8d4c8")
                         }
                         ctx.fillStyle = gradient
                         ctx.beginPath()
                         ctx.arc(cx, cy, stoneRadius, 0, Math.PI * 2)
                         ctx.fill()
-                        ctx.strokeStyle = player === 1 ? "#050505" : "#8f8f8f"
+                        ctx.strokeStyle = player === 1 ? InkTheme.colors.sumi : InkTheme.colors.inkLight
                         ctx.lineWidth = Math.max(1, stoneRadius * 0.05)
                         ctx.stroke()
                         ctx.restore()
@@ -1610,12 +1617,10 @@ Basic.Dialog {
                         var markerSize = stoneRadius * 0.62
                         var cornerX = cx - stoneRadius
                         var cornerY = cy - stoneRadius
-                        ctx.fillStyle = "#e3342f"
+                        ctx.fillStyle = InkTheme.colors.cinnabar
                         ctx.beginPath()
-                        ctx.moveTo(cornerX, cornerY)
-                        ctx.lineTo(cornerX + markerSize, cornerY)
-                        ctx.lineTo(cornerX, cornerY + markerSize)
-                        ctx.closePath()
+                        ctx.arc(cx + stoneRadius * 0.32, cy - stoneRadius * 0.32,
+                                Math.max(2, stoneRadius * 0.12), 0, Math.PI * 2)
                         ctx.fill()
                     }
 
@@ -1624,7 +1629,7 @@ Basic.Dialog {
 
                     ctx.save()
                     ctx.globalAlpha = app.gridOpacity
-                    ctx.strokeStyle = "#1b252c"
+                    ctx.strokeStyle = InkTheme.colors.ink
                     ctx.lineWidth = Math.max(0.5, app.gridLineWidth)
                     ctx.beginPath()
                     ctx.moveTo(startX, centerY)
@@ -1680,7 +1685,7 @@ Basic.Dialog {
         Label {
             id: colorLabel
             text: colorRow.label
-            color: "#24313a"
+            color: InkTheme.colors.inkDeep
             Layout.preferredWidth: colorRow.compact ? Math.max(64, colorLabel.implicitWidth) : 150
             elide: Text.ElideRight
         }

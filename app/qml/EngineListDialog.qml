@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "EnginePresets.js" as EnginePresets
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: engineListDialog
@@ -414,22 +415,23 @@ Basic.Dialog {
     }
 
     background: Rectangle {
-        color: "#f6fafc"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
     }
 
     header: Rectangle {
         height: 42
-        color: "#e4eef4"
+        color: InkTheme.colors.paperDeep
 
         Label {
             anchors.fill: parent
             anchors.leftMargin: 10
             anchors.rightMargin: 10
             text: engineListDialog.title
-            color: "#102532"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 18
             font.bold: true
+            font.family: InkTheme.fonts.title
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
@@ -526,7 +528,7 @@ Basic.Dialog {
                     Layout.fillWidth: true
                     spacing: 10
 
-                    Label { text: app.trText("engineWidthShort"); color: "#52636d" }
+                    Label { text: app.trText("engineWidthShort"); color: InkTheme.colors.inkDark }
                     SpinBox {
                         id: widthSpin
                         from: app.minBoardSize
@@ -536,7 +538,7 @@ Basic.Dialog {
                         Layout.preferredWidth: 70
                     }
 
-                    Label { text: app.trText("engineHeightShort"); color: "#52636d" }
+                    Label { text: app.trText("engineHeightShort"); color: InkTheme.colors.inkDark }
                     SpinBox {
                         id: heightSpin
                         from: app.minBoardSize
@@ -546,7 +548,7 @@ Basic.Dialog {
                         Layout.preferredWidth: 70
                     }
 
-                    Label { text: app.trText("komi"); color: "#52636d" }
+                    Label { text: app.trText("komi"); color: InkTheme.colors.inkDark }
                     SpinBox {
                         id: komiSpin
                         from: -Math.round(app.maxKomiMagnitude * 2)
@@ -640,7 +642,7 @@ Basic.Dialog {
 
                     Label {
                         text: app.trText("engineDefaultEngine")
-                        color: "#24313a"
+                        color: InkTheme.colors.inkDeep
                     }
 
                     StyledComboBox {
@@ -661,7 +663,7 @@ Basic.Dialog {
 
                     Label {
                         text: app.trText("engineStartupAutoLoad")
-                        color: "#24313a"
+                        color: InkTheme.colors.inkDeep
                     }
 
                     RadioButton {
@@ -698,8 +700,8 @@ Basic.Dialog {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: engineListDialog.readOnlyMode ? 190 : 210
-            color: "#ffffff"
-            border.color: "#b9ccd6"
+            color: InkTheme.colors.paper
+            border.color: InkTheme.colors.inkLight
 
             Item {
                 anchors.fill: parent
@@ -711,7 +713,7 @@ Basic.Dialog {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     height: 34
-                    color: "#e4eef4"
+                    color: InkTheme.colors.paperDark
 
                     RowLayout {
                         anchors.fill: parent
@@ -783,8 +785,8 @@ Basic.Dialog {
 
                         width: engineListView.width
                         height: 28
-                        color: selected ? "#0078d7" : rowMouse.containsMouse ? "#e9f3f8" : "#ffffff"
-                        border.color: selected ? "#0078d7" : "#d4dce2"
+                        color: selected ? InkTheme.colors.cinnabar : rowMouse.containsMouse ? InkTheme.colors.inkWash : InkTheme.colors.white
+                        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
 
                         RowLayout {
                             anchors.fill: parent
@@ -835,14 +837,14 @@ Basic.Dialog {
 
     footer: Rectangle {
         implicitHeight: 58
-        color: "#f6fafc"
+        color: InkTheme.colors.paper
 
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
             height: 1
-            color: "#d7e1e7"
+            color: InkTheme.colors.inkLight
         }
 
         RowLayout {
@@ -917,16 +919,16 @@ Basic.Dialog {
         y: Math.round((engineListDialog.height - height) / 2)
 
         background: Rectangle {
-            radius: 10
-            color: "#f8fbfd"
-            border.color: "#8ea5b1"
+            radius: 12
+            color: InkTheme.colors.paper
+            border.color: InkTheme.colors.inkLight
             border.width: 1
         }
 
         header: Rectangle {
             height: 52
-            color: "#e6eff4"
-            radius: 10
+            color: InkTheme.colors.paperDeep
+            radius: 12
 
             Rectangle {
                 anchors.left: parent.left
@@ -941,7 +943,7 @@ Basic.Dialog {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 1
-                color: "#c5d4dc"
+                color: InkTheme.colors.inkLight
             }
 
             Label {
@@ -951,7 +953,7 @@ Basic.Dialog {
                 anchors.leftMargin: 18
                 anchors.rightMargin: 18
                 text: unsavedEngineDialog.title
-                color: "#14242e"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 17
                 font.bold: true
                 elide: Text.ElideRight
@@ -961,7 +963,7 @@ Basic.Dialog {
         contentItem: Rectangle {
             implicitWidth: 440
             implicitHeight: Math.max(72, unsavedEngineMessage.implicitHeight + 24)
-            color: "#f8fbfd"
+            color: InkTheme.colors.paper
 
             Label {
                 id: unsavedEngineMessage
@@ -971,7 +973,7 @@ Basic.Dialog {
                 anchors.leftMargin: 2
                 anchors.rightMargin: 2
                 text: app.trText("confirmSaveEngineSettings")
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 wrapMode: Text.WordWrap
                 font.pixelSize: 15
                 lineHeight: 1.12
@@ -980,15 +982,15 @@ Basic.Dialog {
 
         footer: Rectangle {
             implicitHeight: 68
-            color: "#f8fbfd"
-            radius: 10
+            color: InkTheme.colors.paper
+            radius: 12
 
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: 1
-                color: "#d7e1e7"
+                color: InkTheme.colors.inkLight
             }
 
             Rectangle {
@@ -1059,7 +1061,7 @@ Basic.Dialog {
 
     component FieldLabel: Label {
         Layout.preferredWidth: 86
-        color: "#52636d"
+        color: InkTheme.colors.inkDark
         verticalAlignment: Text.AlignVCenter
     }
 
@@ -1079,7 +1081,7 @@ Basic.Dialog {
             leftPadding: 12
             rightPadding: 28
             text: combo.displayText
-            color: combo.enabled ? "#102532" : "#7a8b94"
+            color: combo.enabled ? InkTheme.colors.inkDeep : InkTheme.colors.ink
             font.pixelSize: 14
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -1089,14 +1091,14 @@ Basic.Dialog {
             x: combo.width - width - 8
             y: Math.round((combo.height - height) / 2)
             text: "\u25BE"
-            color: combo.enabled ? "#657883" : "#9aa8af"
+            color: combo.enabled ? InkTheme.colors.ink : InkTheme.colors.inkLight
             font.pixelSize: 13
         }
 
         background: Rectangle {
             radius: 3
-            color: combo.enabled ? "#ffffff" : "#eef3f6"
-            border.color: combo.activeFocus ? "#2a91c9" : "#aebdc6"
+            color: combo.enabled ? InkTheme.colors.white : InkTheme.colors.paper
+            border.color: combo.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: combo.activeFocus ? 2 : 1
         }
 
@@ -1107,7 +1109,7 @@ Basic.Dialog {
 
             contentItem: Text {
                 text: modelData && modelData.label !== undefined ? modelData.label : String(modelData)
-                color: "#102532"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 14
                 font.bold: highlighted
                 verticalAlignment: Text.AlignVCenter
@@ -1116,8 +1118,8 @@ Basic.Dialog {
             }
 
             background: Rectangle {
-                color: highlighted ? "#d8e9f1" : "#ffffff"
-                border.color: highlighted ? "#9abaca" : "#eef3f6"
+                color: highlighted ? InkTheme.colors.inkWash : InkTheme.colors.white
+                border.color: highlighted ? InkTheme.colors.inkLight : InkTheme.colors.paper
             }
         }
     }
@@ -1134,8 +1136,8 @@ Basic.Dialog {
 
         Rectangle {
             anchors.fill: parent
-            color: "#e4eef4"
-            border.color: "#c0d0d9"
+            color: InkTheme.colors.paperDark
+            border.color: InkTheme.colors.inkLight
         }
 
         Text {
@@ -1143,7 +1145,7 @@ Basic.Dialog {
             anchors.leftMargin: alignCenter ? 2 : 8
             anchors.rightMargin: alignCenter ? 2 : 8
             text: parent.text
-            color: "#102532"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 13
             font.bold: true
             verticalAlignment: Text.AlignVCenter
@@ -1169,7 +1171,7 @@ Basic.Dialog {
             anchors.leftMargin: alignCenter ? 2 : 8
             anchors.rightMargin: alignCenter ? 2 : 8
             text: parent.text
-            color: parent.selected ? "#ffffff" : "#1c2d36"
+            color: parent.selected ? InkTheme.colors.white : InkTheme.colors.inkDeep
             font.pixelSize: 13
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: alignCenter ? Text.AlignHCenter : Text.AlignLeft

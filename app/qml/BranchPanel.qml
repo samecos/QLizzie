@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Rectangle {
     id: branchPanel
@@ -14,8 +15,8 @@ Rectangle {
     anchors.bottomMargin: app.bottomContentMargin
     width: app.branchPanelWidth
     radius: 8
-    color: "#f3f7f9"
-    border.color: "#b9c8d0"
+    color: InkTheme.colors.paperDeep
+    border.color: InkTheme.colors.inkLight
 
     ColumnLayout {
         anchors.fill: parent
@@ -24,15 +25,16 @@ Rectangle {
 
         Label {
             text: app.trText("gameTree")
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 16 : 18
             font.bold: true
+            font.family: InkTheme.fonts.title
             Layout.fillWidth: true
         }
 
         Label {
             text: app.trText("currentMove") + ": " + app.currentNodeText()
-            color: "#52636d"
+            color: InkTheme.colors.inkDark
             font.family: app.coordinateFontFamily
             font.pixelSize: 12
             elide: Text.ElideRight
@@ -43,9 +45,9 @@ Rectangle {
             id: treeViewport
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 6
-            color: "#e9f0f4"
-            border.color: "#c5d1d8"
+            radius: 8
+            color: InkTheme.colors.paper
+            border.color: InkTheme.colors.inkLight
             clip: true
 
             Flickable {
@@ -86,7 +88,7 @@ Rectangle {
                         ctx.font = "9px sans-serif"
                         ctx.textAlign = "right"
                         ctx.textBaseline = "middle"
-                        ctx.fillStyle = "#6f7f88"
+                        ctx.fillStyle = InkTheme.colors.ink
                         for (var moveNumber in leftNodeByMove) {
                             var leftNode = leftNodeByMove[moveNumber]
                             ctx.fillText(String(leftNode.moveNumber),
@@ -102,7 +104,7 @@ Rectangle {
                             ctx.moveTo(edge.x1, edge.y1)
                             ctx.lineTo(edge.x2, edge.y2)
                             ctx.lineWidth = edge.current ? 3 : 2
-                            ctx.strokeStyle = edge.current ? "#2b83c6" : "#afbdc5"
+                            ctx.strokeStyle = edge.current ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                             ctx.stroke()
                         }
 
@@ -113,27 +115,27 @@ Rectangle {
                                 var side = node.radius * 1.72
                                 ctx.beginPath()
                                 ctx.rect(node.x - side / 2, node.y - side / 2, side, side)
-                                ctx.fillStyle = "#2b83c6"
+                                ctx.fillStyle = InkTheme.colors.cinnabar
                                 ctx.fill()
                                 ctx.lineWidth = node.current ? 3 : 1.5
-                                ctx.strokeStyle = node.current ? "#0f4f83" : "#1d6fa8"
+                                ctx.strokeStyle = node.current ? InkTheme.colors.cinnabar : InkTheme.colors.cinnabarLight
                                 ctx.stroke()
-                                ctx.fillStyle = "#ffffff"
+                                ctx.fillStyle = InkTheme.colors.white
                             } else {
                                 ctx.beginPath()
                                 ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2)
                                 if (node.player === 1) {
-                                    ctx.fillStyle = "#101418"
+                                    ctx.fillStyle = InkTheme.colors.sumi
                                 } else if (node.player === 2) {
-                                    ctx.fillStyle = "#fff8e8"
+                                    ctx.fillStyle = InkTheme.colors.white
                                 } else {
-                                    ctx.fillStyle = "#d9e3e9"
+                                    ctx.fillStyle = InkTheme.colors.paperDark
                                 }
                                 ctx.fill()
                                 ctx.lineWidth = node.current ? 3 : 1.5
-                                ctx.strokeStyle = node.current ? "#2b83c6" : (node.player === 2 ? "#65747d" : "#41515a")
+                                ctx.strokeStyle = node.current ? InkTheme.colors.cinnabar : (node.player === 2 ? InkTheme.colors.ink : InkTheme.colors.inkDark)
                                 ctx.stroke()
-                                ctx.fillStyle = node.player === 1 ? "#f7fbfd" : "#1a252d"
+                                ctx.fillStyle = node.player === 1 ? InkTheme.colors.white : InkTheme.colors.inkDeep
                             }
 
                             ctx.font = node.current ? "bold 10px sans-serif" : "10px sans-serif"

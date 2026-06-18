@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: hiddenDialog
@@ -34,14 +35,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#e6eff4"
+        color: InkTheme.colors.paperDeep
         radius: 10
 
         Rectangle {
@@ -57,7 +58,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -67,7 +68,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: hiddenDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -82,7 +84,7 @@ Basic.Dialog {
         Label {
             Layout.fillWidth: true
             text: app.trText("hiddenSettingsWarning")
-            color: "#9b241c"
+            color: InkTheme.colors.cinnabar
             font.pixelSize: 15
             font.bold: true
             wrapMode: Text.WordWrap
@@ -94,7 +96,8 @@ Basic.Dialog {
 
             Label {
                 text: app.trText("packageMode")
-                color: "#24313a"
+                color: InkTheme.colors.inkDeep
+                font.family: InkTheme.fonts.title
                 font.pixelSize: 14
                 Layout.preferredWidth: 100
             }
@@ -115,7 +118,7 @@ Basic.Dialog {
 
             Label {
                 text: app.packageModeText(app.packageMode)
-                color: "#51616b"
+                color: InkTheme.colors.inkDark
                 Layout.fillWidth: true
                 elide: Text.ElideRight
             }

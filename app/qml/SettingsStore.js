@@ -1,6 +1,7 @@
 .pragma library
 .import "EnginePresets.js" as EnginePresets
 .import "rules/RuleCatalog.js" as RuleCatalog
+.import "InkTheme.js" as InkTheme
 
 function normalizeColorHex(value, fallback) {
     var text = String(value)
@@ -170,6 +171,17 @@ function settingNumberEquals(value, expected) {
 function migratePersistentSettings(app) {
     if (app.loadedSettingsVersion < 3)
         app.ruleVisibilityMap = defaultRuleVisibilityMap(app)
+    if (app.loadedSettingsVersion < 4) {
+        // Migrate default color scheme to the ink-wash theme.
+        if (String(app.backgroundColor).toLowerCase() === "#dbe5ea")
+            app.backgroundColor = InkTheme.colors.paper
+        if (String(app.boardWoodColor).toLowerCase() === "#d9a75f")
+            app.boardWoodColor = InkTheme.colors.paperDeep
+        if (String(app.candidateFirstLabelTextColor).toLowerCase() === "#ff0000")
+            app.candidateFirstLabelTextColor = InkTheme.colors.cinnabar
+        if (String(app.candidateLabelTextColor).toLowerCase() === "#000000")
+            app.candidateLabelTextColor = InkTheme.colors.inkDeep
+    }
     app.loadedSettingsVersion = app.currentSettingsVersion
 }
 

@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Rectangle {
     id: commandToolbar
@@ -10,8 +12,8 @@ Rectangle {
     anchors.bottom: parent.bottom
     height: app.commandToolbarHeight
     clip: true
-    color: "#edf2f5"
-    border.color: "#b8c5cc"
+    color: InkTheme.colors.paper
+    border.color: InkTheme.colors.inkLight
 
     Flickable {
         id: commandToolbarFlick
@@ -36,7 +38,7 @@ Rectangle {
                     width: Math.round((modelData.width || 52) * (app.compactLayout ? 0.94 : 1.0))
                     height: commandToolbarRow.height
 
-                    Button {
+                    Basic.Button {
                         visible: modelData.type === "button"
                         enabled: app.toolbarActionEnabled(modelData.action || "")
                         anchors.left: parent.left
@@ -50,9 +52,27 @@ Rectangle {
                         topPadding: 2
                         bottomPadding: 2
                         onClicked: app.runToolbarAction(modelData.action || "")
+
+                        contentItem: Text {
+                            text: parent.text
+                            color: parent.enabled ? InkTheme.colors.inkDeep : InkTheme.colors.ink
+                            font: parent.font
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+
+                        background: Rectangle {
+                            radius: 6
+                            color: parent.pressed ? InkTheme.colors.paperDark
+                                 : parent.hovered ? InkTheme.colors.paper : InkTheme.colors.white
+                            border.color: InkTheme.colors.inkLight
+                            border.width: 1
+                            opacity: parent.enabled ? 1 : 0.55
+                        }
                     }
 
-                    TextField {
+                    Basic.TextField {
                         id: moveNumberInput
                         visible: modelData.type === "moveInput"
                         property bool committingMoveNumber: false
@@ -64,9 +84,16 @@ Rectangle {
                         horizontalAlignment: TextInput.AlignHCenter
                         verticalAlignment: TextInput.AlignVCenter
                         font.pixelSize: app.compactLayout ? 12 : 13
+                        color: InkTheme.colors.inkDeep
                         validator: IntValidator {
                             bottom: 0
                             top: app.maxMoveNumberValue()
+                        }
+                        background: Rectangle {
+                            radius: 6
+                            color: moveNumberInput.activeFocus ? InkTheme.colors.white : InkTheme.colors.paper
+                            border.color: moveNumberInput.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
+                            border.width: 1
                         }
                         function commitMoveNumber() {
                             if (committingMoveNumber)

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: gomokuRuleDialog
@@ -95,7 +96,7 @@ Basic.Dialog {
     }
 
     component FieldLabel: Label {
-        color: "#52636d"
+        color: InkTheme.colors.inkDark
         font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
         verticalAlignment: Text.AlignVCenter
         Layout.preferredWidth: 92
@@ -112,7 +113,7 @@ Basic.Dialog {
 
         contentItem: Text {
             text: choiceButton.text
-            color: choiceButton.primary ? "#ffffff" : "#17212a"
+            color: choiceButton.primary ? InkTheme.colors.white : InkTheme.colors.inkDeep
             font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
             font.bold: choiceButton.selected || choiceButton.primary
             horizontalAlignment: Text.AlignHCenter
@@ -122,13 +123,13 @@ Basic.Dialog {
 
         background: Rectangle {
             radius: 5
-            color: choiceButton.primary ? (choiceButton.pressed ? "#1f6f8d" : "#2b8cc4")
-                 : choiceButton.pressed ? "#dcecf3"
-                 : choiceButton.selected ? "#e1f2f8"
-                 : choiceButton.hovered ? "#eef7fa" : "#f8fbfd"
-            border.color: choiceButton.primary ? "#1f6f8d"
-                         : choiceButton.selected ? "#2e8eb0"
-                         : choiceButton.activeFocus ? "#2a91c9" : "#a8bac5"
+            color: choiceButton.primary ? (choiceButton.pressed ? InkTheme.colors.inkDeep : InkTheme.colors.cinnabar)
+                 : choiceButton.pressed ? InkTheme.colors.inkWash
+                 : choiceButton.selected ? InkTheme.colors.inkWash
+                 : choiceButton.hovered ? InkTheme.colors.inkWash : InkTheme.colors.paper
+            border.color: choiceButton.primary ? InkTheme.colors.cinnabar
+                         : choiceButton.selected ? InkTheme.colors.cinnabar
+                         : choiceButton.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: choiceButton.selected || choiceButton.activeFocus ? 2 : 1
         }
     }
@@ -146,7 +147,7 @@ Basic.Dialog {
             rightPadding: 28
             text: combo.currentIndex >= 0 && combo.model && combo.model[combo.currentIndex]
                   ? combo.model[combo.currentIndex].label : combo.placeholderText
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -160,7 +161,7 @@ Basic.Dialog {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = combo.pressed ? "#1f6f8d" : "#6b7880"
+                ctx.fillStyle = combo.pressed ? InkTheme.colors.cinnabar : InkTheme.colors.inkDark
                 ctx.beginPath()
                 ctx.moveTo(1, 1)
                 ctx.lineTo(width - 1, 1)
@@ -172,8 +173,8 @@ Basic.Dialog {
 
         background: Rectangle {
             radius: 5
-            color: combo.pressed ? "#dcecf3" : combo.hovered ? "#eef7fa" : "#f8fbfd"
-            border.color: combo.activeFocus ? "#2a91c9" : "#a8bac5"
+            color: combo.pressed ? InkTheme.colors.inkWash : combo.hovered ? InkTheme.colors.inkWash : InkTheme.colors.paper
+            border.color: combo.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: combo.activeFocus ? 2 : 1
         }
 
@@ -184,15 +185,15 @@ Basic.Dialog {
             hoverEnabled: true
             contentItem: Text {
                 text: modelData.label
-                color: "#17212a"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
                 verticalAlignment: Text.AlignVCenter
                 leftPadding: 10
                 elide: Text.ElideRight
             }
             background: Rectangle {
-                color: optionDelegate.highlighted ? "#d8e9f1"
-                                                   : optionDelegate.hovered ? "#edf5f8" : "#ffffff"
+                color: optionDelegate.highlighted ? InkTheme.colors.inkWash
+                                                   : optionDelegate.hovered ? InkTheme.colors.inkWash : InkTheme.colors.white
             }
         }
     }
@@ -206,8 +207,8 @@ Basic.Dialog {
         Layout.fillWidth: true
         Layout.fillHeight: true
         radius: 2
-        color: stepMouse.pressed ? "#cfdbe1" : stepMouse.containsMouse ? "#dde6eb" : "#f7fafb"
-        border.color: "#aebbc2"
+        color: stepMouse.pressed ? InkTheme.colors.inkWash : stepMouse.containsMouse ? InkTheme.colors.inkWash : InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
 
         Canvas {
             id: stepArrow
@@ -229,7 +230,7 @@ Basic.Dialog {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = stepMouse.pressed ? "#122530" : "#26333b"
+                ctx.fillStyle = stepMouse.pressed ? InkTheme.colors.inkDeep : InkTheme.colors.inkDeep
                 ctx.beginPath()
                 if (spinStepButton.up) {
                     ctx.moveTo(width / 2, 1)
@@ -265,9 +266,9 @@ Basic.Dialog {
         Rectangle {
             anchors.fill: parent
             radius: 3
-            color: checkMouse.pressed ? "#dcecf3" : checkMouse.containsMouse ? "#eef7fa" : "#ffffff"
-            border.color: checkSquare.checked ? "#2e8eb0"
-                         : checkSquare.activeFocus ? "#2a91c9" : "#9fa8ad"
+            color: checkMouse.pressed ? InkTheme.colors.inkWash : checkMouse.containsMouse ? InkTheme.colors.inkWash : InkTheme.colors.white
+            border.color: checkSquare.checked ? InkTheme.colors.cinnabar
+                         : checkSquare.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: checkSquare.checked || checkSquare.activeFocus ? 2 : 1
         }
 
@@ -285,7 +286,7 @@ Basic.Dialog {
                 ctx.clearRect(0, 0, width, height)
                 if (!checkSquare.checked)
                     return
-                ctx.strokeStyle = "#0b6fb7"
+                ctx.strokeStyle = InkTheme.colors.cinnabar
                 ctx.lineWidth = 3
                 ctx.lineCap = "round"
                 ctx.lineJoin = "round"
@@ -307,13 +308,13 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 8
-        color: "#f8fbfd"
-        border.color: "#b9cbd4"
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
     }
 
     header: Rectangle {
         height: 48
-        color: "#e7eff4"
+        color: InkTheme.colors.paperDeep
         radius: 8
 
         Rectangle {
@@ -331,7 +332,8 @@ Basic.Dialog {
             anchors.leftMargin: 16
             anchors.rightMargin: 16
             text: gomokuRuleDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: 16
             font.bold: true
             elide: Text.ElideRight
@@ -382,7 +384,7 @@ Basic.Dialog {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 1
-            color: "#d5e1e7"
+            color: InkTheme.colors.inkLight
         }
 
         RowLayout {
@@ -395,8 +397,8 @@ Basic.Dialog {
                 Layout.preferredWidth: 136
                 implicitHeight: 32
                 radius: 4
-                color: "#ffffff"
-                border.color: maxMovesField.activeFocus ? "#2a91c9" : "#9fb0b8"
+                color: InkTheme.colors.white
+                border.color: maxMovesField.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                 border.width: maxMovesField.activeFocus ? 2 : 1
 
                 Basic.TextField {
@@ -405,7 +407,7 @@ Basic.Dialog {
                     anchors.leftMargin: 8
                     anchors.rightMargin: 26
                     text: String(gomokuRuleDialog.maxMoves)
-                    color: "#111820"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
                     horizontalAlignment: Text.AlignRight
                     verticalAlignment: Text.AlignVCenter
@@ -449,7 +451,7 @@ Basic.Dialog {
 
             Label {
                 text: gomokuRuleDialog.app.trText("zeroUnlimited")
-                color: "#61727c"
+                color: InkTheme.colors.inkDark
                 font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
             }
             Item { Layout.fillWidth: true }
@@ -487,7 +489,7 @@ Basic.Dialog {
 
         Label {
             text: gomokuRuleDialog.app.trText("gomokuRuleEngineOnlyTip")
-            color: "#61727c"
+            color: InkTheme.colors.inkDark
             font.pixelSize: gomokuRuleDialog.app.compactLayout ? 12 : 13
             wrapMode: Text.WordWrap
             Layout.fillWidth: true

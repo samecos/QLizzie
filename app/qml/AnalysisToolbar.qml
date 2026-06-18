@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Rectangle {
     id: toolbar
@@ -11,8 +12,8 @@ Rectangle {
     anchors.right: parent.right
     anchors.top: parent.top
     height: app.analysisToolbarHeight
-    color: "#e7ecef"
-    border.color: "#c4cdd2"
+    color: InkTheme.colors.paper
+    border.color: InkTheme.colors.inkLight
 
     RowLayout {
         anchors.fill: parent
@@ -27,13 +28,13 @@ Rectangle {
             Layout.fillHeight: true
             Layout.topMargin: 7
             Layout.bottomMargin: 7
-            color: "#c4cdd2"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
             visible: app.boardPresentationOptions().length > 1
             text: app.trText("boardPresentation")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -54,7 +55,7 @@ Rectangle {
         Label {
             visible: app.hexBoardStyleOptions().length > 1
             text: app.trText("hexBoardStyle")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -75,7 +76,7 @@ Rectangle {
         Label {
             visible: app.hexBoardRotationOptions().length > 1
             text: app.trText("hexBoardRotation")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -102,13 +103,13 @@ Rectangle {
             Layout.fillHeight: true
             Layout.topMargin: 7
             Layout.bottomMargin: 7
-            color: "#c4cdd2"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
             visible: app.komiControlsVisible()
             text: app.trText("komi")
-            color: app.ruleUsesGoCapture() ? "#26333b" : "#7f8b92"
+            color: app.ruleUsesGoCapture() ? InkTheme.colors.inkDeep : InkTheme.colors.ink
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -131,17 +132,17 @@ Rectangle {
             rightPadding: 3
             topPadding: 0
             bottomPadding: 1
-            color: enabled ? "#17252d" : "#7f8b92"
-            selectedTextColor: "#ffffff"
-            selectionColor: "#2e8eb0"
+            color: enabled ? InkTheme.colors.inkDeep : InkTheme.colors.ink
+            selectedTextColor: InkTheme.colors.white
+            selectionColor: InkTheme.colors.cinnabarLight
             font.pixelSize: app.compactLayout ? 15 : 17
             font.bold: true
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             background: Rectangle {
                 radius: 4
-                color: komiField.enabled ? (komiField.activeFocus ? "#ffffff" : "#f9fbfc") : "#e2e8eb"
-                border.color: komiField.activeFocus ? "#2e8eb0" : "#9fb0b8"
+                color: komiField.enabled ? (komiField.activeFocus ? InkTheme.colors.white : InkTheme.colors.paper) : InkTheme.colors.paperDark
+                border.color: komiField.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                 border.width: komiField.activeFocus ? 2 : 1
             }
 
@@ -202,12 +203,12 @@ Rectangle {
             Layout.fillHeight: true
             Layout.topMargin: 7
             Layout.bottomMargin: 7
-            color: "#c4cdd2"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
             text: app.trText("stoneColor")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 13 : 15
             verticalAlignment: Text.AlignVCenter
         }
@@ -238,7 +239,7 @@ Rectangle {
             Layout.fillHeight: true
             Layout.topMargin: 7
             Layout.bottomMargin: 7
-            color: "#c4cdd2"
+            color: InkTheme.colors.inkLight
         }
 
         RowLayout {
@@ -267,7 +268,7 @@ Rectangle {
 
         Label {
             text: app.trText("secondsPerMove")
-            color: app.engineReadyForPlayMode() ? "#26333b" : "#7f8b92"
+            color: app.engineReadyForPlayMode() ? InkTheme.colors.inkDeep : InkTheme.colors.ink
             font.pixelSize: app.compactLayout ? 12 : 14
             verticalAlignment: Text.AlignVCenter
         }
@@ -289,17 +290,17 @@ Rectangle {
             rightPadding: 3
             topPadding: 0
             bottomPadding: 1
-            color: enabled ? "#17252d" : "#7f8b92"
-            selectedTextColor: "#ffffff"
-            selectionColor: "#2e8eb0"
+            color: enabled ? InkTheme.colors.inkDeep : InkTheme.colors.ink
+            selectedTextColor: InkTheme.colors.white
+            selectionColor: InkTheme.colors.cinnabarLight
             font.pixelSize: app.compactLayout ? 13 : 15
             font.bold: true
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             background: Rectangle {
                 radius: 4
-                color: secondsField.enabled ? (secondsField.activeFocus ? "#ffffff" : "#f9fbfc") : "#e2e8eb"
-                border.color: secondsField.activeFocus ? "#2e8eb0" : "#b5c2c9"
+                color: secondsField.enabled ? (secondsField.activeFocus ? InkTheme.colors.white : InkTheme.colors.paper) : InkTheme.colors.paperDark
+                border.color: secondsField.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                 border.width: secondsField.activeFocus ? 2 : 1
             }
 
@@ -331,7 +332,7 @@ Rectangle {
 
         Label {
             text: app.trText("secondsUnit")
-            color: app.engineReadyForPlayMode() ? "#26333b" : "#7f8b92"
+            color: app.engineReadyForPlayMode() ? InkTheme.colors.inkDeep : InkTheme.colors.ink
             font.pixelSize: app.compactLayout ? 12 : 14
             verticalAlignment: Text.AlignVCenter
         }
@@ -344,17 +345,18 @@ Rectangle {
 
         Layout.preferredWidth: app.compactLayout ? 84 : 104
         Layout.preferredHeight: app.compactLayout ? 28 : 32
-        radius: 4
-        color: ruleSettingsMouse.pressed ? "#d5e1e8"
-             : ruleSettingsMouse.containsMouse ? "#eef5f8" : "#f8fafb"
-        border.color: "#2e8eb0"
+        radius: 6
+        color: ruleSettingsMouse.pressed ? InkTheme.colors.paperDark
+             : ruleSettingsMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: InkTheme.colors.ink
         border.width: 1
 
         Text {
             anchors.centerIn: parent
             width: parent.width - 10
             text: app.trText("ruleSettingsButton")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: app.compactLayout ? 12 : 13
             font.bold: true
             horizontalAlignment: Text.AlignHCenter
@@ -383,15 +385,15 @@ Rectangle {
 
         Layout.fillWidth: true
         Layout.fillHeight: true
-        radius: 2
+        radius: 3
         opacity: enabled ? 1 : 0.48
-        color: stepMouse.pressed ? "#cfdbe1" : stepMouse.containsMouse ? "#dde6eb" : "#f7fafb"
-        border.color: "#aebbc2"
+        color: stepMouse.pressed ? InkTheme.colors.paperDark : stepMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: InkTheme.colors.inkLight
 
         Text {
             anchors.centerIn: parent
             text: stepButton.text
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 9 : 10
             font.bold: true
         }
@@ -416,9 +418,9 @@ Rectangle {
 
         Layout.preferredWidth: app.compactLayout ? 34 : 38
         Layout.preferredHeight: app.compactLayout ? 28 : 32
-        radius: 4
-        color: selected ? "#d8e9f1" : colorMouse.containsMouse ? "#eef5f8" : "#f8fafb"
-        border.color: selected ? "#2e8eb0" : "#b5c2c9"
+        radius: 6
+        color: selected ? InkTheme.colors.inkWash : colorMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
         border.width: selected ? 2 : 1
 
         Item {
@@ -431,8 +433,8 @@ Rectangle {
                 width: app.currentPlayer === 1 ? 17 : 13
                 height: width
                 radius: width / 2
-                color: "#050607"
-                border.color: "#1a1d20"
+                color: InkTheme.colors.sumi
+                border.color: InkTheme.colors.ink
             }
 
             Rectangle {
@@ -442,8 +444,8 @@ Rectangle {
                 width: app.currentPlayer === 2 ? 17 : 13
                 height: width
                 radius: width / 2
-                color: "#ffffff"
-                border.color: "#aeb8be"
+                color: InkTheme.colors.white
+                border.color: InkTheme.colors.inkLight
             }
 
             Rectangle {
@@ -452,8 +454,8 @@ Rectangle {
                 width: app.compactLayout ? 18 : 21
                 height: width
                 radius: width / 2
-                color: "#050607"
-                border.color: "#1a1d20"
+                color: InkTheme.colors.sumi
+                border.color: InkTheme.colors.ink
             }
 
             Rectangle {
@@ -462,8 +464,8 @@ Rectangle {
                 width: app.compactLayout ? 18 : 21
                 height: width
                 radius: width / 2
-                color: "#ffffff"
-                border.color: "#aeb8be"
+                color: InkTheme.colors.white
+                border.color: InkTheme.colors.inkLight
             }
         }
 
@@ -486,15 +488,16 @@ Rectangle {
 
         Layout.preferredWidth: app.compactLayout ? 44 : 52
         Layout.preferredHeight: app.compactLayout ? 28 : 32
-        radius: 4
-        color: passMouse.pressed ? "#d5e1e8" : passMouse.containsMouse ? "#eef5f8" : "#f8fafb"
-        border.color: "#b5c2c9"
+        radius: 6
+        color: passMouse.pressed ? InkTheme.colors.paperDark : passMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: InkTheme.colors.inkLight
         border.width: 1
 
         Text {
             anchors.centerIn: parent
             text: app.trText("passMove")
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
+            font.family: InkTheme.fonts.title
             font.pixelSize: app.compactLayout ? 11 : 12
             font.bold: true
         }
@@ -522,17 +525,17 @@ Rectangle {
         enabled: app.engineReadyForPlayMode()
         Layout.preferredWidth: app.compactLayout ? 54 : 68
         Layout.preferredHeight: app.compactLayout ? 28 : 32
-        radius: 4
+        radius: 6
         opacity: enabled ? 1 : 0.48
-        color: selected ? "#d8e9f1" : modeMouse.containsMouse ? "#eef5f8" : "#f8fafb"
-        border.color: selected ? "#2e8eb0" : "#b5c2c9"
+        color: selected ? InkTheme.colors.inkWash : modeMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
         border.width: selected ? 2 : 1
 
         Text {
             anchors.centerIn: parent
             width: parent.width - 6
             text: modeButton.text
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 10 : 12
             font.bold: modeButton.selected
             horizontalAlignment: Text.AlignHCenter
@@ -560,15 +563,15 @@ Rectangle {
 
         Layout.preferredWidth: app.compactLayout ? 44 : 56
         Layout.preferredHeight: app.compactLayout ? 28 : 32
-        radius: 4
-        color: selected ? "#d8e9f1" : ruleMouse.containsMouse ? "#eef5f8" : "#f8fafb"
-        border.color: selected ? "#2e8eb0" : "#b5c2c9"
+        radius: 6
+        color: selected ? InkTheme.colors.inkWash : ruleMouse.containsMouse ? InkTheme.colors.paper : InkTheme.colors.white
+        border.color: selected ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
         border.width: selected ? 2 : 1
 
         Text {
             anchors.centerIn: parent
             text: ruleButton.text
-            color: "#26333b"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: app.compactLayout ? 12 : 14
             font.bold: ruleButton.selected
         }
@@ -602,7 +605,7 @@ Rectangle {
             leftPadding: control.leftPadding
             rightPadding: control.rightPadding
             text: control.displayText
-            color: "#17212a"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: control.app.compactLayout ? 13 : 15
             font.bold: true
             verticalAlignment: Text.AlignVCenter
@@ -625,7 +628,7 @@ Rectangle {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = control.pressed ? "#1f6f8d" : "#6b7880"
+                ctx.fillStyle = control.pressed ? InkTheme.colors.cinnabar : InkTheme.colors.ink
                 ctx.beginPath()
                 ctx.moveTo(1, 1)
                 ctx.lineTo(width - 1, 1)
@@ -636,10 +639,10 @@ Rectangle {
         }
 
         background: Rectangle {
-            radius: 5
-            color: control.pressed ? "#dcecf3"
-                                 : control.hovered ? "#eef7fa" : "#f8fbfd"
-            border.color: control.activeFocus ? "#2a91c9" : "#a8bac5"
+            radius: 6
+            color: control.pressed ? InkTheme.colors.paperDark
+                                 : control.hovered ? InkTheme.colors.paper : InkTheme.colors.white
+            border.color: control.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
             border.width: control.activeFocus ? 2 : 1
         }
 
@@ -653,7 +656,7 @@ Rectangle {
 
             contentItem: Text {
                 text: modelData.label
-                color: "#14242e"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: control.app.compactLayout ? 12 : 13
                 verticalAlignment: Text.AlignVCenter
                 leftPadding: 10
@@ -661,8 +664,8 @@ Rectangle {
             }
 
             background: Rectangle {
-                color: optionDelegate.highlighted ? "#d8e9f1"
-                                                  : optionDelegate.hovered ? "#edf5f8" : "#ffffff"
+                color: optionDelegate.highlighted ? InkTheme.colors.inkWash
+                                                  : optionDelegate.hovered ? InkTheme.colors.paper : InkTheme.colors.white
             }
         }
     }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: engineFailureDialog
@@ -18,14 +19,14 @@ Basic.Dialog {
 
     background: Rectangle {
         radius: 10
-        color: "#fff8f6"
-        border.color: "#d0695f"
+        color: InkTheme.colors.cinnabarPale
+        border.color: InkTheme.colors.cinnabarLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
-        color: "#ffe2de"
+        color: InkTheme.colors.cinnabarPale
         radius: 10
 
         Rectangle {
@@ -41,7 +42,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#efb3ad"
+            color: InkTheme.colors.cinnabarLight
         }
 
         Label {
@@ -51,7 +52,8 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: engineFailureDialog.title
-            color: "#641a14"
+            color: InkTheme.colors.cinnabar
+            font.family: InkTheme.fonts.title
             font.pixelSize: 17
             font.bold: true
             elide: Text.ElideRight
@@ -64,7 +66,7 @@ Basic.Dialog {
 
         Label {
             text: app.engineFailureDialogText()
-            color: "#4a201b"
+            color: InkTheme.colors.inkDeep
             wrapMode: Text.WordWrap
             font.pixelSize: 14
             Layout.fillWidth: true

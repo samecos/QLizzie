@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as Basic
+import "InkTheme.js" as InkTheme
 
 Basic.Button {
     id: savePromptButton
@@ -12,19 +13,20 @@ Basic.Button {
 
     contentItem: Text {
         text: savePromptButton.text
-        color: savePromptButton.primary ? "#ffffff" : "#22333d"
+        color: savePromptButton.primary ? InkTheme.colors.white : InkTheme.colors.inkDeep
         font.pixelSize: 13
         font.bold: savePromptButton.primary
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+        font.family: InkTheme.fonts.title
     }
 
     background: Rectangle {
-        radius: 6
+        radius: 8
         color: savePromptButton.primary
-               ? (savePromptButton.pressed ? "#1d6fa8" : savePromptButton.hovered ? "#2c8dcc" : "#267fbb")
-               : (savePromptButton.pressed ? "#d5e1e8" : savePromptButton.hovered ? "#edf4f8" : "#f8fbfd")
-        border.color: savePromptButton.primary ? "#1d6fa8" : "#9fb2bd"
+               ? (savePromptButton.pressed ? InkTheme.colors.inkDeep : savePromptButton.hovered ? InkTheme.colors.inkDark : InkTheme.colors.sumi)
+               : (savePromptButton.pressed ? InkTheme.colors.paperDark : savePromptButton.hovered ? InkTheme.colors.paper : InkTheme.colors.white)
+        border.color: savePromptButton.primary ? InkTheme.colors.sumi : InkTheme.colors.inkLight
         border.width: 1
     }
 }

@@ -18,6 +18,7 @@ import "SgfSession.js" as SgfSession
 import "SgfUtils.js" as SgfUtils
 import "Translations.js" as TranslationData
 import "TreeLayout.js" as TreeLayout
+import "InkTheme.js" as InkTheme
 
 ApplicationWindow {
     id: root
@@ -52,7 +53,7 @@ ApplicationWindow {
     readonly property int minBoardSize: 1
     readonly property int maxBoardSize: 1001
     readonly property int maxCachedLegalPoints: 40000
-    readonly property int currentSettingsVersion: 3
+    readonly property int currentSettingsVersion: 4
     property int loadedSettingsVersion: 0
     readonly property int defaultBoardSize: 19
     property int boardSizeX: defaultBoardSize
@@ -296,9 +297,9 @@ ApplicationWindow {
     property bool candidateRingVisible: true
     property int candidateRingLineWidth: 12
     property bool candidateRankLabelVisible: true
-    property string candidateFirstLabelTextColor: "#ff0000"
-    property string candidateLabelTextColor: "#000000"
-    readonly property string firstCandidateRingColor: "#003b8e"
+    property string candidateFirstLabelTextColor: InkTheme.colors.cinnabar
+    property string candidateLabelTextColor: InkTheme.colors.inkDeep
+    readonly property string firstCandidateRingColor: InkTheme.colors.cinnabar
     readonly property int candidateYzyMinAlpha: 32
     readonly property int candidateYzyMaxAlpha: 240
     readonly property real candidateYzyAlphaFactor: 5.0
@@ -309,8 +310,8 @@ ApplicationWindow {
     property bool showEngineCommunicationStdout: true
     property bool showEngineCommunicationStderr: true
 
-    readonly property string defaultBackgroundColor: "#dbe5ea"
-    readonly property string defaultBoardWoodColor: "#d9a75f"
+    readonly property string defaultBackgroundColor: InkTheme.colors.paper
+    readonly property string defaultBoardWoodColor: InkTheme.colors.paperDeep
     property string backgroundColor: defaultBackgroundColor
     property string boardWoodColor: defaultBoardWoodColor
     readonly property real minStoneScale: 0.50
@@ -3361,6 +3362,12 @@ ApplicationWindow {
         if (firstLaunchCompleted && startupBeginnerTutorialRequested)
             startupBeginnerTutorialTimer.start()
         scheduleAutoAnalysis()
+    }
+
+    InkWashBackground {
+        id: inkBackground
+        anchors.fill: parent
+        intensity: 0.45
     }
 
     AnalysisToolbar { id: analysisToolbar; app: root }

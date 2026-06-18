@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
+import "InkTheme.js" as InkTheme
 
 Basic.Dialog {
     id: initialSetupDialog
@@ -19,17 +20,17 @@ Basic.Dialog {
     y: Math.round((app.height - height) / 2)
 
     background: Rectangle {
-        radius: 10
-        color: "#f8fbfd"
-        border.color: "#8ea5b1"
+        radius: 12
+        color: InkTheme.colors.paper
+        border.color: InkTheme.colors.inkLight
         border.width: 1
     }
 
     header: Rectangle {
         height: 52
         implicitHeight: 52
-        color: "#e6eff4"
-        radius: 10
+        color: InkTheme.colors.paperDeep
+        radius: 12
 
         Rectangle {
             anchors.left: parent.left
@@ -44,7 +45,7 @@ Basic.Dialog {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 1
-            color: "#c5d4dc"
+            color: InkTheme.colors.inkLight
         }
 
         Label {
@@ -54,9 +55,10 @@ Basic.Dialog {
             anchors.leftMargin: 18
             anchors.rightMargin: 18
             text: initialSetupDialog.title
-            color: "#14242e"
+            color: InkTheme.colors.inkDeep
             font.pixelSize: 17
             font.bold: true
+            font.family: InkTheme.fonts.title
             elide: Text.ElideRight
         }
     }
@@ -71,7 +73,7 @@ Basic.Dialog {
 
             Label {
                 text: app.trText("menuLanguage")
-                color: "#162a36"
+                color: InkTheme.colors.inkDeep
                 font.pixelSize: 15
                 font.bold: true
                 Layout.preferredWidth: 86
@@ -95,7 +97,7 @@ Basic.Dialog {
                     leftPadding: 12
                     rightPadding: 30
                     text: languageCombo.displayText
-                    color: "#14242e"
+                    color: InkTheme.colors.inkDeep
                     font.pixelSize: 15
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
@@ -104,8 +106,8 @@ Basic.Dialog {
                 background: Rectangle {
                     implicitHeight: 38
                     radius: 6
-                    color: "#ffffff"
-                    border.color: languageCombo.activeFocus ? "#2a91c9" : "#a8bac5"
+                    color: InkTheme.colors.white
+                    border.color: languageCombo.activeFocus ? InkTheme.colors.cinnabar : InkTheme.colors.inkLight
                     border.width: languageCombo.activeFocus ? 2 : 1
                 }
 
@@ -116,7 +118,7 @@ Basic.Dialog {
 
                     contentItem: Text {
                         text: modelData.label
-                        color: "#14242e"
+                        color: InkTheme.colors.inkDeep
                         font.pixelSize: 15
                         font.bold: languageCombo.currentIndex === index
                         verticalAlignment: Text.AlignVCenter
@@ -124,7 +126,7 @@ Basic.Dialog {
                     }
 
                     background: Rectangle {
-                        color: highlighted ? "#dfeaf0" : "#ffffff"
+                        color: highlighted ? InkTheme.colors.inkWash : InkTheme.colors.white
                     }
                 }
 
@@ -142,8 +144,8 @@ Basic.Dialog {
                     }
 
                     background: Rectangle {
-                        color: "#ffffff"
-                        border.color: "#a8bac5"
+                        color: InkTheme.colors.white
+                        border.color: InkTheme.colors.inkLight
                         radius: 4
                     }
                 }

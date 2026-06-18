@@ -1,5 +1,6 @@
 .pragma library
 .import "CoordinateUtils.js" as CoordinateUtils
+.import "InkTheme.js" as InkTheme
 
 var HEX_ROW_HEIGHT = 0.8660254037844386
 var HEX_CELL_RADIUS_RATIO = 0.5773502691896258
@@ -544,7 +545,7 @@ function boundaryChainsFromSegments(segments, snapDistance) {
 
 function canvasFont(state, size, bold) {
     var family = String(state.coordinateFontFamily).replace(/"/g, "")
-    return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size)) + "px \"" + family + "\", sans-serif"
+    return (bold ? "700 " : "400 ") + Math.max(1, Math.round(size)) + "px \"" + family + "\", " + InkTheme.fonts.body
 }
 
 function drawCenteredText(ctx, state, text, x, y, color, size, bold, maxWidth) {
@@ -710,41 +711,48 @@ function drawStone(ctx, state, geometry, x, y, player, radius) {
     if (hexCellStyle(state)) {
         ctx.save()
         hexCellPath(ctx, state, point.x, point.y, geometry.cellSize / Math.sqrt(3))
-        ctx.fillStyle = player === 1 ? "#101418" : "#ffffff"
+        ctx.fillStyle = player === 1 ? InkTheme.colors.sumi : InkTheme.colors.white
         ctx.fill()
-        ctx.strokeStyle = "#0b3d73"
+        ctx.strokeStyle = InkTheme.colors.ink
         ctx.lineWidth = Math.max(1, geometry.cellSize * 0.035)
         ctx.stroke()
         ctx.restore()
         return
     }
-    var gradient = ctx.createRadialGradient(point.x - radius * 0.28,
-                                            point.y - radius * 0.34,
-                                            radius * 0.12,
+    var gradient = ctx.createRadialGradient(point.x - radius * 0.30,
+                                            point.y - radius * 0.36,
+                                            radius * 0.10,
                                             point.x,
                                             point.y,
                                             radius)
     if (player === 1) {
-        gradient.addColorStop(0, "#555b60")
-        gradient.addColorStop(0.36, "#15191d")
-        gradient.addColorStop(1, "#020304")
+        // Black stone: wet ink wash.
+        gradient.addColorStop(0, "#4a4a4a")
+        gradient.addColorStop(0.32, "#1f1c1a")
+        gradient.addColorStop(0.78, "#12100e")
+        gradient.addColorStop(1, InkTheme.colors.sumi)
     } else {
+        // White stone: rice-paper wash with soft edge.
         gradient.addColorStop(0, "#ffffff")
-        gradient.addColorStop(0.48, "#fff8e6")
-        gradient.addColorStop(1, "#d9cba8")
+        gradient.addColorStop(0.42, "#f5f2ea")
+        gradient.addColorStop(0.82, "#e0dbd0")
+        gradient.addColorStop(1, "#c9c3b6")
     }
     ctx.fillStyle = gradient
     ctx.beginPath()
     ctx.arc(point.x, point.y, radius, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = player === 1 ? "#000000" : "#9d9279"
-    ctx.lineWidth = 1
+    // Soft ink outline instead of hard stroke.
+    ctx.strokeStyle = player === 1 ? InkTheme.colors.sumi : InkTheme.colors.inkLight
+    ctx.lineWidth = Math.max(0.5, radius * 0.025)
+    ctx.globalAlpha = 0.55
     ctx.stroke()
+    ctx.globalAlpha = 1.0
 }
 
 function drawBoardBackground(ctx, state, geometry, width, height) {
     ctx.save()
-    ctx.fillStyle = hexCellStyle(state) ? "#f2cc62" : state.boardWoodColor
+    ctx.fillStyle = hexCellStyle(state) ? InkTheme.colors.paperDeep : state.boardWoodColor
     ctx.fillRect(0, 0, width, height)
     ctx.restore()
 }
@@ -752,8 +760,8 @@ function drawBoardBackground(ctx, state, geometry, width, height) {
 function drawGrid(ctx, state, geometry) {
     var cell = geometry.cellSize
     ctx.save()
-    ctx.strokeStyle = hexCellStyle(state) ? "#0b3d73" : "#2d2114"
-    ctx.globalAlpha = hexCellStyle(state) ? 1 : state.gridOpacity
+    ctx.strokeStyle = hexCellStyle(state) ? InkTheme.colors.ink : InkTheme.colors.ink
+    ctx.globalAlpha = hexCellStyle(state) ? 0.78 : state.gridOpacity * 0.78
     ctx.lineWidth = Math.max(1, state.gridLineWidth)
     if (hexBoard(state)) {
         if (hexCellStyle(state)) {
@@ -763,7 +771,7 @@ function drawGrid(ctx, state, geometry) {
                         continue
                     var center = geometry.point(cellX, cellY)
                     hexCellPath(ctx, state, center.x, center.y, cell / Math.sqrt(3))
-                    ctx.fillStyle = "#f2cc62"
+                    ctx.fillStyle = InkTheme.colors.paperDeep
                     ctx.fill()
                     ctx.stroke()
                 }
@@ -815,19 +823,19 @@ function drawGrid(ctx, state, geometry) {
             drawHexStraightEdge(ctx,
                                 offsetPoint(blackTop1, blackTopNormal, triangleEdgeOffset),
                                 offsetPoint(blackTop2, blackTopNormal, triangleEdgeOffset),
-                                "#000000", cell)
+                                InkTheme.colors.sumi, cell)
             drawHexStraightEdge(ctx,
                                 offsetPoint(blackBottom1, blackBottomNormal, triangleEdgeOffset),
                                 offsetPoint(blackBottom2, blackBottomNormal, triangleEdgeOffset),
-                                "#000000", cell)
+                                InkTheme.colors.sumi, cell)
             drawHexStraightEdge(ctx,
                                 offsetPoint(whiteLeft1, whiteLeftNormal, triangleEdgeOffset),
                                 offsetPoint(whiteLeft2, whiteLeftNormal, triangleEdgeOffset),
-                                "#ffffff", cell)
+                                InkTheme.colors.white, cell)
             drawHexStraightEdge(ctx,
                                 offsetPoint(whiteRight1, whiteRightNormal, triangleEdgeOffset),
                                 offsetPoint(whiteRight2, whiteRightNormal, triangleEdgeOffset),
-                                "#ffffff", cell)
+                                InkTheme.colors.white, cell)
         }
     } else {
         var xLineCount = squareCellBoard(state) ? state.boardSizeX + 1 : state.boardSizeX
@@ -857,12 +865,13 @@ function drawStarPoints(ctx, state, geometry) {
     var xs = starPoints(state.boardSizeX)
     var ys = starPoints(state.boardSizeY)
     ctx.save()
-    ctx.fillStyle = "#2d2114"
+    ctx.fillStyle = InkTheme.colors.ink
+    ctx.globalAlpha = 0.85
     for (var starX = 0; starX < xs.length; ++starX) {
         for (var starY = 0; starY < ys.length; ++starY) {
             var star = geometry.point(xs[starX], ys[starY])
             ctx.beginPath()
-            ctx.arc(star.x, star.y, Math.max(2.8, cell * 0.065), 0, Math.PI * 2)
+            ctx.arc(star.x, star.y, Math.max(2.6, cell * 0.058), 0, Math.PI * 2)
             ctx.fill()
         }
     }
@@ -904,8 +913,8 @@ function drawCoordinates(ctx, state, geometry) {
     var leftNormal = logicalEdgeNormal(state, geometry, "left")
     var rightNormal = logicalEdgeNormal(state, geometry, "right")
     ctx.save()
-    ctx.font = canvasFont(state, geometry.coordinateFontSize, false)
-    ctx.fillStyle = "#4f371f"
+    ctx.font = ("400 ") + Math.max(1, Math.round(geometry.coordinateFontSize)) + "px " + InkTheme.fonts.title
+    ctx.fillStyle = InkTheme.colors.inkDark
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     for (var lx = 0; lx < state.boardSizeX; ++lx) {
