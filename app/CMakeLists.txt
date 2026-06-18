@@ -97,12 +97,6 @@ qt_add_resources(qlizzie qlizzie_fonts
         resources/fonts/JetBrainsMono-OFL.txt
 )
 
-qt_add_resources(qlizzie qlizzie_style
-    PREFIX "/"
-    FILES
-        qtquickcontrols2.conf
-)
-
 target_link_libraries(qlizzie
     PRIVATE
         Qt6::Core
