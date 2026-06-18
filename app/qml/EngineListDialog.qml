@@ -481,6 +481,11 @@ Basic.Dialog {
                         Layout.fillWidth: true
                         selectByMouse: true
                         enabled: engineListDialog.selectedPreset() !== null
+                        color: enabled ? "#13232d" : "#78868d"
+                        background: Rectangle {
+                            color: nameEdit.enabled ? "#ffffff" : "#edf2f4"
+                            border.color: nameEdit.activeFocus ? "#2388b8" : "#8f9ca3"
+                        }
                     }
                 }
 
@@ -520,7 +525,13 @@ Basic.Dialog {
                         Layout.fillWidth: true
                         enabled: engineListDialog.selectedPreset() !== null
                         placeholderText: app.trText("engineInitialCommandsPlaceholder")
+                        placeholderTextColor: "#8f9ca3"
                         selectByMouse: true
+                        color: enabled ? "#13232d" : "#78868d"
+                        background: Rectangle {
+                            color: initialCommandEdit.enabled ? "#ffffff" : "#edf2f4"
+                            border.color: initialCommandEdit.activeFocus ? "#2388b8" : "#8f9ca3"
+                        }
                     }
                 }
 
@@ -529,27 +540,53 @@ Basic.Dialog {
                     spacing: 10
 
                     Label { text: app.trText("engineWidthShort"); color: InkTheme.colors.inkDark }
-                    SpinBox {
+                    Basic.SpinBox {
                         id: widthSpin
                         from: app.minBoardSize
                         to: app.maxBoardSize
                         editable: true
                         enabled: engineListDialog.selectedPreset() !== null
                         Layout.preferredWidth: 70
+                        contentItem: Basic.TextField {
+                            text: widthSpin.textFromValue(widthSpin.value, widthSpin.locale)
+                            color: widthSpin.enabled ? "#13232d" : "#78868d"
+                            horizontalAlignment: Qt.AlignHCenter
+                            verticalAlignment: Qt.AlignVCenter
+                            readOnly: !widthSpin.editable
+                            validator: widthSpin.validator
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            background: Rectangle {
+                                color: widthSpin.enabled ? "#ffffff" : "#edf2f4"
+                                border.color: widthSpin.activeFocus ? "#2388b8" : "#8f9ca3"
+                            }
+                        }
                     }
 
                     Label { text: app.trText("engineHeightShort"); color: InkTheme.colors.inkDark }
-                    SpinBox {
+                    Basic.SpinBox {
                         id: heightSpin
                         from: app.minBoardSize
                         to: app.maxBoardSize
                         editable: true
                         enabled: engineListDialog.selectedPreset() !== null
                         Layout.preferredWidth: 70
+                        contentItem: Basic.TextField {
+                            text: heightSpin.textFromValue(heightSpin.value, heightSpin.locale)
+                            color: heightSpin.enabled ? "#13232d" : "#78868d"
+                            horizontalAlignment: Qt.AlignHCenter
+                            verticalAlignment: Qt.AlignVCenter
+                            readOnly: !heightSpin.editable
+                            validator: heightSpin.validator
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            background: Rectangle {
+                                color: heightSpin.enabled ? "#ffffff" : "#edf2f4"
+                                border.color: heightSpin.activeFocus ? "#2388b8" : "#8f9ca3"
+                            }
+                        }
                     }
 
                     Label { text: app.trText("komi"); color: InkTheme.colors.inkDark }
-                    SpinBox {
+                    Basic.SpinBox {
                         id: komiSpin
                         from: -Math.round(app.maxKomiMagnitude * 2)
                         to: Math.round(app.maxKomiMagnitude * 2)
@@ -558,6 +595,19 @@ Basic.Dialog {
                         Layout.preferredWidth: 116
                         textFromValue: function(value) { return (value / 2).toFixed(1) }
                         valueFromText: function(text) { return Math.round(Number(text) * 2) }
+                        contentItem: Basic.TextField {
+                            text: komiSpin.textFromValue(komiSpin.value, komiSpin.locale)
+                            color: komiSpin.enabled ? "#13232d" : "#78868d"
+                            horizontalAlignment: Qt.AlignHCenter
+                            verticalAlignment: Qt.AlignVCenter
+                            readOnly: !komiSpin.editable
+                            validator: komiSpin.validator
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            background: Rectangle {
+                                color: komiSpin.enabled ? "#ffffff" : "#edf2f4"
+                                border.color: komiSpin.activeFocus ? "#2388b8" : "#8f9ca3"
+                            }
+                        }
                     }
 
                     CheckBox {
